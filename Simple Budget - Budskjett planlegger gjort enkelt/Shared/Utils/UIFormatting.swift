@@ -1,6 +1,21 @@
 import Foundation
 import SwiftUI
 
+struct AppInputFieldStyle: TextFieldStyle {
+    func _body(configuration: TextField<Self._Label>) -> some View {
+        configuration
+            .font(.body)
+            .foregroundStyle(AppTheme.textPrimary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 11)
+            .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(AppTheme.divider, lineWidth: 1)
+            )
+    }
+}
+
 func formatNOK(_ value: Double) -> String {
     value.formatted(.currency(code: "NOK"))
 }
@@ -59,4 +74,19 @@ extension View {
     func appCTAStyle() -> some View {
         self.font(.headline.weight(.semibold))
     }
+
+    func appInputShellStyle() -> some View {
+        self
+            .padding(.horizontal, 12)
+            .padding(.vertical, 11)
+            .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(AppTheme.divider, lineWidth: 1)
+            )
+    }
+}
+
+extension TextFieldStyle where Self == AppInputFieldStyle {
+    static var appInput: AppInputFieldStyle { AppInputFieldStyle() }
 }

@@ -33,6 +33,7 @@ struct InvestmentsView: View {
             developmentSection
             insightSection
             holdingsSection
+            hiddenHoldingsSection
             distributionSection
             historySection
         }
@@ -55,8 +56,22 @@ struct InvestmentsView: View {
         .sheet(isPresented: $viewModel.showCheckIn) {
             InvestmentCheckInView(buckets: buckets, latestSnapshot: latest)
         }
+        .sheet(isPresented: $viewModel.showAddBucketSheet) {
+            AddInvestmentBucketSheet(
+                name: $viewModel.newBucketName,
+                selectedColorHex: $viewModel.selectedBucketColorHex,
+                errorMessage: viewModel.addBucketError
+            ) {
+                viewModel.addBucket(context: modelContext, existingBuckets: buckets)
+            } onCancel: {
+                viewModel.resetAddBucketState()
+            }
+        }
         .sheet(item: $viewModel.selectedBucketForEdit) { bucket in
-            BucketQuickUpdateSheet(bucket: bucket, latestSnapshot: latest)
+            EditInvestmentBucketSheet(
+                bucket: bucket,
+                existingBuckets: buckets
+            )
         }
         .navigationDestination(for: String.self) { bucketID in
             if let bucket = buckets.first(where: { $0.id == bucketID }) {
@@ -76,54 +91,58 @@ struct InvestmentsView: View {
 
     private var heroSection: some View {
         Section {
-            VStack(alignment: .leading, spacing: 14) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Total beholdning")
-                        .appSecondaryStyle()
-                    Text(formatNOK(viewModel.displayedTotal))
-                        .appBigNumberStyle()
-                        .foregroundStyle(AppTheme.textPrimary)
-                        .contentTransition(.numericText(value: viewModel.displayedTotal))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.55)
-                        .allowsTightening(true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .layoutPriority(2)
-
-                    if viewModel.showTrendChip {
-                        trendChip(changeKr: hero.changeKr, changePct: hero.changePct)
-                            .transition(.move(edge: .top).combined(with: .opacity))
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Total beholdning")
+                            .appSecondaryStyle()
+                        Text("Basert på totalsummene du legger inn.")
+                            .appSecondaryStyle()
                     }
+                    Spacer()
+                    Button {
+                        viewModel.showCheckIn = true
+                    } label: {
+                        Label("Oppdater", systemImage: "arrow.triangle.2.circlepath")
+                    }
+                    .font(.footnote.weight(.semibold))
+                    .buttonStyle(.bordered)
+                    .tint(AppTheme.primary)
+                }
+
+                Text(formatNOK(viewModel.displayedTotal))
+                    .appBigNumberStyle()
+                    .foregroundStyle(AppTheme.textPrimary)
+                    .contentTransition(.numericText(value: viewModel.displayedTotal))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.68)
+                    .allowsTightening(true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .layoutPriority(2)
+
+                if viewModel.showTrendChip {
+                    trendChip(changeKr: hero.changeKr, changePct: hero.changePct)
+                        .transition(.move(edge: .top).combined(with: .opacity))
                 }
 
                 sparkline(series: viewModel.totalSparkline(snapshots: snapshots, range: .last12Months), color: AppTheme.primary)
                     .frame(height: 56)
+                    .padding(.horizontal, 2)
+                    .padding(.vertical, 6)
+                    .background(AppTheme.background, in: RoundedRectangle(cornerRadius: 10))
 
-                HStack(spacing: 8) {
-                    chip(text: hero.lastCheckInText, icon: "calendar")
-                    chip(text: hero.nextCheckInText, icon: "clock")
-                    chip(text: hero.reminderText, icon: "bell")
-                    Spacer()
+                VStack(alignment: .leading, spacing: 6) {
+                    heroMetaRow(icon: "calendar", text: hero.lastCheckInText)
+                    heroMetaRow(icon: "clock", text: hero.nextCheckInText)
+                    heroMetaRow(icon: "bell", text: hero.reminderText)
                 }
-                Text("Basert på totalsummene du legger inn.")
-                    .appSecondaryStyle()
-
-                Button {
-                    viewModel.showCheckIn = true
-                } label: {
-                    Label("Oppdater nå", systemImage: "pencil.circle.fill")
-                }
-                .appCTAStyle()
-                .buttonStyle(.bordered)
-                .tint(AppTheme.primary.opacity(0.9))
             }
             .padding(16)
-            .background(AppTheme.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 18))
+            .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 18))
             .overlay(
                 RoundedRectangle(cornerRadius: 18)
                     .stroke(AppTheme.divider, lineWidth: 1)
             )
-            .shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 2)
             .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0))
             .listRowBackground(Color.clear)
         }
@@ -215,10 +234,18 @@ struct InvestmentsView: View {
     }
 
     private var holdingsSection: some View {
-        Section("Beholdning") {
+        Section {
             if bucketRows.isEmpty {
-                Text("Ingen aktive beholdninger ennå.")
-                    .appSecondaryStyle()
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Ingen aktive beholdninger ennå.")
+                        .appSecondaryStyle()
+                    Button("Legg til type") {
+                        viewModel.resetAddBucketState()
+                        viewModel.showAddBucketSheet = true
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(AppTheme.primary)
+                }
             } else {
                 ForEach(bucketRows) { row in
                     NavigationLink(value: row.id) {
@@ -238,6 +265,46 @@ struct InvestmentsView: View {
                     }
                 }
             }
+        } header: {
+            HStack {
+                Text("Beholdning")
+                Spacer()
+                Button {
+                    viewModel.resetAddBucketState()
+                    viewModel.showAddBucketSheet = true
+                } label: {
+                    Label("Ny type", systemImage: "plus.circle.fill")
+                        .font(.subheadline.weight(.semibold))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(AppTheme.primary)
+            }
+        }
+    }
+
+    private var hiddenHoldingsSection: some View {
+        let hiddenBuckets = buckets.filter { !$0.isActive }
+        return Section("Skjulte beholdninger") {
+            if hiddenBuckets.isEmpty {
+                Text("Ingen skjulte beholdningstyper.")
+                    .appSecondaryStyle()
+            } else {
+                ForEach(hiddenBuckets) { bucket in
+                    HStack {
+                        Circle()
+                            .fill(AppTheme.portfolioColor(for: bucket))
+                            .frame(width: 10, height: 10)
+                        Text(bucket.name)
+                            .appBodyStyle()
+                        Spacer()
+                        Button("Vis igjen") {
+                            viewModel.restoreBucket(bucket, context: modelContext, existingBuckets: buckets)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(AppTheme.primary)
+                    }
+                }
+            }
         }
     }
 
@@ -254,14 +321,14 @@ struct InvestmentsView: View {
                         innerRadius: .ratio(0.58),
                         angularInset: 2
                     )
-                    .foregroundStyle(AppTheme.portfolioColor(for: item.bucketName))
+                    .foregroundStyle(portfolioColor(bucketID: item.bucketID, fallbackName: item.bucketName))
                 }
                 .frame(height: 180)
 
                 ForEach(data, id: \.bucketID) { item in
                     HStack {
                         Circle()
-                            .fill(AppTheme.portfolioColor(for: item.bucketName))
+                            .fill(portfolioColor(bucketID: item.bucketID, fallbackName: item.bucketName))
                             .frame(width: 10, height: 10)
                         Text(item.bucketName)
                             .appBodyStyle()
@@ -276,7 +343,7 @@ struct InvestmentsView: View {
             } else if let only = data.first {
                 HStack {
                     Circle()
-                        .fill(AppTheme.portfolioColor(for: only.bucketName))
+                        .fill(portfolioColor(bucketID: only.bucketID, fallbackName: only.bucketName))
                         .frame(width: 10, height: 10)
                     Text("\(only.bucketName): \(formatPercent(only.percent))")
                         .appBodyStyle()
@@ -337,17 +404,21 @@ struct InvestmentsView: View {
             .background((isPositive ? AppTheme.positive : AppTheme.negative).opacity(0.12), in: Capsule())
     }
 
-    private func chip(text: String, icon: String) -> some View {
-        Label(text, systemImage: icon)
-            .font(.footnote.weight(.semibold))
-            .foregroundStyle(AppTheme.textSecondary)
-            .padding(.horizontal, 9)
-            .padding(.vertical, 5)
-            .background(AppTheme.surface, in: Capsule())
-            .overlay(Capsule().stroke(AppTheme.divider, lineWidth: 1))
+    private func heroMetaRow(icon: String, text: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(AppTheme.textSecondary)
+                .frame(width: 16)
+            Text(text)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(AppTheme.textSecondary)
+            Spacer()
+        }
     }
 
     private func bucketRow(_ row: InvestmentBucketRowData) -> some View {
+        let bucketColor = portfolioColor(bucketID: row.id, fallbackName: row.name)
         let changeColor: Color = {
             if row.changeKr > 0 { return AppTheme.positive }
             if row.changeKr < 0 { return AppTheme.negative }
@@ -357,7 +428,7 @@ struct InvestmentsView: View {
         return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 10) {
                 Circle()
-                    .fill(AppTheme.portfolioColor(for: row.name))
+                    .fill(bucketColor)
                     .frame(width: 9, height: 9)
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -372,7 +443,7 @@ struct InvestmentsView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                sparkline(series: row.sparkline, color: AppTheme.portfolioColor(for: row.name))
+                sparkline(series: row.sparkline, color: bucketColor)
                     .frame(width: 78, height: 30)
 
                 VStack(alignment: .trailing, spacing: 1) {
@@ -422,6 +493,85 @@ struct InvestmentsView: View {
         changeKr >= 0 ? "+\(formatNOK(abs(changeKr)))" : "-\(formatNOK(abs(changeKr)))"
     }
 
+    private func portfolioColor(bucketID: String, fallbackName: String) -> Color {
+        if let bucket = buckets.first(where: { $0.id == bucketID }) {
+            return AppTheme.portfolioColor(for: bucket)
+        }
+        return AppTheme.portfolioColor(for: fallbackName)
+    }
+
+}
+
+private struct AddInvestmentBucketSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    @Binding var name: String
+    @Binding var selectedColorHex: String
+    let errorMessage: String?
+    let onSave: () -> Bool
+    let onCancel: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Ny beholdningstype") {
+                    TextField("F.eks. Eiendom", text: $name)
+                        .textFieldStyle(.appInput)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Velg farge")
+                            .appBodyStyle()
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 6), spacing: 10) {
+                            ForEach(AppTheme.customBucketPalette, id: \.self) { hex in
+                                Button {
+                                    selectedColorHex = hex
+                                } label: {
+                                    Circle()
+                                        .fill(Color(hex: hex))
+                                        .frame(width: 28, height: 28)
+                                        .overlay {
+                                            if selectedColorHex == hex {
+                                                Circle()
+                                                    .stroke(Color.white, lineWidth: 2)
+                                                    .padding(2)
+                                            }
+                                        }
+                                        .overlay(
+                                            Circle()
+                                                .stroke(AppTheme.divider, lineWidth: 1)
+                                        )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                    Text("Ny type vises i Beholdning, graf og neste insjekk.")
+                        .appSecondaryStyle()
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .font(.footnote)
+                            .foregroundStyle(AppTheme.negative)
+                    }
+                }
+            }
+            .navigationTitle("Legg til type")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Avbryt") {
+                        onCancel()
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Lagre") {
+                        if onSave() {
+                            dismiss()
+                        }
+                    }
+                    .appCTAStyle()
+                }
+            }
+        }
+    }
 }
 
 private struct BucketDetailView: View {
@@ -431,65 +581,217 @@ private struct BucketDetailView: View {
     let snapshots: [InvestmentSnapshot]
 
     @State private var showQuickUpdate = false
+    @State private var selectedRange: GraphViewRange = .yearToDate
+    @State private var showAllHistory = false
+    @State private var selectedPointDate: Date?
 
     private var sorted: [InvestmentSnapshot] { InvestmentService.sortedSnapshots(snapshots) }
+    private var bucketColor: Color { AppTheme.portfolioColor(for: bucket) }
+
+    private func bucketAmount(in snapshot: InvestmentSnapshot) -> Double {
+        snapshot.bucketValues.first(where: { $0.bucketID == bucket.id })?.amount ?? 0
+    }
+
+    private var latestSnapshot: InvestmentSnapshot? { sorted.last }
+    private var previousSnapshot: InvestmentSnapshot? {
+        guard sorted.count > 1 else { return nil }
+        return sorted[sorted.count - 2]
+    }
+
     private var latestValue: Double {
-        sorted.last?.bucketValues.first(where: { $0.bucketID == bucket.id })?.amount ?? 0
+        latestSnapshot.map { bucketAmount(in: $0) } ?? 0
+    }
+
+    private var changeSinceLast: Double {
+        latestValue - (previousSnapshot.map(bucketAmount(in:)) ?? 0)
+    }
+
+    private var changePctSinceLast: Double? {
+        guard let previousSnapshot else { return nil }
+        let previous = bucketAmount(in: previousSnapshot)
+        guard previous != 0 else { return nil }
+        return changeSinceLast / previous
+    }
+
+    private var shareOfPortfolio: Double {
+        guard let latestSnapshot, latestSnapshot.totalValue > 0 else { return 0 }
+        return latestValue / latestSnapshot.totalValue
+    }
+
+    private var filtered: [InvestmentSnapshot] {
+        switch selectedRange {
+        case .yearToDate:
+            let year = Calendar.current.component(.year, from: .now)
+            return sorted.filter { Calendar.current.component(.year, from: $0.capturedAt) == year }
+        case .last12Months:
+            return Array(sorted.suffix(12))
+        }
+    }
+
+    private var visibleHistory: [InvestmentSnapshot] {
+        let reversed = sorted.reversed()
+        return showAllHistory ? Array(reversed) : Array(reversed.prefix(6))
+    }
+
+    private var selectedSnapshot: InvestmentSnapshot? {
+        guard let selectedPointDate else { return nil }
+        return filtered.min(by: {
+            abs($0.capturedAt.timeIntervalSince(selectedPointDate)) < abs($1.capturedAt.timeIntervalSince(selectedPointDate))
+        })
+    }
+
+    private var changeText: String {
+        if abs(changeSinceLast) < 0.01 { return "Ingen endring siden forrige insjekk" }
+        let sign = changeSinceLast >= 0 ? "+" : "-"
+        if let pct = changePctSinceLast {
+            return "\(sign)\(formatNOK(abs(changeSinceLast))) (\(formatPercent(pct))) siden forrige insjekk"
+        }
+        return "\(sign)\(formatNOK(abs(changeSinceLast))) siden forrige insjekk"
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(bucket.name)
-                        .appCardTitleStyle()
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(bucketColor)
+                            .frame(width: 10, height: 10)
+                        Text(bucket.name)
+                            .appCardTitleStyle()
+                    }
                     Text(formatNOK(latestValue))
                         .appBigNumberStyle()
                         .foregroundStyle(AppTheme.textPrimary)
-                    Button("Oppdater bare denne") {
+                        .contentTransition(.numericText(value: latestValue))
+                    Text(changeText)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(abs(changeSinceLast) < 0.01 ? AppTheme.textSecondary : (changeSinceLast >= 0 ? AppTheme.positive : AppTheme.negative))
+                    Text("Sist oppdatert: \(latestSnapshot.map { formatDate($0.capturedAt) } ?? "Ikke satt")")
+                        .appSecondaryStyle()
+                    Text("Andel: \(formatPercent(shareOfPortfolio)) av porteføljen")
+                        .appSecondaryStyle()
+                    ProgressView(value: shareOfPortfolio, total: 1)
+                        .tint(bucketColor)
+                    Button {
                         showQuickUpdate = true
+                    } label: {
+                        Label("Oppdater denne", systemImage: "pencil.circle")
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(AppTheme.primary)
+                    .buttonStyle(.bordered)
+                    .tint(AppTheme.primary.opacity(0.9))
                 }
                 .padding()
                 .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
                 .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
 
-                if sorted.isEmpty {
-                    Text("Ingen historikk ennå.")
-                        .appSecondaryStyle()
-                } else {
-                    Chart(sorted, id: \.periodKey) { snapshot in
-                        let amount = snapshot.bucketValues.first(where: { $0.bucketID == bucket.id })?.amount ?? 0
-                        LineMark(
-                            x: .value("Dato", snapshot.capturedAt),
-                            y: .value("Beløp", amount)
-                        )
-                        .foregroundStyle(AppTheme.portfolioColor(for: bucket.name))
-                        .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Text("Utvikling")
+                            .appCardTitleStyle()
+                        Spacer()
+                        Picker("Periode", selection: $selectedRange) {
+                            Text("I år").tag(GraphViewRange.yearToDate)
+                            Text("Siste 12 mnd").tag(GraphViewRange.last12Months)
+                        }
+                        .pickerStyle(.segmented)
+                        .frame(width: 220)
                     }
-                    .frame(height: 220)
-                    .chartXAxis(.hidden)
 
-                    VStack(spacing: 8) {
-                        ForEach(sorted.reversed(), id: \.periodKey) { snapshot in
-                            let amount = snapshot.bucketValues.first(where: { $0.bucketID == bucket.id })?.amount ?? 0
-                            HStack {
-                                Text(formatDate(snapshot.capturedAt))
-                                    .appBodyStyle()
-                                Spacer()
-                                Text(formatNOK(amount))
-                                    .appBodyStyle()
-                                    .monospacedDigit()
+                    if filtered.count < 2 {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Legg inn én måned til for å se utvikling.")
+                                .appBodyStyle()
+                            Button("Oppdater verdier") {
+                                showQuickUpdate = true
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(AppTheme.primary)
+                        }
+                    } else {
+                        Chart(filtered, id: \.periodKey) { snapshot in
+                            let amount = bucketAmount(in: snapshot)
+                            LineMark(
+                                x: .value("Dato", snapshot.capturedAt),
+                                y: .value("Beløp", amount)
+                            )
+                            .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+                            .foregroundStyle(bucketColor)
+
+                            PointMark(
+                                x: .value("Dato", snapshot.capturedAt),
+                                y: .value("Beløp", amount)
+                            )
+                            .symbolSize(35)
+                            .foregroundStyle(bucketColor)
+                        }
+                        .frame(height: 210)
+                        .chartXAxis(.hidden)
+                        .chartXSelection(value: $selectedPointDate)
+                        .animation(.easeInOut(duration: 0.35), value: selectedRange)
+
+                        if let selectedSnapshot {
+                            Text("\(formatDate(selectedSnapshot.capturedAt)): \(formatNOK(bucketAmount(in: selectedSnapshot)))")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(AppTheme.textPrimary)
+                        }
+                    }
+
+                    Text("Basert på totalsummen du legger inn ved insjekk.")
+                        .appSecondaryStyle()
+                }
+                .padding()
+                .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
+                .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
+
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Text("Historikk")
+                            .appCardTitleStyle()
+                        Spacer()
+                        if sorted.count > 6 {
+                            Button(showAllHistory ? "Vis færre" : "Se alle") {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    showAllHistory.toggle()
+                                }
+                            }
+                            .font(.footnote.weight(.semibold))
+                        }
+                    }
+
+                    if sorted.isEmpty {
+                        Text("Ingen historikk ennå.")
+                            .appSecondaryStyle()
+                    } else {
+                        VStack(spacing: 8) {
+                            ForEach(visibleHistory, id: \.periodKey) { snapshot in
+                                HStack {
+                                    Text(formatDate(snapshot.capturedAt))
+                                        .appBodyStyle()
+                                    Spacer()
+                                    Text(formatNOK(bucketAmount(in: snapshot)))
+                                        .appBodyStyle()
+                                        .monospacedDigit()
+                                }
                             }
                         }
                     }
                 }
+                .padding()
+                .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
+                .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
             }
             .padding()
         }
         .navigationTitle(bucket.name)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Oppdater") {
+                    showQuickUpdate = true
+                }
+            }
+        }
         .background(AppTheme.background)
         .sheet(isPresented: $showQuickUpdate) {
             BucketQuickUpdateSheet(bucket: bucket, latestSnapshot: sorted.last)
@@ -500,6 +802,112 @@ private struct BucketDetailView: View {
     }
 }
 
+private struct EditInvestmentBucketSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+
+    let bucket: InvestmentBucket
+    let existingBuckets: [InvestmentBucket]
+
+    @StateObject private var viewModel = InvestmentsViewModel()
+    @State private var name: String = ""
+    @State private var selectedColorHex: String = AppTheme.customBucketPalette[0]
+    @State private var showDeleteAlert = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Beholdningstype") {
+                    TextField("Navn", text: $name)
+                        .textFieldStyle(.appInput)
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Farge")
+                            .appBodyStyle()
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 6), spacing: 10) {
+                            ForEach(AppTheme.customBucketPalette, id: \.self) { hex in
+                                Button {
+                                    selectedColorHex = hex
+                                } label: {
+                                    Circle()
+                                        .fill(Color(hex: hex))
+                                        .frame(width: 28, height: 28)
+                                        .overlay {
+                                            if selectedColorHex == hex {
+                                                Circle()
+                                                    .stroke(Color.white, lineWidth: 2)
+                                                    .padding(2)
+                                            }
+                                        }
+                                        .overlay(
+                                            Circle()
+                                                .stroke(AppTheme.divider, lineWidth: 1)
+                                        )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .font(.footnote)
+                            .foregroundStyle(AppTheme.negative)
+                    }
+                }
+
+                Section {
+                    Button("Slett beholdningstype", role: .destructive) {
+                        showDeleteAlert = true
+                    }
+                } footer: {
+                    Text("Sletter typen helt og fjerner den fra historikk/snapshots.")
+                        .appSecondaryStyle()
+                }
+            }
+            .navigationTitle("Rediger type")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Avbryt") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Lagre") {
+                        errorMessage = viewModel.updateBucket(
+                            bucket,
+                            name: name,
+                            colorHex: selectedColorHex,
+                            context: modelContext,
+                            existingBuckets: existingBuckets
+                        )
+                        if errorMessage == nil {
+                            dismiss()
+                        }
+                    }
+                    .appCTAStyle()
+                }
+            }
+            .alert("Slette beholdningstype?", isPresented: $showDeleteAlert) {
+                Button("Avbryt", role: .cancel) { }
+                Button("Slett", role: .destructive) {
+                    viewModel.deleteBucket(bucket, context: modelContext, snapshots: snapshotsFromContext())
+                    dismiss()
+                }
+            } message: {
+                Text("Dette kan ikke angres.")
+            }
+            .onAppear {
+                name = bucket.name
+                selectedColorHex = bucket.colorHex ?? AppTheme.customBucketPalette[0]
+            }
+        }
+    }
+
+    private func snapshotsFromContext() -> [InvestmentSnapshot] {
+        (try? modelContext.fetch(FetchDescriptor<InvestmentSnapshot>())) ?? []
+    }
+}
+
 private struct BucketQuickUpdateSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -507,7 +915,7 @@ private struct BucketQuickUpdateSheet: View {
     let bucket: InvestmentBucket
     let latestSnapshot: InvestmentSnapshot?
 
-    @State private var amount: Double = 0
+    @State private var amountText: String = ""
 
     var body: some View {
         NavigationStack {
@@ -516,11 +924,13 @@ private struct BucketQuickUpdateSheet: View {
                     Text(bucket.name)
                         .appBodyStyle()
                     TextField(
-                        "0",
-                        value: $amount,
-                        format: .number.precision(.fractionLength(0...2))
+                        "Beløp",
+                        text: $amountText
                     )
                     .keyboardType(.decimalPad)
+                    .textFieldStyle(.appInput)
+                    .multilineTextAlignment(.trailing)
+                    .monospacedDigit()
                 }
             }
             .navigationTitle("Oppdater beholdning")
@@ -537,12 +947,13 @@ private struct BucketQuickUpdateSheet: View {
                 }
             }
             .onAppear {
-                amount = latestSnapshot?.bucketValues.first(where: { $0.bucketID == bucket.id })?.amount ?? 0
+                amountText = ""
             }
         }
     }
 
     private func saveSingleBucket() {
+        let amount = parseInputAmount(amountText) ?? 0
         let periodKey = DateService.periodKey(from: .now)
         let descriptor = FetchDescriptor<InvestmentSnapshot>(predicate: #Predicate { $0.periodKey == periodKey })
         let existing = try? modelContext.fetch(descriptor).first
@@ -560,6 +971,15 @@ private struct BucketQuickUpdateSheet: View {
             modelContext.insert(InvestmentSnapshot(periodKey: periodKey, capturedAt: .now, totalValue: amount, bucketValues: [value]))
         }
         try? modelContext.save()
+    }
+
+    private func parseInputAmount(_ text: String) -> Double? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let normalized = trimmed
+            .replacingOccurrences(of: " ", with: "")
+            .replacingOccurrences(of: ",", with: ".")
+        return Double(normalized)
     }
 }
 
@@ -592,13 +1012,14 @@ struct InvestmentCheckInView: View {
                                 .appBodyStyle()
                             Spacer()
                             TextField(
-                                "0",
-                                value: binding(for: bucket.id),
-                                format: .number.precision(.fractionLength(0...2))
+                                "Beløp",
+                                text: binding(for: bucket.id)
                             )
                             .multilineTextAlignment(.trailing)
                             .keyboardType(.decimalPad)
-                            .frame(width: 120)
+                            .textFieldStyle(.appInput)
+                            .monospacedDigit()
+                            .frame(width: 130)
                         }
                     }
                 }
@@ -646,7 +1067,7 @@ struct InvestmentCheckInView: View {
         }
     }
 
-    private func binding(for bucketID: String) -> Binding<Double> {
+    private func binding(for bucketID: String) -> Binding<String> {
         Binding(
             get: { viewModel.binding(for: bucketID) },
             set: { viewModel.setBinding($0, for: bucketID) }

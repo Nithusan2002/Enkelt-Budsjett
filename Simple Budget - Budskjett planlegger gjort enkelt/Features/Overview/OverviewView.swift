@@ -42,7 +42,6 @@ struct OverviewView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 firstRunModule
-                actionButtons
                 goalModule
                 statusModule
                 portfolioModule
@@ -53,11 +52,6 @@ struct OverviewView: View {
         }
         .background(AppTheme.background)
         .navigationTitle("Oversikt")
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Rediger mål") { viewModel.showGoalEditor = true }
-            }
-        }
         .sheet(isPresented: $viewModel.showGoalEditor) {
             GoalEditorView(goal: activeGoal)
         }
@@ -86,6 +80,14 @@ struct OverviewView: View {
                         .background(AppTheme.secondary.opacity(0.12), in: Capsule())
                     Spacer()
                 }
+                if shouldShowPrimaryCheckInAction {
+                    Button("Oppdater formue") {
+                        showCheckIn = true
+                    }
+                    .appCTAStyle()
+                    .buttonStyle(.borderedProminent)
+                    .tint(AppTheme.primary)
+                }
             }
             .padding()
             .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
@@ -101,6 +103,7 @@ struct OverviewView: View {
                 }
                 .appCTAStyle()
                 .buttonStyle(.borderedProminent)
+                .tint(AppTheme.primary)
             }
             .padding()
             .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
@@ -108,55 +111,112 @@ struct OverviewView: View {
         }
     }
 
-    private var actionButtons: some View {
-        HStack(spacing: 12) {
-            Button("Oppdater formue") {
-                showCheckIn = true
-            }
-            .appCTAStyle()
-            .buttonStyle(.borderedProminent)
-
-            Button("Legg til budsjett") {
-                navigationState.selectedTab = .budget
-            }
-            .appCTAStyle()
-            .buttonStyle(.bordered)
-        }
-    }
-
     private var goalModule: some View {
         let summary = viewModel.goalSummary(activeGoal: activeGoal, currentWealth: currentWealth)
 
-        return VStack(alignment: .leading, spacing: 10) {
-            Text("Jeg vil ha en formue på \(formatNOK(summary.targetAmount)) innen \(formatDate(summary.targetDate))")
-                .appBodyStyle()
-                .foregroundStyle(AppTheme.textSecondary)
-            HStack(spacing: 16) {
-                Gauge(value: summary.progress) {
-                    Text("Fremdrift")
-                } currentValueLabel: {
-                    Text("\(Int((summary.progress * 100).rounded())) %")
-                        .font(.caption)
+        return VStack(alignment: .leading, spacing: 12) {
+            if activeGoal == nil {
+                HStack {
+                    Text("Mål")
+                        .appCardTitleStyle()
+                    Spacer()
+                    Button {
+                        viewModel.showGoalEditor = true
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.footnote.weight(.semibold))
+                            .padding(8)
+                            .background(AppTheme.primary.opacity(0.12), in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Opprett mål")
                 }
-                .gaugeStyle(.accessoryCircular)
+                Text("Sett et formuemål for å få tydelig fremdrift på oversikten.")
+                    .appBodyStyle()
+                    .foregroundStyle(AppTheme.textSecondary)
+                Button("Sett mål") {
+                    viewModel.showGoalEditor = true
+                }
+                .buttonStyle(.bordered)
                 .tint(AppTheme.primary)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("\(formatNOK(summary.targetAmount))")
-                        .appBigNumberStyle()
-                        .foregroundStyle(AppTheme.textPrimary)
-                    Text("\(summary.monthsRemaining) måneder igjen")
-                        .appBodyStyle()
-                        .foregroundStyle(AppTheme.textSecondary)
-                    Text("Ca. \(formatNOK(summary.perMonth)) per måned")
-                        .appBodyStyle()
-                        .foregroundStyle(AppTheme.textSecondary)
+            } else {
+                HStack {
+                    Text("Mål")
+                        .appCardTitleStyle()
+                    Spacer()
+                    Button {
+                        viewModel.showGoalEditor = true
+                    } label: {
+                        Image(systemName: "pencil")
+                            .font(.footnote.weight(.semibold))
+                            .padding(8)
+                            .background(AppTheme.primary.opacity(0.12), in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Rediger mål")
                 }
-                Spacer()
+
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Nåværende formue")
+                            .appSecondaryStyle()
+                        Text(formatNOK(currentWealth))
+                            .appBigNumberStyle()
+                            .foregroundStyle(AppTheme.textPrimary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.72)
+                    }
+                    Spacer()
+                    Text("\(Int((summary.progress * 100).rounded())) %")
+                        .font(.title3.weight(.semibold))
+                        .monospacedDigit()
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(AppTheme.primary.opacity(0.12), in: Capsule())
+                }
+
+                ProgressView(value: summary.progress, total: 1)
+                    .tint(AppTheme.primary)
+
+                Text("Mål: \(formatNOK(summary.targetAmount)) innen \(formatDate(summary.targetDate))")
+                    .appSecondaryStyle()
+
+                HStack(spacing: 10) {
+                    goalStatChip(title: "Igjen", value: "\(summary.monthsRemaining) mnd")
+                    goalStatChip(title: "Behov / mnd", value: formatNOK(summary.perMonth))
+                }
+
+                HStack {
+                    Spacer()
+                    Text("Se mer")
+                        .appSecondaryStyle()
+                }
             }
         }
         .padding()
         .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
+        .contentShape(RoundedRectangle(cornerRadius: 16))
+        .onTapGesture {
+            viewModel.showGoalEditor = true
+        }
+    }
+
+    private func goalStatChip(title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(AppTheme.textSecondary)
+            Text(value)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(AppTheme.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(AppTheme.background, in: RoundedRectangle(cornerRadius: 10))
     }
 
     private var statusModule: some View {
@@ -165,20 +225,32 @@ struct OverviewView: View {
             Text(statusLine)
                 .appCoachStyle()
                 .foregroundStyle(AppTheme.textPrimary)
-            Text(savingsDefinition == .incomeMinusExpense
-                 ? "Definisjon: Inntekt minus utgifter (YTD)"
-                 : "Definisjon: Kun sparingskategori (YTD)")
+            Text("Trykk for detaljer i Budsjett.")
                 .appSecondaryStyle()
+            HStack {
+                Spacer()
+                Text("Se mer")
+                    .appSecondaryStyle()
+            }
         }
         .padding()
         .background(AppTheme.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
+        .contentShape(RoundedRectangle(cornerRadius: 16))
+        .onTapGesture {
+            navigationState.selectedTab = .budget
+        }
     }
 
     private var portfolioModule: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Porteføljefordeling")
-                .appCardTitleStyle()
+            HStack {
+                Text("Porteføljefordeling")
+                    .appCardTitleStyle()
+                Spacer()
+                Text("Se mer")
+                    .appSecondaryStyle()
+            }
             if let latestSnapshot {
                 Chart(latestSnapshot.bucketValues, id: \.bucketID) { value in
                     SectorMark(
@@ -186,7 +258,7 @@ struct OverviewView: View {
                         innerRadius: .ratio(0.55),
                         angularInset: 2
                     )
-                    .foregroundStyle(AppTheme.portfolioColor(for: bucketName(for: value.bucketID)))
+                    .foregroundStyle(bucketColor(for: value.bucketID))
                 }
                 .frame(height: 220)
                 ForEach(latestSnapshot.bucketValues, id: \.bucketID) { value in
@@ -198,13 +270,18 @@ struct OverviewView: View {
                     .appBodyStyle()
                 }
             } else {
-                Text("Ingen insjekk ennå.")
+                Text("Legg inn første tall for å se fordeling.")
+                    .appBodyStyle()
                     .foregroundStyle(AppTheme.textSecondary)
             }
         }
         .padding()
         .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
+        .contentShape(RoundedRectangle(cornerRadius: 16))
+        .onTapGesture {
+            navigationState.selectedTab = .investments
+        }
     }
 
     private var developmentModule: some View {
@@ -218,11 +295,12 @@ struct OverviewView: View {
                     Text("Siste 12 mnd").tag(GraphViewRange.last12Months)
                 }
                 .pickerStyle(.segmented)
-                .frame(width: 220)
+                .frame(width: 210)
             }
 
             if chartData.isEmpty {
-                Text("Ingen trenddata å vise ennå.")
+                Text("Legg inn én måned til for å se utvikling.")
+                    .appBodyStyle()
                     .foregroundStyle(AppTheme.textSecondary)
             } else {
                 Chart(chartData) { point in
@@ -231,15 +309,24 @@ struct OverviewView: View {
                         y: .value("Beløp", point.amount),
                         stacking: .standard
                     )
-                    .foregroundStyle(AppTheme.portfolioColor(for: point.bucketName))
+                    .foregroundStyle(bucketColor(for: point.bucketID))
                 }
                 .frame(height: 240)
                 .chartXAxis(.hidden)
+            }
+            HStack {
+                Spacer()
+                Text("Se mer")
+                    .appSecondaryStyle()
             }
         }
         .padding()
         .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
+        .contentShape(RoundedRectangle(cornerRadius: 16))
+        .onTapGesture {
+            navigationState.selectedTab = .investments
+        }
     }
 
     private var scopeModule: some View {
@@ -251,6 +338,13 @@ struct OverviewView: View {
         viewModel.bucketName(for: id, buckets: buckets)
     }
 
+    private func bucketColor(for id: String) -> Color {
+        guard let bucket = buckets.first(where: { $0.id == id }) else {
+            return AppTheme.secondary
+        }
+        return AppTheme.portfolioColor(for: bucket)
+    }
+
     private func nextCheckInText() -> String {
         let day = preferences.first?.checkInReminderDay ?? 5
         let cal = Calendar.current
@@ -260,5 +354,10 @@ struct OverviewView: View {
         let candidate = cal.date(from: comps) ?? now
         let next = candidate >= now ? candidate : cal.date(byAdding: .month, value: 1, to: candidate) ?? candidate
         return "Neste insjekk: \(formatDate(next))"
+    }
+
+    private var shouldShowPrimaryCheckInAction: Bool {
+        guard let latestSnapshot else { return true }
+        return latestSnapshot.periodKey != DateService.periodKey(from: .now)
     }
 }

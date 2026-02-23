@@ -159,13 +159,22 @@ final class Account {
 final class InvestmentBucket {
     @Attribute(.unique) var id: String
     var name: String
+    var colorHex: String?
     var isDefault: Bool
     var isActive: Bool
     var sortOrder: Int
 
-    init(id: String = UUID().uuidString, name: String, isDefault: Bool = false, isActive: Bool = true, sortOrder: Int) {
+    init(
+        id: String = UUID().uuidString,
+        name: String,
+        colorHex: String? = nil,
+        isDefault: Bool = false,
+        isActive: Bool = true,
+        sortOrder: Int
+    ) {
         self.id = id
         self.name = name
+        self.colorHex = colorHex
         self.isDefault = isDefault
         self.isActive = isActive
         self.sortOrder = sortOrder

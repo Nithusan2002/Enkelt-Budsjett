@@ -31,10 +31,14 @@ struct InvestmentInsightData {
 @MainActor
 final class InvestmentsViewModel: ObservableObject {
     @Published var showCheckIn = false
+    @Published var showAddBucketSheet = false
     @Published var selectedRange: GraphViewRange = .yearToDate
     @Published var selectedBucketForEdit: InvestmentBucket?
     @Published var displayedTotal: Double = 0
     @Published var showTrendChip = false
+    @Published var newBucketName: String = ""
+    @Published var selectedBucketColorHex: String = AppTheme.customBucketPalette[0]
+    @Published var addBucketError: String?
 
     func latestSnapshot(_ snapshots: [InvestmentSnapshot]) -> InvestmentSnapshot? {
         InvestmentService.latestSnapshot(snapshots)
@@ -235,6 +239,100 @@ final class InvestmentsViewModel: ObservableObject {
         try? context.save()
     }
 
+    func restoreBucket(_ bucket: InvestmentBucket, context: ModelContext, existingBuckets: [InvestmentBucket]) {
+        bucket.isActive = true
+        bucket.sortOrder = (existingBuckets.map(\.sortOrder).max() ?? 0) + 1
+        try? context.save()
+    }
+
+    func updateBucket(
+        _ bucket: InvestmentBucket,
+        name: String,
+        colorHex: String,
+        context: ModelContext,
+        existingBuckets: [InvestmentBucket]
+    ) -> String? {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else {
+            return "Navn kan ikke være tomt."
+        }
+
+        if existingBuckets.contains(where: {
+            $0.id != bucket.id &&
+            $0.name.compare(trimmedName, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
+        }) {
+            return "En beholdningstype med dette navnet finnes allerede."
+        }
+
+        bucket.name = trimmedName
+        bucket.colorHex = colorHex
+        try? context.save()
+        return nil
+    }
+
+    func deleteBucket(
+        _ bucket: InvestmentBucket,
+        context: ModelContext,
+        snapshots: [InvestmentSnapshot]
+    ) {
+        for snapshot in snapshots {
+            snapshot.bucketValues.removeAll(where: { $0.bucketID == bucket.id })
+            snapshot.totalValue = snapshot.bucketValues.reduce(0) { $0 + $1.amount }
+        }
+        context.delete(bucket)
+        try? context.save()
+    }
+
+    func addBucket(context: ModelContext, existingBuckets: [InvestmentBucket]) -> Bool {
+        let trimmedName = newBucketName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else {
+            addBucketError = "Skriv inn et navn på beholdningstypen."
+            return false
+        }
+
+        if let existing = existingBuckets.first(where: { $0.name.compare(trimmedName, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame }) {
+            if existing.isActive {
+                addBucketError = "Denne beholdningstypen finnes allerede."
+                return false
+            }
+            existing.name = trimmedName
+            existing.colorHex = selectedBucketColorHex
+            existing.isActive = true
+            existing.sortOrder = (existingBuckets.map(\.sortOrder).max() ?? 0) + 1
+            try? context.save()
+            newBucketName = ""
+            selectedBucketColorHex = AppTheme.customBucketPalette[0]
+            addBucketError = nil
+            showAddBucketSheet = false
+            return true
+        }
+
+        let id = uniqueBucketID(for: trimmedName, existingBuckets: existingBuckets)
+        let sortOrder = (existingBuckets.map(\.sortOrder).max() ?? 0) + 1
+        context.insert(
+            InvestmentBucket(
+                id: id,
+                name: trimmedName,
+                colorHex: selectedBucketColorHex,
+                isDefault: false,
+                isActive: true,
+                sortOrder: sortOrder
+            )
+        )
+        try? context.save()
+        newBucketName = ""
+        selectedBucketColorHex = AppTheme.customBucketPalette[0]
+        addBucketError = nil
+        showAddBucketSheet = false
+        return true
+    }
+
+    func resetAddBucketState() {
+        newBucketName = ""
+        selectedBucketColorHex = AppTheme.customBucketPalette[0]
+        addBucketError = nil
+    }
+
     private func formattedMonthDay(_ date: Date) -> String {
         formatDate(date)
     }
@@ -261,6 +359,31 @@ final class InvestmentsViewModel: ObservableObject {
         } else {
             displayedTotal = target
         }
+    }
+
+    private func uniqueBucketID(for name: String, existingBuckets: [InvestmentBucket]) -> String {
+        let existingIDs = Set(existingBuckets.map(\.id))
+        let base = slugify(name)
+        var candidate = "bucket_\(base)"
+        var suffix = 2
+
+        while existingIDs.contains(candidate) {
+            candidate = "bucket_\(base)_\(suffix)"
+            suffix += 1
+        }
+        return candidate
+    }
+
+    private func slugify(_ value: String) -> String {
+        let lower = value.lowercased().folding(options: .diacriticInsensitive, locale: .current)
+        let allowed = lower.map { char -> Character in
+            if char.isLetter || char.isNumber { return char }
+            return "_"
+        }
+        let raw = String(allowed)
+        let collapsed = raw.replacingOccurrences(of: "_+", with: "_", options: .regularExpression)
+        let trimmed = collapsed.trimmingCharacters(in: CharacterSet(charactersIn: "_"))
+        return trimmed.isEmpty ? UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased() : trimmed
     }
 }
 

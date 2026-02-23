@@ -4,7 +4,7 @@ import SwiftData
 
 @MainActor
 final class InvestmentCheckInViewModel: ObservableObject {
-    @Published var values: [String: Double] = [:]
+    @Published var values: [String: String] = [:]
     @Published var selectedDate: Date = .now
 
     func periodKey(for date: Date? = nil) -> String {
@@ -12,21 +12,22 @@ final class InvestmentCheckInViewModel: ObservableObject {
     }
 
     func prepareValues(buckets: [InvestmentBucket], latestSnapshot: InvestmentSnapshot?) {
+        _ = latestSnapshot
         for bucket in buckets where values[bucket.id] == nil {
-            values[bucket.id] = latestSnapshot?.bucketValues.first(where: { $0.bucketID == bucket.id })?.amount ?? 0
+            values[bucket.id] = ""
         }
     }
 
-    func binding(for bucketID: String) -> Double {
-        values[bucketID] ?? 0
+    func binding(for bucketID: String) -> String {
+        values[bucketID] ?? ""
     }
 
-    func setBinding(_ value: Double, for bucketID: String) {
+    func setBinding(_ value: String, for bucketID: String) {
         values[bucketID] = value
     }
 
     func total() -> Double {
-        values.values.reduce(0, +)
+        values.values.compactMap(parseInputAmount).reduce(0, +)
     }
 
     func saveSnapshot(context: ModelContext, periodKey: String, total: Double, capturedAt: Date) {
@@ -34,7 +35,9 @@ final class InvestmentCheckInViewModel: ObservableObject {
             predicate: #Predicate { $0.periodKey == periodKey }
         )
         let existing = try? context.fetch(descriptor).first
-        let snapshotValues = values.map { InvestmentSnapshotValue(periodKey: periodKey, bucketID: $0.key, amount: $0.value) }
+        let snapshotValues = values.map {
+            InvestmentSnapshotValue(periodKey: periodKey, bucketID: $0.key, amount: parseInputAmount($0.value) ?? 0)
+        }
         if let existing {
             existing.capturedAt = capturedAt
             existing.totalValue = total
@@ -43,5 +46,14 @@ final class InvestmentCheckInViewModel: ObservableObject {
             context.insert(InvestmentSnapshot(periodKey: periodKey, capturedAt: capturedAt, totalValue: total, bucketValues: snapshotValues))
         }
         try? context.save()
+    }
+
+    private func parseInputAmount(_ text: String) -> Double? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let normalized = trimmed
+            .replacingOccurrences(of: " ", with: "")
+            .replacingOccurrences(of: ",", with: ".")
+        return Double(normalized)
     }
 }

@@ -10,6 +10,8 @@ enum BudgetCategoryFilter: String, CaseIterable {
 struct BudgetSummaryData {
     let planned: Double
     let actual: Double
+    let income: Double
+    let net: Double
     let deviation: Double
     let remaining: Double
 }
@@ -104,9 +106,18 @@ final class BudgetViewModel: ObservableObject {
     func summary(periodKey: String, plans: [BudgetPlan], categories: [Category], transactions: [Transaction]) -> BudgetSummaryData {
         let planned = BudgetService.plannedTotal(for: periodKey, plans: plans, categories: categories)
         let actual = BudgetService.actualExpenseTotal(for: periodKey, transactions: transactions)
+        let income = BudgetService.actualIncomeTotal(for: periodKey, transactions: transactions)
+        let net = income - actual
         let deviation = actual - planned
-        let remaining = planned - actual
-        return BudgetSummaryData(planned: planned, actual: actual, deviation: deviation, remaining: remaining)
+        let remaining = planned > 0 ? (planned - actual) : net
+        return BudgetSummaryData(
+            planned: planned,
+            actual: actual,
+            income: income,
+            net: net,
+            deviation: deviation,
+            remaining: remaining
+        )
     }
 
     func previousMonthActual(periodKey: String, transactions: [Transaction]) -> Double {

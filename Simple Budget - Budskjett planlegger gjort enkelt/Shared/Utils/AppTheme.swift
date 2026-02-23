@@ -15,16 +15,32 @@ enum AppTheme {
 
     static let portfolioFund = Color(light: "#0EA5E9", dark: "#38BDF8")
     static let portfolioStock = Color(light: "#8B5CF6", dark: "#A78BFA")
+    static let portfolioBSU = Color(light: "#22C55E", dark: "#4ADE80")
+    static let portfolioBuffer = Color(light: "#F59E0B", dark: "#FBBF24")
     static let portfolioIPS = Color(light: "#22C55E", dark: "#4ADE80")
     static let portfolioCrypto = Color(light: "#EA580C", dark: "#F97316")
+    static let customBucketPalette: [String] = [
+        "#0EA5E9", "#8B5CF6", "#22C55E", "#EA580C",
+        "#F43F5E", "#14B8A6", "#6366F1", "#F59E0B",
+        "#10B981", "#EF4444", "#06B6D4", "#A855F7"
+    ]
 
     static func portfolioColor(for bucketIDOrName: String) -> Color {
         let key = bucketIDOrName.lowercased()
         if key.contains("fond") || key.contains("fund") { return portfolioFund }
         if key.contains("aksjer") || key.contains("stock") { return portfolioStock }
+        if key.contains("bsu") { return portfolioBSU }
+        if key.contains("buffer") { return portfolioBuffer }
         if key.contains("ips") { return portfolioIPS }
         if key.contains("krypto") || key.contains("crypto") { return portfolioCrypto }
         return secondary
+    }
+
+    static func portfolioColor(for bucket: InvestmentBucket) -> Color {
+        if let colorHex = bucket.colorHex, !colorHex.isEmpty {
+            return Color(hex: colorHex)
+        }
+        return portfolioColor(for: bucket.name)
     }
 }
 

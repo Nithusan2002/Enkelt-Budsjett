@@ -27,7 +27,8 @@ final class OnboardingViewModel: ObservableObject {
     @Published var snapshotText: [String: String] = [
         "Fond": "",
         "Aksjer": "",
-        "IPS": "",
+        "BSU": "",
+        "Buffer": "",
         "Krypto": ""
     ]
     @Published var monthlyFlowText = ""
@@ -96,7 +97,7 @@ final class OnboardingViewModel: ObservableObject {
     }
 
     func finish(preference: UserPreference, context: ModelContext, forceReminderOff: Bool = false) {
-        let selectedBuckets = ["Fond", "Aksjer", "IPS", "Krypto"]
+        let selectedBuckets = ["Fond", "Aksjer", "BSU", "Buffer", "Krypto"]
         let goalAmount = parseDouble(goalAmountText)
         let income = parseDouble(monthlyIncomeText)
         let flow = parseDouble(monthlyFlowText)

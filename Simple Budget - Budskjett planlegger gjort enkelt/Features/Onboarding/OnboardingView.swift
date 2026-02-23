@@ -153,7 +153,8 @@ struct OnboardingView: View {
                 .appBodyStyle()
             snapshotField("Fond")
             snapshotField("Aksjer")
-            snapshotField("IPS")
+            snapshotField("BSU")
+            snapshotField("Buffer")
             snapshotField("Krypto")
             currencyField(
                 label: "Jeg satte inn/ut denne måneden (valgfritt)",
@@ -271,11 +272,10 @@ struct OnboardingView: View {
                     .appSecondaryStyle()
                 TextField(placeholder, text: monetaryBinding(text, allowSign: allowSign))
                     .keyboardType(.numbersAndPunctuation)
+                    .multilineTextAlignment(.trailing)
+                    .monospacedDigit()
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 10))
-            .overlay(RoundedRectangle(cornerRadius: 10).stroke(AppTheme.divider, lineWidth: 1))
+            .appInputShellStyle()
         }
     }
 
@@ -321,7 +321,7 @@ private struct DemoPreviewSheet: View {
             ScrollView(.horizontal) {
                 HStack(spacing: 16) {
                     previewCard(title: "Mål", text: "42 % nådd · 34 måneder igjen")
-                    previewCard(title: "Portefølje", text: "Fond 61 % · Aksjer 23 % · IPS 12 %")
+                    previewCard(title: "Portefølje", text: "Fond 54 % · Aksjer 21 % · BSU 15 %")
                     previewCard(title: "Utvikling", text: "I år: +kr 12 400")
                 }
                 .padding()

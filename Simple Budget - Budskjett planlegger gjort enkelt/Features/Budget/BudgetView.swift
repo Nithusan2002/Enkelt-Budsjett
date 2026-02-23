@@ -155,6 +155,11 @@ struct BudgetView: View {
                 summaryCell("Igjen å bruke", summary.remaining, color: summary.remaining < 0 ? AppTheme.negative : AppTheme.textPrimary)
             }
 
+            HStack {
+                summaryCell("Inntekt", summary.income, color: AppTheme.positive)
+                summaryCell("Netto etter utgifter", summary.net, color: summary.net < 0 ? AppTheme.negative : AppTheme.textPrimary)
+            }
+
             let delta = summary.actual - previousActual
             Text(previousActual > 0
                  ? "Endring fra forrige måned: \(formatNOK(delta))"
@@ -324,7 +329,7 @@ private struct AddTransactionSheet: View {
     let onSave: (Date, Double, TransactionKind, String?, String) -> Void
 
     @State private var date: Date = .now
-    @State private var amount: Double = 0
+    @State private var amountText: String = ""
     @State private var kind: TransactionKind = .expense
     @State private var selectedCategoryID: String?
     @State private var note: String = ""
@@ -347,8 +352,11 @@ private struct AddTransactionSheet: View {
 
                 Section("Detaljer") {
                     DatePicker("Dato", selection: $date, displayedComponents: [.date])
-                    TextField("Beløp", value: $amount, format: .number.precision(.fractionLength(0...2)))
+                    TextField("Beløp", text: $amountText)
                         .keyboardType(.decimalPad)
+                        .textFieldStyle(.appInput)
+                        .multilineTextAlignment(.trailing)
+                        .monospacedDigit()
 
                     if needsCategory {
                         Picker("Kategori", selection: $selectedCategoryID) {
@@ -360,6 +368,7 @@ private struct AddTransactionSheet: View {
                     }
 
                     TextField("Notat (valgfritt)", text: $note)
+                        .textFieldStyle(.appInput)
                 }
             }
             .navigationTitle("Legg til transaksjon")
@@ -369,13 +378,17 @@ private struct AddTransactionSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Lagre") {
-                        onSave(date, amount, kind, selectedCategoryID, note)
+                        onSave(date, parsedAmount, kind, selectedCategoryID, note)
                         dismiss()
                     }
-                    .disabled(amount <= 0 || (needsCategory && selectedCategoryID == nil))
+                    .disabled(parsedAmount <= 0 || (needsCategory && selectedCategoryID == nil))
                 }
             }
         }
+    }
+
+    private var parsedAmount: Double {
+        parseInputAmount(amountText) ?? 0
     }
 }
 
@@ -386,7 +399,7 @@ private struct BudgetEditSheet: View {
     let initialValue: Double
     let onSave: (Double) -> Void
 
-    @State private var planned: Double = 0
+    @State private var plannedText: String = ""
 
     var body: some View {
         NavigationStack {
@@ -395,8 +408,11 @@ private struct BudgetEditSheet: View {
                     Text(categoryName)
                 }
                 Section("Planlagt beløp") {
-                    TextField("0", value: $planned, format: .number.precision(.fractionLength(0...2)))
+                    TextField("Beløp", text: $plannedText)
                         .keyboardType(.decimalPad)
+                        .textFieldStyle(.appInput)
+                        .multilineTextAlignment(.trailing)
+                        .monospacedDigit()
                 }
             }
             .navigationTitle("Endre budsjett")
@@ -406,16 +422,34 @@ private struct BudgetEditSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Lagre") {
-                        onSave(max(planned, 0))
+                        onSave(max(parseInputAmount(plannedText) ?? 0, 0))
                         dismiss()
                     }
                 }
             }
             .onAppear {
-                planned = initialValue
+                plannedText = initialValue > 0 ? formatInputAmount(initialValue) : ""
             }
         }
     }
+}
+
+private func parseInputAmount(_ text: String) -> Double? {
+    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else { return nil }
+    let normalized = trimmed
+        .replacingOccurrences(of: " ", with: "")
+        .replacingOccurrences(of: ",", with: ".")
+    return Double(normalized)
+}
+
+private func formatInputAmount(_ value: Double) -> String {
+    let formatter = NumberFormatter()
+    formatter.locale = Locale(identifier: "nb_NO")
+    formatter.numberStyle = .decimal
+    formatter.minimumFractionDigits = 0
+    formatter.maximumFractionDigits = 2
+    return formatter.string(from: NSNumber(value: value)) ?? ""
 }
 
 private struct BudgetCategoryDetailView: View {

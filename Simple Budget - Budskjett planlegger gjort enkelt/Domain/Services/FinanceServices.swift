@@ -81,6 +81,12 @@ enum BudgetService {
             .filter { DateService.periodKey(from: $0.date) == periodKey && $0.categoryID == categoryID }
             .reduce(0) { $0 + budgetImpact($1) }
     }
+
+    static func actualIncomeTotal(for periodKey: String, transactions: [Transaction]) -> Double {
+        transactions
+            .filter { DateService.periodKey(from: $0.date) == periodKey && $0.kind == .income }
+            .reduce(0) { $0 + abs($1.amount) }
+    }
 }
 
 enum SavingsService {
