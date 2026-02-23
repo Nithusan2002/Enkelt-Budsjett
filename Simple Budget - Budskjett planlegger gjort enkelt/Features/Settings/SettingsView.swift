@@ -3,47 +3,137 @@ import SwiftData
 
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.openURL) private var openURL
     @Query private var preferences: [UserPreference]
     @StateObject private var viewModel = SettingsViewModel()
+
+    @State private var showDayPicker = false
+    @State private var showTimePicker = false
 
     private var pref: UserPreference { viewModel.preference(from: preferences, context: modelContext) }
 
     var body: some View {
         Form {
-            Section("Spart hittil") {
-                Picker("Definisjon", selection: binding(\.savingsDefinition)) {
-                    Text("Inntekt minus utgifter")
-                        .appBodyStyle()
-                        .tag(SavingsDefinition.incomeMinusExpense)
-                    Text("Kun sparingskategori")
-                        .appBodyStyle()
-                        .tag(SavingsDefinition.savingsCategoryOnly)
-                }
-            }
-            Section("Insjekk-påminnelse") {
-                Toggle("Aktiver påminnelse", isOn: binding(\.checkInReminderEnabled))
-                    .appBodyStyle()
-                Stepper("Dag i måned: \(pref.checkInReminderDay)", value: binding(\.checkInReminderDay), in: 1...28)
-                    .appBodyStyle()
-            }
-            Section("Graf") {
-                Picker("Standardvisning", selection: binding(\.defaultGraphView)) {
-                    Text("I år")
-                        .appBodyStyle()
-                        .tag(GraphViewRange.yearToDate)
-                    Text("Siste 12 mnd")
-                        .appBodyStyle()
-                        .tag(GraphViewRange.last12Months)
-                }
-            }
-            Section("Sikkerhet") {
-                Toggle("Face ID-lås", isOn: binding(\.faceIDLockEnabled))
-                    .appBodyStyle()
-            }
+            remindersSection
+            securitySection
+            dataSection
+            helpSection
         }
         .scrollContentBackground(.hidden)
         .background(AppTheme.background)
         .navigationTitle("Innstillinger")
+        .sheet(isPresented: $showDayPicker) {
+            ReminderDayPickerSheet(selectedDay: pref.checkInReminderDay) { day in
+                pref.checkInReminderDay = day
+                viewModel.save(context: modelContext)
+            }
+        }
+        .sheet(isPresented: $showTimePicker) {
+            ReminderTimePickerSheet(
+                selectedHour: pref.checkInReminderHour,
+                selectedMinute: pref.checkInReminderMinute
+            ) { hour, minute in
+                pref.checkInReminderHour = hour
+                pref.checkInReminderMinute = minute
+                viewModel.save(context: modelContext)
+            }
+        }
+    }
+
+    private var remindersSection: some View {
+        Section("Påminnelser") {
+            VStack(alignment: .leading, spacing: 6) {
+                Toggle("Månedlig insjekk", isOn: binding(\.checkInReminderEnabled))
+                    .appBodyStyle()
+                Text("Få et lite dytt for å oppdatere totalsummene dine.")
+                    .appSecondaryStyle()
+            }
+
+            if pref.checkInReminderEnabled {
+                Button {
+                    showDayPicker = true
+                } label: {
+                    settingsRow(title: "Dag i måneden", value: "\(pref.checkInReminderDay).")
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    showTimePicker = true
+                } label: {
+                    settingsRow(title: "Klokkeslett", value: reminderTimeText())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private var securitySection: some View {
+        Section("Sikkerhet") {
+            VStack(alignment: .leading, spacing: 6) {
+                Toggle("Face ID-lås", isOn: binding(\.faceIDLockEnabled))
+                    .appBodyStyle()
+                Text("Låser appen når du åpner den.")
+                    .appSecondaryStyle()
+            }
+        }
+    }
+
+    private var dataSection: some View {
+        Section("Data") {
+            Text("Data lagres lokalt på enheten i denne versjonen.")
+                .appSecondaryStyle()
+        }
+    }
+
+    private var helpSection: some View {
+        Section("Hjelp") {
+            Button {
+                if let url = URL(string: "mailto:hei@simplebudget.app") {
+                    openURL(url)
+                }
+            } label: {
+                settingsRow(title: "Gi tilbakemelding", value: "")
+            }
+            .buttonStyle(.plain)
+
+            NavigationLink {
+                PrivacyInfoView()
+            } label: {
+                settingsRow(title: "Personvern", value: "")
+            }
+
+            NavigationLink {
+                AboutAppView()
+            } label: {
+                settingsRow(title: "Om appen", value: appVersionText())
+            }
+        }
+    }
+
+    private func settingsRow(title: String, value: String) -> some View {
+        HStack {
+            Text(title)
+                .appBodyStyle()
+            Spacer()
+            if !value.isEmpty {
+                Text(value)
+                    .appSecondaryStyle()
+            }
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(AppTheme.textSecondary)
+        }
+        .contentShape(Rectangle())
+    }
+
+    private func reminderTimeText() -> String {
+        String(format: "%02d:%02d", pref.checkInReminderHour, pref.checkInReminderMinute)
+    }
+
+    private func appVersionText() -> String {
+        let short = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+        return "v\(short) (\(build))"
     }
 
     private func binding<T>(_ keyPath: ReferenceWritableKeyPath<UserPreference, T>) -> Binding<T> {
@@ -54,5 +144,98 @@ struct SettingsView: View {
                 viewModel.save(context: modelContext)
             }
         )
+    }
+}
+
+private struct ReminderDayPickerSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    @State var selectedDay: Int
+    let onSave: (Int) -> Void
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Picker("Dag i måneden", selection: $selectedDay) {
+                    ForEach(1...28, id: \.self) { day in
+                        Text("\(day).")
+                            .tag(day)
+                    }
+                }
+                .pickerStyle(.wheel)
+            }
+            .navigationTitle("Dag i måneden")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Lagre") {
+                        onSave(selectedDay)
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct ReminderTimePickerSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var time: Date
+    let onSave: (Int, Int) -> Void
+
+    init(selectedHour: Int, selectedMinute: Int, onSave: @escaping (Int, Int) -> Void) {
+        var components = DateComponents()
+        components.hour = selectedHour
+        components.minute = selectedMinute
+        self._time = State(initialValue: Calendar.current.date(from: components) ?? .now)
+        self.onSave = onSave
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                DatePicker("Klokkeslett", selection: $time, displayedComponents: [.hourAndMinute])
+                    .datePickerStyle(.wheel)
+            }
+            .navigationTitle("Klokkeslett")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Lagre") {
+                        let hour = Calendar.current.component(.hour, from: time)
+                        let minute = Calendar.current.component(.minute, from: time)
+                        onSave(hour, minute)
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct PrivacyInfoView: View {
+    var body: some View {
+        List {
+            Text("Appen lagrer data lokalt på enheten din.")
+            Text("Ingen sporing eller tredjepartsannonser brukes i MVP.")
+        }
+        .navigationTitle("Personvern")
+    }
+}
+
+private struct AboutAppView: View {
+    private var versionText: String {
+        let short = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+        return "Versjon \(short) (\(build))"
+    }
+
+    var body: some View {
+        List {
+            Text("Simple Budget")
+                .appCardTitleStyle()
+            Text(versionText)
+                .appSecondaryStyle()
+        }
+        .navigationTitle("Om appen")
     }
 }

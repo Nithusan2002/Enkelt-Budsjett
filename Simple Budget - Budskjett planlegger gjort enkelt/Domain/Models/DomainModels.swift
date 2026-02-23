@@ -10,6 +10,7 @@ enum CategoryType: String, Codable, CaseIterable {
 enum TransactionKind: String, Codable, CaseIterable {
     case expense
     case income
+    case refund
     case transfer
     case manualSaving
 }
@@ -53,6 +54,18 @@ enum ChallengeMeasurementMode: String, Codable, CaseIterable {
 
 enum GoalScope: String, Codable, CaseIterable {
     case wealth
+}
+
+enum OnboardingFocus: String, Codable, CaseIterable {
+    case budget
+    case investments
+    case both
+}
+
+enum AppToneStyle: String, Codable, CaseIterable {
+    case calm
+    case warm
+    case nudges
 }
 
 @Model
@@ -255,6 +268,9 @@ final class UserPreference {
     var defaultGraphView: GraphViewRange
     var faceIDLockEnabled: Bool
     var onboardingCompleted: Bool
+    var onboardingCurrentStep: Int
+    var onboardingFocus: OnboardingFocus
+    var toneStyle: AppToneStyle
 
     init(
         singletonKey: String = "main",
@@ -266,7 +282,10 @@ final class UserPreference {
         checkInReminderMinute: Int = 0,
         defaultGraphView: GraphViewRange = .yearToDate,
         faceIDLockEnabled: Bool = false,
-        onboardingCompleted: Bool = false
+        onboardingCompleted: Bool = false,
+        onboardingCurrentStep: Int = 0,
+        onboardingFocus: OnboardingFocus = .both,
+        toneStyle: AppToneStyle = .warm
     ) {
         self.singletonKey = singletonKey
         self.savingsDefinition = savingsDefinition
@@ -278,5 +297,8 @@ final class UserPreference {
         self.defaultGraphView = defaultGraphView
         self.faceIDLockEnabled = faceIDLockEnabled
         self.onboardingCompleted = onboardingCompleted
+        self.onboardingCurrentStep = onboardingCurrentStep
+        self.onboardingFocus = onboardingFocus
+        self.toneStyle = toneStyle
     }
 }

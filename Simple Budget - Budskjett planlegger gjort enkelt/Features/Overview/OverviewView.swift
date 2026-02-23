@@ -3,6 +3,7 @@ import SwiftData
 import Charts
 
 struct OverviewView: View {
+    @EnvironmentObject private var navigationState: AppNavigationState
     @Query(sort: \Goal.createdAt, order: .reverse) private var goals: [Goal]
     @Query(sort: \InvestmentSnapshot.periodKey) private var snapshots: [InvestmentSnapshot]
     @Query(sort: \InvestmentBucket.sortOrder) private var buckets: [InvestmentBucket]
@@ -12,12 +13,17 @@ struct OverviewView: View {
     @Query(sort: \Category.sortOrder) private var categories: [Category]
 
     @StateObject private var viewModel = OverviewViewModel()
+    @State private var showCheckIn = false
 
     private var activeGoal: Goal? { viewModel.activeGoal(from: goals) }
     private var latestSnapshot: InvestmentSnapshot? { viewModel.latestSnapshot(from: snapshots) }
 
     private var savingsDefinition: SavingsDefinition {
         preferences.first?.savingsDefinition ?? .incomeMinusExpense
+    }
+
+    private var toneStyle: AppToneStyle {
+        preferences.first?.toneStyle ?? .warm
     }
 
     private var currentWealth: Double {
@@ -35,6 +41,8 @@ struct OverviewView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                firstRunModule
+                actionButtons
                 goalModule
                 statusModule
                 portfolioModule
@@ -53,8 +61,66 @@ struct OverviewView: View {
         .sheet(isPresented: $viewModel.showGoalEditor) {
             GoalEditorView(goal: activeGoal)
         }
+        .sheet(isPresented: $showCheckIn) {
+            InvestmentCheckInView(buckets: buckets, latestSnapshot: latestSnapshot)
+        }
         .onAppear {
             viewModel.onAppear(preference: preferences.first)
+        }
+    }
+
+    @ViewBuilder
+    private var firstRunModule: some View {
+        if latestSnapshot != nil {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Total formue")
+                    .appSecondaryStyle()
+                Text(formatNOK(currentWealth))
+                    .appBigNumberStyle()
+                    .foregroundStyle(AppTheme.textPrimary)
+                HStack {
+                    Label(nextCheckInText(), systemImage: "calendar")
+                        .font(.footnote.weight(.semibold))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(AppTheme.secondary.opacity(0.12), in: Capsule())
+                    Spacer()
+                }
+            }
+            .padding()
+            .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
+        } else {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Klar for første oppdatering")
+                    .appCardTitleStyle()
+                Text("Legg inn grove tall nå. Det tar rundt 30 sekunder.")
+                    .appBodyStyle()
+                Button("Oppdater formue (30 sek)") {
+                    showCheckIn = true
+                }
+                .appCTAStyle()
+                .buttonStyle(.borderedProminent)
+            }
+            .padding()
+            .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
+        }
+    }
+
+    private var actionButtons: some View {
+        HStack(spacing: 12) {
+            Button("Oppdater formue") {
+                showCheckIn = true
+            }
+            .appCTAStyle()
+            .buttonStyle(.borderedProminent)
+
+            Button("Legg til budsjett") {
+                navigationState.selectedTab = .budget
+            }
+            .appCTAStyle()
+            .buttonStyle(.bordered)
         }
     }
 
@@ -62,7 +128,7 @@ struct OverviewView: View {
         let summary = viewModel.goalSummary(activeGoal: activeGoal, currentWealth: currentWealth)
 
         return VStack(alignment: .leading, spacing: 10) {
-            Text("Jeg vil ha en formue på \(formatNOK(summary.targetAmount)) innen \(summary.targetDate.formatted(date: .numeric, time: .omitted))")
+            Text("Jeg vil ha en formue på \(formatNOK(summary.targetAmount)) innen \(formatDate(summary.targetDate))")
                 .appBodyStyle()
                 .foregroundStyle(AppTheme.textSecondary)
             HStack(spacing: 16) {
@@ -94,8 +160,9 @@ struct OverviewView: View {
     }
 
     private var statusModule: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Du har spart \(formatNOK(savedYTD)) hittil i år.")
+        let statusLine = viewModel.positiveStatusLine(savedAmount: savedYTD, period: "hittil i år", tone: toneStyle)
+        return VStack(alignment: .leading, spacing: 8) {
+            Text(statusLine)
                 .appCoachStyle()
                 .foregroundStyle(AppTheme.textPrimary)
             Text(savingsDefinition == .incomeMinusExpense
@@ -167,6 +234,7 @@ struct OverviewView: View {
                     .foregroundStyle(AppTheme.portfolioColor(for: point.bucketName))
                 }
                 .frame(height: 240)
+                .chartXAxis(.hidden)
             }
         }
         .padding()
@@ -181,5 +249,16 @@ struct OverviewView: View {
 
     private func bucketName(for id: String) -> String {
         viewModel.bucketName(for: id, buckets: buckets)
+    }
+
+    private func nextCheckInText() -> String {
+        let day = preferences.first?.checkInReminderDay ?? 5
+        let cal = Calendar.current
+        let now = Date()
+        var comps = cal.dateComponents([.year, .month], from: now)
+        comps.day = day
+        let candidate = cal.date(from: comps) ?? now
+        let next = candidate >= now ? candidate : cal.date(byAdding: .month, value: 1, to: candidate) ?? candidate
+        return "Neste insjekk: \(formatDate(next))"
     }
 }

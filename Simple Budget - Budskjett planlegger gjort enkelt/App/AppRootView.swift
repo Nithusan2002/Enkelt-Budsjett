@@ -11,49 +11,66 @@ enum AppTab {
 
 struct AppRootView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @Query private var preferences: [UserPreference]
     @StateObject private var viewModel = AppRootViewModel()
-    @State private var selectedTab: AppTab = .overview
+    @StateObject private var navigationState = AppNavigationState()
     @State private var bootstrapAttempted = false
 
     private var preference: UserPreference? { preferences.first }
+    private var shouldUseFaceIDLock: Bool {
+        (preference?.onboardingCompleted ?? false) && (preference?.faceIDLockEnabled ?? false)
+    }
 
     var body: some View {
-        Group {
-            if let preference, preference.onboardingCompleted {
-                TabView(selection: $selectedTab) {
-                    NavigationStack { OverviewView() }
-                        .tabItem { Label("Oversikt", systemImage: "rectangle.grid.2x2") }
-                        .tag(AppTab.overview)
+        ZStack {
+            Group {
+                if let preference, preference.onboardingCompleted {
+                    TabView(selection: $navigationState.selectedTab) {
+                        NavigationStack { BudgetView() }
+                            .tabItem { Label("Budsjett", systemImage: "list.bullet.rectangle") }
+                            .tag(AppTab.budget)
 
-                    NavigationStack { BudgetView() }
-                        .tabItem { Label("Budsjett", systemImage: "list.bullet.rectangle") }
-                        .tag(AppTab.budget)
+                        NavigationStack { InvestmentsView() }
+                            .tabItem { Label("Investeringer", systemImage: "chart.line.uptrend.xyaxis") }
+                            .tag(AppTab.investments)
 
-                    NavigationStack { InvestmentsView() }
-                        .tabItem { Label("Investeringer", systemImage: "chart.pie") }
-                        .tag(AppTab.investments)
+                        NavigationStack { OverviewView() }
+                            .tabItem { Label("Oversikt", systemImage: "chart.pie.fill") }
+                            .tag(AppTab.overview)
 
-                    NavigationStack { ChallengesView() }
-                        .tabItem { Label("Utfordringer", systemImage: "flag.pattern.checkered") }
-                        .tag(AppTab.challenges)
+                        NavigationStack { ChallengesView() }
+                            .tabItem { Label("Utfordringer", systemImage: "flag.pattern.checkered") }
+                            .tag(AppTab.challenges)
 
-                    NavigationStack { SettingsView() }
-                        .tabItem { Label("Innstillinger", systemImage: "gear") }
-                        .tag(AppTab.settings)
-                }
-            } else if let preference {
-                OnboardingView(preference: preference)
-            } else {
-                VStack(spacing: 12) {
-                    ProgressView("Klargjør appen...")
-                    if bootstrapAttempted {
-                        Button("Prøv igjen") {
-                            viewModel.bootstrap(context: modelContext)
+                        NavigationStack { SettingsView() }
+                            .tabItem { Label("Innstillinger", systemImage: "gear") }
+                            .tag(AppTab.settings)
+                    }
+                    .environmentObject(navigationState)
+                } else if let preference {
+                    OnboardingView(preference: preference)
+                } else {
+                    VStack(spacing: 12) {
+                        ProgressView("Klargjør appen...")
+                        if let message = viewModel.bootstrapErrorMessage {
+                            Text(message)
+                                .appSecondaryStyle()
                         }
-                        .buttonStyle(.bordered)
+                        if bootstrapAttempted {
+                            Button("Prøv igjen") {
+                                viewModel.bootstrap(context: modelContext)
+                            }
+                            .buttonStyle(.bordered)
+                        }
                     }
                 }
+            }
+
+            if shouldUseFaceIDLock && viewModel.isLocked {
+                lockOverlay
+                    .transition(.opacity)
+                    .zIndex(5)
             }
         }
         .tint(AppTheme.primary)
@@ -63,6 +80,47 @@ struct AppRootView: View {
             guard !bootstrapAttempted else { return }
             bootstrapAttempted = true
             viewModel.bootstrap(context: modelContext)
+        }
+        .onAppear {
+            viewModel.configureLock(enabled: shouldUseFaceIDLock)
+        }
+        .onChange(of: shouldUseFaceIDLock) { _, newValue in
+            viewModel.configureLock(enabled: newValue)
+        }
+        .onChange(of: scenePhase) { _, newValue in
+            viewModel.handleScenePhaseChange(newValue)
+        }
+    }
+
+    private var lockOverlay: some View {
+        ZStack {
+            AppTheme.background.ignoresSafeArea()
+            VStack(spacing: 14) {
+                Image(systemName: "faceid")
+                    .font(.system(size: 34, weight: .semibold))
+                    .foregroundStyle(AppTheme.primary)
+                Text("Face ID-lås")
+                    .font(.title3.weight(.semibold))
+                Text("Lås opp for å fortsette")
+                    .appSecondaryStyle()
+                if viewModel.isAuthenticating {
+                    ProgressView()
+                }
+                if let lockError = viewModel.lockErrorMessage {
+                    Text(lockError)
+                        .appSecondaryStyle()
+                        .multilineTextAlignment(.center)
+                }
+                Button("Prøv igjen") {
+                    viewModel.retryUnlock()
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(AppTheme.primary)
+            }
+            .padding(24)
+            .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
+            .padding(24)
         }
     }
 }

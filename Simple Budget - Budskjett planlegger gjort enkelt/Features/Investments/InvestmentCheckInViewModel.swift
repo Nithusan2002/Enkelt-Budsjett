@@ -5,9 +5,10 @@ import SwiftData
 @MainActor
 final class InvestmentCheckInViewModel: ObservableObject {
     @Published var values: [String: Double] = [:]
+    @Published var selectedDate: Date = .now
 
-    func periodKey(now: Date = .now) -> String {
-        DateService.periodKey(from: now)
+    func periodKey(for date: Date? = nil) -> String {
+        DateService.periodKey(from: date ?? selectedDate)
     }
 
     func prepareValues(buckets: [InvestmentBucket], latestSnapshot: InvestmentSnapshot?) {
@@ -28,18 +29,18 @@ final class InvestmentCheckInViewModel: ObservableObject {
         values.values.reduce(0, +)
     }
 
-    func saveSnapshot(context: ModelContext, periodKey: String, total: Double) {
+    func saveSnapshot(context: ModelContext, periodKey: String, total: Double, capturedAt: Date) {
         let descriptor = FetchDescriptor<InvestmentSnapshot>(
             predicate: #Predicate { $0.periodKey == periodKey }
         )
         let existing = try? context.fetch(descriptor).first
         let snapshotValues = values.map { InvestmentSnapshotValue(periodKey: periodKey, bucketID: $0.key, amount: $0.value) }
         if let existing {
-            existing.capturedAt = .now
+            existing.capturedAt = capturedAt
             existing.totalValue = total
             existing.bucketValues = snapshotValues
         } else {
-            context.insert(InvestmentSnapshot(periodKey: periodKey, capturedAt: .now, totalValue: total, bucketValues: snapshotValues))
+            context.insert(InvestmentSnapshot(periodKey: periodKey, capturedAt: capturedAt, totalValue: total, bucketValues: snapshotValues))
         }
         try? context.save()
     }

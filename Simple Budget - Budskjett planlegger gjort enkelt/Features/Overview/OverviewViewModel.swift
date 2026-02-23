@@ -72,4 +72,32 @@ final class OverviewViewModel: ObservableObject {
             ? "Formue inkluderer investeringer + konti markert for formue."
             : "Formue inkluderer kun investeringer."
     }
+
+    func positiveStatusLine(savedAmount: Double, period: String, tone: AppToneStyle) -> String {
+        switch tone {
+        case .calm:
+            return "Du har spart \(formatNOK(savedAmount)) i \(period)."
+        case .nudges:
+            return "Bra flyt: \(formatNOK(savedAmount)) i \(period)."
+        case .warm:
+            let lines = [
+                "Du har spart {x} i {p}.",
+                "Sterk start: {x} så langt i {p}.",
+                "Fin flyt nå: {x} bygget i {p}.",
+                "Du ligger på pluss med {x} i {p}.",
+                "Bra jobbet, {x} er på plass i {p}.",
+                "Små steg teller: {x} i {p}.",
+                "Du har allerede nådd {x} i {p}.",
+                "Stabil progresjon: {x} i {p}.",
+                "Økonomien din vokser: {x} i {p}.",
+                "Dette ser lovende ut: {x} i {p}.",
+                "Du holder rytmen: {x} i {p}.",
+                "{x} spart i {p} - fin utvikling."
+            ]
+            let idx = Calendar.current.component(.month, from: .now) % lines.count
+            return lines[idx]
+                .replacingOccurrences(of: "{x}", with: formatNOK(savedAmount))
+                .replacingOccurrences(of: "{p}", with: period)
+        }
+    }
 }
