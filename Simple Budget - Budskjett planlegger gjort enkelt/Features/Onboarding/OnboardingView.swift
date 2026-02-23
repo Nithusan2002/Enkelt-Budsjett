@@ -78,6 +78,18 @@ struct OnboardingView: View {
 
     private var welcomeStep: some View {
         VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image("BrandLogoTransparent")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 110, height: 110)
+                    .accessibilityHidden(true)
+                Spacer()
+            }
+            .padding(10)
+            .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.divider, lineWidth: 1))
+
             Text("Få oversikt på under ett minutt")
                 .appCardTitleStyle()
             Text("Se hvordan budsjett og formue henger sammen. Tall kan legges inn senere.")
@@ -116,6 +128,8 @@ struct OnboardingView: View {
                 viewModel.showDemo = true
             }
             .appCTAStyle()
+            .buttonStyle(.bordered)
+            .tint(AppTheme.primary)
         }
     }
 
@@ -390,8 +404,19 @@ struct OnboardingView: View {
 private struct DemoPreviewSheet: View {
     var body: some View {
         NavigationStack {
-            ScrollView(.horizontal) {
+            ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Image("BrandStory")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 260)
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                        Text("Slik ser dashboardet ut i praksis.")
+                            .appSecondaryStyle()
+                    }
+                    .frame(width: 280, alignment: .topLeading)
+
                     previewCard(
                         title: "Total formue",
                         text: "NOK 124 000",
@@ -408,7 +433,8 @@ private struct DemoPreviewSheet: View {
                         detail: "Fond 58 % av porteføljen"
                     )
                 }
-                .padding()
+                .padding(.horizontal)
+                .padding(.vertical, 8)
             }
             .navigationTitle("Demo-preview")
         }
