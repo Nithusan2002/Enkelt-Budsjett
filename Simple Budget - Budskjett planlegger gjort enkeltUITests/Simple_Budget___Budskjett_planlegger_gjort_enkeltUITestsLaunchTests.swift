@@ -1,8 +1,6 @@
-//___FILEHEADER___
-
 import XCTest
 
-final class ___FILEBASENAMEASIDENTIFIER___: XCTestCase {
+final class Simple_Budget___Budskjett_planlegger_gjort_enkeltUITestsLaunchTests: XCTestCase {
 
     override class var runsForEachTargetApplicationUIConfiguration: Bool {
         true

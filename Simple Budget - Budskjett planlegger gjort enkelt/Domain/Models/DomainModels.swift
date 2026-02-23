@@ -1,0 +1,282 @@
+import Foundation
+import SwiftData
+
+enum CategoryType: String, Codable, CaseIterable {
+    case expense
+    case income
+    case savings
+}
+
+enum TransactionKind: String, Codable, CaseIterable {
+    case expense
+    case income
+    case transfer
+    case manualSaving
+}
+
+enum AccountType: String, Codable, CaseIterable {
+    case checking
+    case savings
+    case cash
+}
+
+enum SavingsDefinition: String, Codable, CaseIterable {
+    case incomeMinusExpense
+    case savingsCategoryOnly
+}
+
+enum GraphViewRange: String, Codable, CaseIterable {
+    case yearToDate
+    case last12Months
+}
+
+enum ChallengeType: String, Codable, CaseIterable {
+    case noCoffeeWeek
+    case save1000In30Days
+    case roundUpManual
+    case foodBudgetWeek
+}
+
+enum ChallengeStatus: String, Codable, CaseIterable {
+    case active
+    case paused
+    case completed
+    case cancelled
+}
+
+enum ChallengeMeasurementMode: String, Codable, CaseIterable {
+    case savingsDefinition
+    case savingsCategory
+    case manualRoundUp
+    case manualCheckin
+}
+
+enum GoalScope: String, Codable, CaseIterable {
+    case wealth
+}
+
+@Model
+final class BudgetMonth {
+    @Attribute(.unique) var periodKey: String
+    var year: Int
+    var month: Int
+    var startDate: Date
+    var endDate: Date
+    var isClosed: Bool
+
+    init(periodKey: String, year: Int, month: Int, startDate: Date, endDate: Date, isClosed: Bool = false) {
+        self.periodKey = periodKey
+        self.year = year
+        self.month = month
+        self.startDate = startDate
+        self.endDate = endDate
+        self.isClosed = isClosed
+    }
+}
+
+@Model
+final class Category {
+    @Attribute(.unique) var id: String
+    var name: String
+    var type: CategoryType
+    var isActive: Bool
+    var sortOrder: Int
+
+    init(id: String = UUID().uuidString, name: String, type: CategoryType, isActive: Bool = true, sortOrder: Int) {
+        self.id = id
+        self.name = name
+        self.type = type
+        self.isActive = isActive
+        self.sortOrder = sortOrder
+    }
+}
+
+@Model
+final class BudgetPlan {
+    @Attribute(.unique) var uniqueKey: String
+    var monthPeriodKey: String
+    var categoryID: String
+    var plannedAmount: Double
+
+    init(monthPeriodKey: String, categoryID: String, plannedAmount: Double) {
+        self.monthPeriodKey = monthPeriodKey
+        self.categoryID = categoryID
+        self.plannedAmount = plannedAmount
+        self.uniqueKey = "\(monthPeriodKey)|\(categoryID)"
+    }
+}
+
+@Model
+final class Transaction {
+    var date: Date
+    var amount: Double
+    var kind: TransactionKind
+    var categoryID: String?
+    var accountID: String?
+    var note: String
+
+    init(date: Date, amount: Double, kind: TransactionKind, categoryID: String? = nil, accountID: String? = nil, note: String = "") {
+        self.date = date
+        self.amount = amount
+        self.kind = kind
+        self.categoryID = categoryID
+        self.accountID = accountID
+        self.note = note
+    }
+}
+
+@Model
+final class Account {
+    @Attribute(.unique) var id: String
+    var name: String
+    var type: AccountType
+    var includeInNetWealth: Bool
+    var currentBalance: Double
+
+    init(id: String = UUID().uuidString, name: String, type: AccountType, includeInNetWealth: Bool = true, currentBalance: Double = 0) {
+        self.id = id
+        self.name = name
+        self.type = type
+        self.includeInNetWealth = includeInNetWealth
+        self.currentBalance = currentBalance
+    }
+}
+
+@Model
+final class InvestmentBucket {
+    @Attribute(.unique) var id: String
+    var name: String
+    var isDefault: Bool
+    var isActive: Bool
+    var sortOrder: Int
+
+    init(id: String = UUID().uuidString, name: String, isDefault: Bool = false, isActive: Bool = true, sortOrder: Int) {
+        self.id = id
+        self.name = name
+        self.isDefault = isDefault
+        self.isActive = isActive
+        self.sortOrder = sortOrder
+    }
+}
+
+@Model
+final class InvestmentSnapshot {
+    @Attribute(.unique) var periodKey: String
+    var capturedAt: Date
+    var totalValue: Double
+    @Relationship(deleteRule: .cascade) var bucketValues: [InvestmentSnapshotValue]
+
+    init(periodKey: String, capturedAt: Date, totalValue: Double, bucketValues: [InvestmentSnapshotValue] = []) {
+        self.periodKey = periodKey
+        self.capturedAt = capturedAt
+        self.totalValue = totalValue
+        self.bucketValues = bucketValues
+    }
+}
+
+@Model
+final class InvestmentSnapshotValue {
+    var periodKey: String
+    var bucketID: String
+    var amount: Double
+
+    init(periodKey: String, bucketID: String, amount: Double) {
+        self.periodKey = periodKey
+        self.bucketID = bucketID
+        self.amount = amount
+    }
+}
+
+@Model
+final class Goal {
+    var targetAmount: Double
+    var targetDate: Date
+    var scope: GoalScope
+    var includeAccounts: Bool
+    var isActive: Bool
+    var createdAt: Date
+
+    init(targetAmount: Double, targetDate: Date, scope: GoalScope = .wealth, includeAccounts: Bool = true, isActive: Bool = true, createdAt: Date = .now) {
+        self.targetAmount = targetAmount
+        self.targetDate = targetDate
+        self.scope = scope
+        self.includeAccounts = includeAccounts
+        self.isActive = isActive
+        self.createdAt = createdAt
+    }
+}
+
+@Model
+final class Challenge {
+    @Attribute(.unique) var uniqueKey: String
+    var type: ChallengeType
+    var startDate: Date
+    var endDate: Date
+    var targetAmount: Double?
+    var targetDays: Int?
+    var status: ChallengeStatus
+    var progress: Double
+    var measurementMode: ChallengeMeasurementMode
+    var manualProgress: Double
+
+    init(
+        type: ChallengeType,
+        startDate: Date,
+        endDate: Date,
+        targetAmount: Double? = nil,
+        targetDays: Int? = nil,
+        status: ChallengeStatus = .active,
+        progress: Double = 0,
+        measurementMode: ChallengeMeasurementMode = .manualCheckin,
+        manualProgress: Double = 0
+    ) {
+        self.type = type
+        self.startDate = startDate
+        self.endDate = endDate
+        self.targetAmount = targetAmount
+        self.targetDays = targetDays
+        self.status = status
+        self.progress = progress
+        self.measurementMode = measurementMode
+        self.manualProgress = manualProgress
+        self.uniqueKey = "\(type.rawValue)|\(startDate.timeIntervalSince1970)"
+    }
+}
+
+@Model
+final class UserPreference {
+    @Attribute(.unique) var singletonKey: String
+    var savingsDefinition: SavingsDefinition
+    var yearStartRule: String
+    var checkInReminderEnabled: Bool
+    var checkInReminderDay: Int
+    var checkInReminderHour: Int
+    var checkInReminderMinute: Int
+    var defaultGraphView: GraphViewRange
+    var faceIDLockEnabled: Bool
+    var onboardingCompleted: Bool
+
+    init(
+        singletonKey: String = "main",
+        savingsDefinition: SavingsDefinition = .incomeMinusExpense,
+        yearStartRule: String = "calendarYear",
+        checkInReminderEnabled: Bool = true,
+        checkInReminderDay: Int = 5,
+        checkInReminderHour: Int = 19,
+        checkInReminderMinute: Int = 0,
+        defaultGraphView: GraphViewRange = .yearToDate,
+        faceIDLockEnabled: Bool = false,
+        onboardingCompleted: Bool = false
+    ) {
+        self.singletonKey = singletonKey
+        self.savingsDefinition = savingsDefinition
+        self.yearStartRule = yearStartRule
+        self.checkInReminderEnabled = checkInReminderEnabled
+        self.checkInReminderDay = checkInReminderDay
+        self.checkInReminderHour = checkInReminderHour
+        self.checkInReminderMinute = checkInReminderMinute
+        self.defaultGraphView = defaultGraphView
+        self.faceIDLockEnabled = faceIDLockEnabled
+        self.onboardingCompleted = onboardingCompleted
+    }
+}
