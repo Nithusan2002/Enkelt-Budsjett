@@ -130,6 +130,7 @@ struct InvestmentsView: View {
                     .padding(.horizontal, 2)
                     .padding(.vertical, 6)
                     .background(AppTheme.background, in: RoundedRectangle(cornerRadius: 10))
+                    .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: 6) {
                     heroMetaRow(icon: "calendar", text: hero.lastCheckInText)
@@ -193,6 +194,8 @@ struct InvestmentsView: View {
                     .frame(height: 170)
                     .chartXAxis(.hidden)
                     .animation(.easeInOut(duration: 0.5), value: viewModel.selectedRange)
+                    .accessibilityLabel("Utviklingsgraf for investeringer")
+                    .accessibilityValue(developmentChartAccessibilitySummary(filteredSnapshots))
                 }
             }
             .padding(14)
@@ -324,6 +327,8 @@ struct InvestmentsView: View {
                     .foregroundStyle(portfolioColor(bucketID: item.bucketID, fallbackName: item.bucketName))
                 }
                 .frame(height: 180)
+                .accessibilityLabel("Fordeling av beholdning")
+                .accessibilityValue(distributionAccessibilitySummary(data))
 
                 ForEach(data, id: \.bucketID) { item in
                     HStack {
@@ -445,6 +450,7 @@ struct InvestmentsView: View {
 
                 sparkline(series: row.sparkline, color: bucketColor)
                     .frame(width: 78, height: 30)
+                    .accessibilityHidden(true)
 
                 VStack(alignment: .trailing, spacing: 1) {
                     Text(changeAmountText(changeKr: row.changeKr))
@@ -498,6 +504,23 @@ struct InvestmentsView: View {
             return AppTheme.portfolioColor(for: bucket)
         }
         return AppTheme.portfolioColor(for: fallbackName)
+    }
+
+    private func developmentChartAccessibilitySummary(_ snapshots: [InvestmentSnapshot]) -> String {
+        guard let first = snapshots.first, let last = snapshots.last else {
+            return "Ingen utviklingsdata ennå."
+        }
+        let change = last.totalValue - first.totalValue
+        return "Fra \(formatNOK(first.totalValue)) til \(formatNOK(last.totalValue)), endring \(formatNOK(change))."
+    }
+
+    private func distributionAccessibilitySummary(_ data: [(bucketID: String, bucketName: String, amount: Double, percent: Double)]) -> String {
+        guard !data.isEmpty else { return "Ingen fordeling ennå." }
+        return data
+            .sorted { $0.percent > $1.percent }
+            .prefix(3)
+            .map { "\($0.bucketName) \(formatPercent($0.percent))" }
+            .joined(separator: ", ")
     }
 
 }

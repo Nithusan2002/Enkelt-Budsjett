@@ -12,6 +12,9 @@ struct SettingsView: View {
     @State private var showTimePicker = false
     @State private var shareItem: ShareURL?
     @State private var showExportError = false
+    @State private var showDeleteAllConfirm = false
+    @State private var showDeleteAllError = false
+    @State private var showDeleteAllSuccess = false
 
     private var pref: UserPreference { viewModel.preference(from: preferences, context: modelContext) }
 
@@ -48,6 +51,29 @@ struct SettingsView: View {
             Button("OK", role: .cancel) { }
         } message: {
             Text("Prøv igjen litt senere.")
+        }
+        .alert("Slett alle data?", isPresented: $showDeleteAllConfirm) {
+            Button("Avbryt", role: .cancel) { }
+            Button("Slett alt", role: .destructive) {
+                do {
+                    try viewModel.deleteAllData(context: modelContext)
+                    showDeleteAllSuccess = true
+                } catch {
+                    showDeleteAllError = true
+                }
+            }
+        } message: {
+            Text("Dette sletter budsjett, investeringer, mål og innstillinger lokalt på enheten.")
+        }
+        .alert("Kunne ikke slette data", isPresented: $showDeleteAllError) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("Prøv igjen litt senere.")
+        }
+        .alert("Alle data er slettet", isPresented: $showDeleteAllSuccess) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("Appen er nullstilt lokalt.")
         }
     }
 
@@ -111,6 +137,16 @@ struct SettingsView: View {
             .buttonStyle(.plain)
 
             Text("Eksporterer en JSON-kopi av alle lokale data.")
+                .appSecondaryStyle()
+
+            Button(role: .destructive) {
+                showDeleteAllConfirm = true
+            } label: {
+                settingsRow(title: "Slett alle data", value: "")
+            }
+            .buttonStyle(.plain)
+
+            Text("Brukes hvis du vil nullstille appen helt.")
                 .appSecondaryStyle()
         }
     }
@@ -264,6 +300,7 @@ private struct PrivacyInfoView: View {
             Text("Appen lagrer data lokalt på enheten din.")
             Text("Ingen sporing eller tredjepartsannonser brukes i MVP.")
             Text("Du kan eksportere en lokal JSON-kopi fra Innstillinger > Data.")
+            Text("Du kan også slette alle lokale data fra Innstillinger > Data.")
         }
         .navigationTitle("Personvern")
     }

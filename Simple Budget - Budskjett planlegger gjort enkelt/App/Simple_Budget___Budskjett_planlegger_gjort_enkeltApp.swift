@@ -32,11 +32,10 @@ struct Simple_Budget___Budskjett_planlegger_gjort_enkeltApp: App {
             let configuration = ModelConfiguration(url: storeURL, cloudKitDatabase: .none)
             return try ModelContainer(for: schema, configurations: [configuration])
         } catch {
-            // Hvis schema har endret seg og gammel lokal store er inkompatibel:
-            // slett lokalfilene og start med en ren store.
-            resetLocalStore(at: storeURL)
+            // Sikker recovery: aldri slett brukerdata automatisk.
+            // Start i en separat recovery-store hvis primær store ikke kan åpnes.
             do {
-                let configuration = ModelConfiguration(url: storeURL, cloudKitDatabase: .none)
+                let configuration = ModelConfiguration(url: recoveryStoreURL(), cloudKitDatabase: .none)
                 return try ModelContainer(for: schema, configurations: [configuration])
             } catch {
                 // Siste nødnett: la appen starte i-memory.
@@ -53,10 +52,10 @@ struct Simple_Budget___Budskjett_planlegger_gjort_enkeltApp: App {
         return appSupport.appendingPathComponent("SimpleBudget.store")
     }
 
-    private static func resetLocalStore(at url: URL) {
+    private static func recoveryStoreURL() -> URL {
         let fm = FileManager.default
-        try? fm.removeItem(at: url)
-        try? fm.removeItem(atPath: url.path + "-wal")
-        try? fm.removeItem(atPath: url.path + "-shm")
+        let appSupport = (try? fm.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true))
+            ?? fm.temporaryDirectory
+        return appSupport.appendingPathComponent("SimpleBudget.recovery.store")
     }
 }

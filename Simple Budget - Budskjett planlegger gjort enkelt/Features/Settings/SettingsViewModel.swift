@@ -45,6 +45,30 @@ final class SettingsViewModel: ObservableObject {
         try data.write(to: url, options: .atomic)
         return url
     }
+
+    func deleteAllData(context: ModelContext) throws {
+        try deleteAll(BudgetPlan.self, context: context)
+        try deleteAll(BudgetMonth.self, context: context)
+        try deleteAll(Transaction.self, context: context)
+        try deleteAll(Category.self, context: context)
+        try deleteAll(Account.self, context: context)
+        try deleteAll(InvestmentSnapshot.self, context: context)
+        try deleteAll(InvestmentSnapshotValue.self, context: context)
+        try deleteAll(InvestmentBucket.self, context: context)
+        try deleteAll(Goal.self, context: context)
+        try deleteAll(Challenge.self, context: context)
+        try deleteAll(UserPreference.self, context: context)
+        UserDefaults.standard.removeObject(forKey: "onboarding_local_events")
+        UserDefaults.standard.removeObject(forKey: "challenges_waitlist_optin")
+        try context.save()
+    }
+
+    private func deleteAll<T: PersistentModel>(_ type: T.Type, context: ModelContext) throws {
+        let models = try context.fetch(FetchDescriptor<T>())
+        for model in models {
+            context.delete(model)
+        }
+    }
 }
 
 private struct ExportPayload: Codable {

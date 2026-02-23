@@ -114,71 +114,75 @@ struct OverviewView: View {
     private var goalModule: some View {
         let summary = viewModel.goalSummary(activeGoal: activeGoal, currentWealth: currentWealth)
 
-        return VStack(alignment: .leading, spacing: 12) {
-            if activeGoal == nil {
-                Text("Mål")
-                    .appCardTitleStyle()
-                Text("Sett et formuemål for å få tydelig fremdrift på oversikten.")
-                    .appBodyStyle()
-                    .foregroundStyle(AppTheme.textSecondary)
-                HStack {
-                    Spacer()
-                    Text("Trykk for å opprette")
-                        .appSecondaryStyle()
-                }
-            } else {
-                HStack {
+        return Button {
+            viewModel.showGoalEditor = true
+        } label: {
+            VStack(alignment: .leading, spacing: 12) {
+                if activeGoal == nil {
                     Text("Mål")
                         .appCardTitleStyle()
-                    Spacer()
-                    Text("Trykk for å redigere")
-                        .appSecondaryStyle()
-                }
-
-                HStack(alignment: .firstTextBaseline) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Nåværende formue")
+                    Text("Sett et formuemål for å få tydelig fremdrift på oversikten.")
+                        .appBodyStyle()
+                        .foregroundStyle(AppTheme.textSecondary)
+                    HStack {
+                        Spacer()
+                        Text("Trykk for å opprette")
                             .appSecondaryStyle()
-                        Text(formatNOK(currentWealth))
-                            .appBigNumberStyle()
-                            .foregroundStyle(AppTheme.textPrimary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.72)
                     }
-                    Spacer()
-                    Text("\(Int((summary.progress * 100).rounded())) %")
-                        .font(.title3.weight(.semibold))
-                        .monospacedDigit()
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(AppTheme.primary.opacity(0.12), in: Capsule())
-                }
+                } else {
+                    HStack {
+                        Text("Mål")
+                            .appCardTitleStyle()
+                        Spacer()
+                        Text("Trykk for å redigere")
+                            .appSecondaryStyle()
+                    }
 
-                ProgressView(value: summary.progress, total: 1)
-                    .tint(AppTheme.primary)
+                    HStack(alignment: .firstTextBaseline) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Nåværende formue")
+                                .appSecondaryStyle()
+                            Text(formatNOK(currentWealth))
+                                .appBigNumberStyle()
+                                .foregroundStyle(AppTheme.textPrimary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.72)
+                        }
+                        Spacer()
+                        Text("\(Int((summary.progress * 100).rounded())) %")
+                            .font(.title3.weight(.semibold))
+                            .monospacedDigit()
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(AppTheme.primary.opacity(0.12), in: Capsule())
+                    }
 
-                Text("Mål: \(formatNOK(summary.targetAmount)) innen \(formatDate(summary.targetDate))")
-                    .appSecondaryStyle()
+                    ProgressView(value: summary.progress, total: 1)
+                        .tint(AppTheme.primary)
 
-                HStack(spacing: 10) {
-                    goalStatChip(title: "Igjen", value: "\(summary.monthsRemaining) mnd")
-                    goalStatChip(title: "Behov / mnd", value: formatNOK(summary.perMonth))
-                }
-
-                HStack {
-                    Spacer()
-                    Text("Se mer")
+                    Text("Mål: \(formatNOK(summary.targetAmount)) innen \(formatDate(summary.targetDate))")
                         .appSecondaryStyle()
+
+                    HStack(spacing: 10) {
+                        goalStatChip(title: "Igjen", value: "\(summary.monthsRemaining) mnd")
+                        goalStatChip(title: "Behov / mnd", value: formatNOK(summary.perMonth))
+                    }
+
+                    HStack {
+                        Spacer()
+                        Text("Se mer")
+                            .appSecondaryStyle()
+                    }
                 }
             }
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel(activeGoal == nil ? "Målkort" : "Målkort med fremdrift")
+        .accessibilityHint(activeGoal == nil ? "Åpner opprett mål" : "Åpner redigering av mål")
         .padding()
         .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
         .contentShape(RoundedRectangle(cornerRadius: 16))
-        .onTapGesture {
-            viewModel.showGoalEditor = true
-        }
     }
 
     private func goalStatChip(title: String, value: String) -> some View {
@@ -200,67 +204,78 @@ struct OverviewView: View {
 
     private var statusModule: some View {
         let statusLine = viewModel.positiveStatusLine(savedAmount: savedYTD, period: "hittil i år", tone: toneStyle)
-        return VStack(alignment: .leading, spacing: 8) {
-            Text(statusLine)
-                .appCoachStyle()
-                .foregroundStyle(AppTheme.textPrimary)
-            Text("Trykk for detaljer i Budsjett.")
-                .appSecondaryStyle()
-            HStack {
-                Spacer()
-                Text("Se mer")
+        return Button {
+            navigationState.selectedTab = .budget
+        } label: {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(statusLine)
+                    .appCoachStyle()
+                    .foregroundStyle(AppTheme.textPrimary)
+                Text("Trykk for detaljer i Budsjett.")
                     .appSecondaryStyle()
+                HStack {
+                    Spacer()
+                    Text("Se mer")
+                        .appSecondaryStyle()
+                }
             }
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Sparing hittil i år")
+        .accessibilityValue(statusLine)
+        .accessibilityHint("Åpner budsjettdetaljer")
         .padding()
         .background(AppTheme.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
         .contentShape(RoundedRectangle(cornerRadius: 16))
-        .onTapGesture {
-            navigationState.selectedTab = .budget
-        }
     }
 
     private var portfolioModule: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("Porteføljefordeling")
-                    .appCardTitleStyle()
-                Spacer()
-                Text("Se mer")
-                    .appSecondaryStyle()
-            }
-            if let latestSnapshot {
-                Chart(latestSnapshot.bucketValues, id: \.bucketID) { value in
-                    SectorMark(
-                        angle: .value("Beløp", value.amount),
-                        innerRadius: .ratio(0.55),
-                        angularInset: 2
-                    )
-                    .foregroundStyle(bucketColor(for: value.bucketID))
+        Button {
+            navigationState.selectedTab = .investments
+        } label: {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text("Porteføljefordeling")
+                        .appCardTitleStyle()
+                    Spacer()
+                    Text("Se mer")
+                        .appSecondaryStyle()
                 }
-                .frame(height: 220)
-                ForEach(latestSnapshot.bucketValues, id: \.bucketID) { value in
-                    HStack {
-                        Text(bucketName(for: value.bucketID))
-                        Spacer()
-                        Text(formatNOK(value.amount))
+                if let latestSnapshot {
+                    Chart(latestSnapshot.bucketValues, id: \.bucketID) { value in
+                        SectorMark(
+                            angle: .value("Beløp", value.amount),
+                            innerRadius: .ratio(0.55),
+                            angularInset: 2
+                        )
+                        .foregroundStyle(bucketColor(for: value.bucketID))
                     }
-                    .appBodyStyle()
+                    .frame(height: 220)
+                    .accessibilityLabel("Porteføljefordeling")
+                    .accessibilityValue(portfolioAccessibilitySummary(latestSnapshot))
+                    ForEach(latestSnapshot.bucketValues, id: \.bucketID) { value in
+                        HStack {
+                            Text(bucketName(for: value.bucketID))
+                            Spacer()
+                            Text(formatNOK(value.amount))
+                        }
+                        .appBodyStyle()
+                    }
+                } else {
+                    Text("Legg inn første tall for å se fordeling.")
+                        .appBodyStyle()
+                        .foregroundStyle(AppTheme.textSecondary)
                 }
-            } else {
-                Text("Legg inn første tall for å se fordeling.")
-                    .appBodyStyle()
-                    .foregroundStyle(AppTheme.textSecondary)
             }
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Porteføljekort")
+        .accessibilityHint("Åpner investeringer")
         .padding()
         .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
         .contentShape(RoundedRectangle(cornerRadius: 16))
-        .onTapGesture {
-            navigationState.selectedTab = .investments
-        }
     }
 
     private var developmentModule: some View {
@@ -292,20 +307,21 @@ struct OverviewView: View {
                 }
                 .frame(height: 240)
                 .chartXAxis(.hidden)
+                .accessibilityLabel("Utviklingsgraf")
+                .accessibilityValue(developmentAccessibilitySummary(chartData))
             }
             HStack {
                 Spacer()
-                Text("Se mer")
-                    .appSecondaryStyle()
+                Button("Se mer") {
+                    navigationState.selectedTab = .investments
+                }
+                .appSecondaryStyle()
+                .buttonStyle(.plain)
             }
         }
         .padding()
         .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
-        .contentShape(RoundedRectangle(cornerRadius: 16))
-        .onTapGesture {
-            navigationState.selectedTab = .investments
-        }
     }
 
     private var scopeModule: some View {
@@ -338,5 +354,30 @@ struct OverviewView: View {
     private var shouldShowPrimaryCheckInAction: Bool {
         guard let latestSnapshot else { return true }
         return latestSnapshot.periodKey != DateService.periodKey(from: .now)
+    }
+
+    private func portfolioAccessibilitySummary(_ snapshot: InvestmentSnapshot) -> String {
+        let total = max(snapshot.totalValue, 0)
+        guard total > 0 else { return "Ingen fordeling ennå." }
+        let parts = snapshot.bucketValues
+            .sorted { $0.amount > $1.amount }
+            .prefix(3)
+            .map { value in
+                let share = value.amount / total
+                return "\(bucketName(for: value.bucketID)) \(formatPercent(share))"
+            }
+        return parts.joined(separator: ", ")
+    }
+
+    private func developmentAccessibilitySummary(_ points: [ChartPoint]) -> String {
+        let grouped = Dictionary(grouping: points, by: \.periodKey)
+            .mapValues { rows in rows.reduce(0) { $0 + $1.amount } }
+        let keys = grouped.keys.sorted()
+        guard let firstKey = keys.first, let lastKey = keys.last,
+              let first = grouped[firstKey], let last = grouped[lastKey] else {
+            return "Ingen utviklingsdata."
+        }
+        let change = last - first
+        return "Fra \(formatNOK(first)) til \(formatNOK(last)), endring \(formatNOK(change))."
     }
 }
