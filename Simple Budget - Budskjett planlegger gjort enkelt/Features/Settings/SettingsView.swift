@@ -231,7 +231,7 @@ private struct AboutAppView: View {
 
     var body: some View {
         List {
-            Text("Simple Budget")
+            Text("Enkelt Budsjett")
                 .appCardTitleStyle()
             Text(versionText)
                 .appSecondaryStyle()

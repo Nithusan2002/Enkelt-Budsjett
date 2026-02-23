@@ -1,4 +1,4 @@
-# Simple Budget
+# Enkelt Budsjett
 
 En offline-first iOS-app bygget i SwiftUI + SwiftData for:
 - budsjettsporing
