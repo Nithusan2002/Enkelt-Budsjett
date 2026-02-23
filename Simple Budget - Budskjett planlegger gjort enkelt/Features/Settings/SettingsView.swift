@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
@@ -9,6 +10,8 @@ struct SettingsView: View {
 
     @State private var showDayPicker = false
     @State private var showTimePicker = false
+    @State private var shareItem: ShareURL?
+    @State private var showExportError = false
 
     private var pref: UserPreference { viewModel.preference(from: preferences, context: modelContext) }
 
@@ -37,6 +40,14 @@ struct SettingsView: View {
                 pref.checkInReminderMinute = minute
                 viewModel.save(context: modelContext)
             }
+        }
+        .sheet(item: $shareItem) { item in
+            ShareSheet(activityItems: [item.url])
+        }
+        .alert("Kunne ikke eksportere data", isPresented: $showExportError) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("Prøv igjen litt senere.")
         }
     }
 
@@ -80,7 +91,26 @@ struct SettingsView: View {
 
     private var dataSection: some View {
         Section("Data") {
-            Text("Data lagres lokalt på enheten i denne versjonen.")
+            HStack {
+                Text("Backup-status")
+                    .appBodyStyle()
+                Spacer()
+                Text("Lokal lagring")
+                    .appSecondaryStyle()
+            }
+
+            Button {
+                do {
+                    shareItem = ShareURL(try viewModel.exportData(context: modelContext))
+                } catch {
+                    showExportError = true
+                }
+            } label: {
+                settingsRow(title: "Eksporter data", value: "")
+            }
+            .buttonStyle(.plain)
+
+            Text("Eksporterer en JSON-kopi av alle lokale data.")
                 .appSecondaryStyle()
         }
     }
@@ -145,6 +175,22 @@ struct SettingsView: View {
             }
         )
     }
+}
+
+private struct ShareURL: Identifiable {
+    let id = UUID()
+    let url: URL
+    init(_ url: URL) { self.url = url }
+}
+
+private struct ShareSheet: UIViewControllerRepresentable {
+    let activityItems: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 private struct ReminderDayPickerSheet: View {
@@ -217,6 +263,7 @@ private struct PrivacyInfoView: View {
         List {
             Text("Appen lagrer data lokalt på enheten din.")
             Text("Ingen sporing eller tredjepartsannonser brukes i MVP.")
+            Text("Du kan eksportere en lokal JSON-kopi fra Innstillinger > Data.")
         }
         .navigationTitle("Personvern")
     }

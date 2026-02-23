@@ -32,7 +32,8 @@ final class OnboardingViewModel: ObservableObject {
     @Published var snapshotText: [String: String] = [
         "Fond": "",
         "Aksjer": "",
-        "IPS": "",
+        "BSU": "",
+        "Buffer": "",
         "Krypto": ""
     ]
 
@@ -99,7 +100,7 @@ final class OnboardingViewModel: ObservableObject {
         if currentStep == .firstWealth {
             firstWealthTotalText = ""
             showBucketBreakdown = false
-            snapshotText = ["Fond": "", "Aksjer": "", "IPS": "", "Krypto": ""]
+            snapshotText = ["Fond": "", "Aksjer": "", "BSU": "", "Buffer": "", "Krypto": ""]
             next(preference: preference, context: context)
             logEvent("onboarding_first_wealth_skipped")
             return
@@ -114,7 +115,7 @@ final class OnboardingViewModel: ObservableObject {
     }
 
     func finish(preference: UserPreference, context: ModelContext, forceReminderOff: Bool = false) {
-        let selectedBuckets = ["Fond", "Aksjer", "IPS", "Krypto"]
+        let selectedBuckets = ["Fond", "Aksjer", "BSU", "Buffer", "Krypto"]
         let totalWealth = parseDouble(firstWealthTotalText)
         let goalAmount = parseDouble(goalAmountText)
         let selectedBudgetCategories = categories(for: budgetPackage)
@@ -196,7 +197,7 @@ final class OnboardingViewModel: ObservableObject {
     }
 
     private func logEvent(_ event: String) {
-        print("[onboarding_event] \(event)")
+        OnboardingEventLogger.log(event)
     }
 
     func title(for package: BudgetStarterPackage) -> String {

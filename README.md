@@ -17,3 +17,9 @@ En offline-first iOS-app bygget i SwiftUI + SwiftData for:
 - NOK som valuta
 - Månedsbasert budsjett og investeringsinsjekk
 - Enkel, varm og ikke-moraliserende UX
+
+## Data og personvern
+
+- Appen lagrer data lokalt på enheten (offline-first).
+- Ingen tredjepartssporing i MVP.
+- Eksport av data (JSON) er tilgjengelig fra `Innstillinger > Data`.
