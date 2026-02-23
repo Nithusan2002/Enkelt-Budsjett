@@ -116,44 +116,23 @@ struct OverviewView: View {
 
         return VStack(alignment: .leading, spacing: 12) {
             if activeGoal == nil {
-                HStack {
-                    Text("Mål")
-                        .appCardTitleStyle()
-                    Spacer()
-                    Button {
-                        viewModel.showGoalEditor = true
-                    } label: {
-                        Image(systemName: "plus")
-                            .font(.footnote.weight(.semibold))
-                            .padding(8)
-                            .background(AppTheme.primary.opacity(0.12), in: Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Opprett mål")
-                }
+                Text("Mål")
+                    .appCardTitleStyle()
                 Text("Sett et formuemål for å få tydelig fremdrift på oversikten.")
                     .appBodyStyle()
                     .foregroundStyle(AppTheme.textSecondary)
-                Button("Sett mål") {
-                    viewModel.showGoalEditor = true
+                HStack {
+                    Spacer()
+                    Text("Trykk for å opprette")
+                        .appSecondaryStyle()
                 }
-                .buttonStyle(.bordered)
-                .tint(AppTheme.primary)
             } else {
                 HStack {
                     Text("Mål")
                         .appCardTitleStyle()
                     Spacer()
-                    Button {
-                        viewModel.showGoalEditor = true
-                    } label: {
-                        Image(systemName: "pencil")
-                            .font(.footnote.weight(.semibold))
-                            .padding(8)
-                            .background(AppTheme.primary.opacity(0.12), in: Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Rediger mål")
+                    Text("Trykk for å redigere")
+                        .appSecondaryStyle()
                 }
 
                 HStack(alignment: .firstTextBaseline) {

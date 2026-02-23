@@ -1,39 +1,81 @@
 import SwiftUI
 
 struct ChallengesView: View {
+    @AppStorage("challenges_waitlist_optin") private var waitlistOptIn = false
+
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Utfordringer")
-                        .font(.title2.weight(.semibold))
-                    Text("Under utvikling")
-                        .font(.headline.weight(.semibold))
+        VStack(spacing: 16) {
+            Spacer(minLength: 12)
+
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    Image(systemName: "flag.checkered.2.crossed")
+                        .font(.title3.weight(.semibold))
                         .foregroundStyle(AppTheme.primary)
-                    Text("Vi bygger en lett og motiverende utfordringsmodul. Kommer snart.")
-                        .appBodyStyle()
-                        .foregroundStyle(AppTheme.textSecondary)
+                    Spacer()
+                    Text("Kommer snart")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(AppTheme.primary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(AppTheme.primary.opacity(0.12), in: Capsule())
                 }
+
+                Text("Utfordringer er under utvikling")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(AppTheme.textPrimary)
+
+                Text("Snart får du små utfordringer med tydelig progresjon og varm tone.")
+                    .appBodyStyle()
+                    .foregroundStyle(AppTheme.textSecondary)
 
                 VStack(alignment: .leading, spacing: 10) {
-                    Label("No-coffee-week", systemImage: "cup.and.saucer")
-                    Label("1 000 kr på 30 dager", systemImage: "target")
-                    Label("Rund opp kjøp", systemImage: "arrow.uturn.left.circle")
-                    Label("Matbudsjett-uke", systemImage: "cart")
+                    challengeRow("No-coffee-week", icon: "cup.and.saucer")
+                    challengeRow("1 000 kr på 30 dager", icon: "target")
+                    challengeRow("Rund opp kjøp", icon: "arrow.uturn.left.circle")
+                    challengeRow("Matbudsjett-uke", icon: "cart")
                 }
-                .font(.subheadline)
-                .foregroundStyle(AppTheme.textPrimary)
+                .padding(12)
+                .background(AppTheme.background, in: RoundedRectangle(cornerRadius: 12))
 
-                Text("Takk for tålmodigheten. Du får beskjed når dette er klart.")
+                Button {
+                    waitlistOptIn.toggle()
+                } label: {
+                    HStack {
+                        Image(systemName: waitlistOptIn ? "checkmark.circle.fill" : "bell.badge")
+                        Text(waitlistOptIn ? "Varsel er slått på" : "Gi beskjed når den er klar")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(waitlistOptIn ? AppTheme.positive : AppTheme.primary)
+
+                Text(waitlistOptIn ? "Du får et lite varsel i appen når funksjonen er klar." : "Du kan slå på varsel nå, eller vente til senere.")
+                    .appSecondaryStyle()
+
+                Text("I mellomtiden finner du samme fremdriftsfølelse i Budsjett og Oversikt.")
                     .appSecondaryStyle()
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
             .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
             .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
-            .padding()
+            .padding(.horizontal)
+
+            Spacer()
         }
         .background(AppTheme.background)
         .navigationTitle("Utfordringer")
+    }
+
+    private func challengeRow(_ title: String, icon: String) -> some View {
+        Label {
+            Text(title)
+                .appBodyStyle()
+                .foregroundStyle(AppTheme.textPrimary)
+        } icon: {
+            Image(systemName: icon)
+                .foregroundStyle(AppTheme.secondary)
+        }
     }
 }

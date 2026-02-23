@@ -69,8 +69,8 @@ final class OverviewViewModel: ObservableObject {
 
     func scopeText(activeGoal: Goal?) -> String {
         (activeGoal?.includeAccounts ?? true)
-            ? "Formue inkluderer investeringer + konti markert for formue."
-            : "Formue inkluderer kun investeringer."
+            ? "Formue = investeringer + konti markert for formue. Gjeld er ikke med i v1.0."
+            : "Formue = kun investeringer. Gjeld er ikke med i v1.0."
     }
 
     func positiveStatusLine(savedAmount: Double, period: String, tone: AppToneStyle) -> String {

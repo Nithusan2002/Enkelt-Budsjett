@@ -145,19 +145,45 @@ struct BudgetView: View {
             Text("Denne måneden")
                 .appCardTitleStyle()
 
-            HStack {
-                summaryCell("Planlagt", summary.planned)
-                summaryCell("Faktisk", summary.actual)
-            }
+            if hasPlansForMonth {
+                HStack {
+                    summaryCell("Planlagt", summary.planned)
+                    summaryCell("Faktisk", summary.actual)
+                }
 
-            HStack {
-                summaryCell("Avvik", summary.deviation, color: summary.deviation > 0 ? AppTheme.warning : AppTheme.positive)
-                summaryCell("Igjen å bruke", summary.remaining, color: summary.remaining < 0 ? AppTheme.negative : AppTheme.textPrimary)
-            }
+                HStack {
+                    summaryCell("Avvik", summary.deviation, color: summary.deviation > 0 ? AppTheme.warning : AppTheme.positive)
+                    summaryCell("Igjen å bruke", summary.remaining, color: summary.remaining < 0 ? AppTheme.negative : AppTheme.textPrimary)
+                }
 
-            HStack {
-                summaryCell("Inntekt", summary.income, color: AppTheme.positive)
-                summaryCell("Netto etter utgifter", summary.net, color: summary.net < 0 ? AppTheme.negative : AppTheme.textPrimary)
+                HStack {
+                    summaryCell("Inntekt", summary.income, color: AppTheme.positive)
+                    summaryCell("Netto etter utgifter", summary.net, color: summary.net < 0 ? AppTheme.negative : AppTheme.textPrimary)
+                }
+            } else {
+                HStack {
+                    summaryCell("Faktisk utgifter", summary.actual)
+                    summaryCell("Inntekt", summary.income, color: AppTheme.positive)
+                }
+
+                HStack {
+                    summaryCell("Netto denne måneden", summary.net, color: summary.net < 0 ? AppTheme.negative : AppTheme.textPrimary)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Status")
+                            .appSecondaryStyle()
+                        Text(monthTransactions.isEmpty ? "Ingen føringer ennå" : "Sporing aktiv")
+                            .font(.headline.weight(.semibold))
+                            .foregroundStyle(AppTheme.textPrimary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(10)
+                    .background(AppTheme.background, in: RoundedRectangle(cornerRadius: 10))
+                }
+
+                Text("Sett budsjettgrenser for å få avvik og \"igjen å bruke\".")
+                    .appSecondaryStyle()
             }
 
             let delta = summary.actual - previousActual
