@@ -15,12 +15,14 @@ struct OnboardingView: View {
         NavigationStack {
             VStack(spacing: 16) {
                 topBar
+
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         stepContent
                     }
                     .padding(.horizontal)
                 }
+
                 footerButtons
             }
             .padding(.vertical)
@@ -37,14 +39,23 @@ struct OnboardingView: View {
             Text(viewModel.progressText)
                 .appSecondaryStyle()
             Spacer()
-            if viewModel.currentStep != .welcome {
-                Button("Hopp over") {
+            if let trailing = trailingSkipTitle {
+                Button(trailing) {
                     viewModel.skipCurrent(preference: preference, context: modelContext)
                 }
                 .appSecondaryStyle()
             }
         }
         .padding(.horizontal)
+    }
+
+    private var trailingSkipTitle: String? {
+        switch viewModel.currentStep {
+        case .focus, .budget:
+            return "Hopp over"
+        default:
+            return nil
+        }
     }
 
     @ViewBuilder
@@ -54,12 +65,12 @@ struct OnboardingView: View {
             welcomeStep
         case .focus:
             focusStep
-        case .goal:
-            goalStep
-        case .snapshot:
-            snapshotStep
+        case .firstWealth:
+            firstWealthStep
         case .budget:
             budgetStep
+        case .goal:
+            goalStep
         case .habits:
             habitsStep
         }
@@ -67,21 +78,30 @@ struct OnboardingView: View {
 
     private var welcomeStep: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Få oversikt over penger og investeringer på under ett minutt")
+            Text("Få oversikt på under ett minutt")
                 .appCardTitleStyle()
-            Text("Du kan hoppe over tall nå og fylle inn senere.")
+            Text("Se hvordan budsjett og formue henger sammen. Tall kan legges inn senere.")
                 .appBodyStyle()
+
             Text("Velg tone")
                 .appCardTitleStyle()
+
             ForEach(AppToneStyle.allCases, id: \.rawValue) { tone in
                 Button {
                     viewModel.tone = tone
                 } label: {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(viewModel.titleForTone(tone))
-                            .appBodyStyle()
-                        Text(viewModel.subtitleForTone(tone))
-                            .appSecondaryStyle()
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(viewModel.titleForTone(tone))
+                                .appBodyStyle()
+                            Text(viewModel.subtitleForTone(tone))
+                                .appSecondaryStyle()
+                        }
+                        Spacer()
+                        if viewModel.tone == tone {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(AppTheme.primary)
+                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(12)
@@ -91,12 +111,11 @@ struct OnboardingView: View {
                 }
                 .buttonStyle(.plain)
             }
+
             Button("Se demo (10 sek)") {
                 viewModel.showDemo = true
             }
             .appCTAStyle()
-            Text("Sveip for å se hvordan Oversikt ser ut med eksempeldata.")
-                .appSecondaryStyle()
         }
     }
 
@@ -104,8 +123,9 @@ struct OnboardingView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Hva vil du starte med?")
                 .appCardTitleStyle()
-            Text("Valget styrer rekkefølgen. Du får tilgang til alt uansett.")
+            Text("Valget styrer bare rekkefølgen nå. Du får tilgang til begge deler uansett.")
                 .appBodyStyle()
+
             ForEach(OnboardingFocus.allCases, id: \.rawValue) { focus in
                 Button {
                     viewModel.focus = focus
@@ -115,7 +135,8 @@ struct OnboardingView: View {
                             .appBodyStyle()
                         Spacer()
                         if viewModel.focus == focus {
-                            Image(systemName: "checkmark.circle.fill").foregroundStyle(AppTheme.primary)
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(AppTheme.primary)
                         }
                     }
                     .padding(12)
@@ -128,78 +149,121 @@ struct OnboardingView: View {
         }
     }
 
-    private var goalStep: some View {
+    private var firstWealthStep: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Vil du sette et formue-mål?")
+            Text("Første formue")
                 .appCardTitleStyle()
-            Text("Et grovt mål gjør utviklingen lettere å følge.")
+            Text("Ett tall først, fordel senere.")
                 .appBodyStyle()
-            currencyField(
-                label: "Målbeløp (valgfritt)",
-                placeholder: "f.eks. 300 000",
-                text: $viewModel.goalAmountText
-            )
-            DatePicker("Måldato (valgfritt)", selection: $viewModel.goalDate, displayedComponents: .date)
-            Text("Forslag: 24 måneder fra i dag.")
-                .appSecondaryStyle()
-        }
-    }
 
-    private var snapshotStep: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Første investeringsstatus")
-                .appCardTitleStyle()
-            Text("Runde tall holder. Du kan justere senere.")
-                .appBodyStyle()
-            snapshotField("Fond")
-            snapshotField("Aksjer")
-            snapshotField("BSU")
-            snapshotField("Buffer")
-            snapshotField("Krypto")
+            Text("Summen av investeringer + kontoer markert som formue. Gjeld er ikke med.")
+                .appSecondaryStyle()
+
             currencyField(
-                label: "Jeg satte inn/ut denne måneden (valgfritt)",
-                placeholder: "f.eks. +1 000 eller -500",
-                text: $viewModel.monthlyFlowText,
-                allowSign: true
+                label: "Total formue (valgfritt)",
+                placeholder: "f.eks. 120 000",
+                text: $viewModel.firstWealthTotalText
             )
-            Text("Lar du alt stå tomt, kan du oppdatere fra Oversikt.")
+
+            Button(viewModel.showBucketBreakdown ? "Skjul fordeling" : "Fordel i bøtter") {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    viewModel.showBucketBreakdown.toggle()
+                }
+            }
+            .font(.footnote.weight(.semibold))
+
+            if viewModel.showBucketBreakdown {
+                snapshotField("Fond")
+                snapshotField("Aksjer")
+                snapshotField("IPS")
+                snapshotField("Krypto")
+            }
+
+            Text("Grovt tall holder. Du kan finjustere senere.")
                 .appSecondaryStyle()
         }
     }
 
     private var budgetStep: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Budsjett, enkelt først")
+            Text("Velg budsjett-startpakke")
                 .appCardTitleStyle()
-            Text("Velg kategorier nå. Finjustering kan vente.")
+            Text("Start enkelt nå. Du kan tilpasse kategorier senere.")
                 .appBodyStyle()
-            ForEach(viewModel.budgetCategories.keys.sorted(), id: \.self) { key in
-                Toggle(key, isOn: Binding(
-                    get: { viewModel.budgetCategories[key] ?? false },
-                    set: { viewModel.budgetCategories[key] = $0 }
-                ))
+
+            ForEach(BudgetStarterPackage.allCases, id: \.rawValue) { package in
+                Button {
+                    viewModel.budgetPackage = package
+                } label: {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(viewModel.title(for: package))
+                                .appBodyStyle()
+                            Text(viewModel.subtitle(for: package))
+                                .appSecondaryStyle()
+                        }
+                        Spacer()
+                        if viewModel.budgetPackage == package {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(AppTheme.primary)
+                        }
+                    }
+                    .padding(12)
+                    .background(AppTheme.surface)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.divider, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
             }
+
             currencyField(
                 label: "Månedsbudsjett (valgfritt)",
                 placeholder: "f.eks. 12 000",
                 text: $viewModel.monthlyBudgetText
             )
-            Toggle("Jeg sporer bare (uten budsjettgrenser nå)", isOn: $viewModel.budgetTrackOnly)
+        }
+    }
+
+    private var goalStep: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Vil du ha et mål å styre etter?")
+                .appCardTitleStyle()
+            Text("Mål er valgfritt. Det gjør fremdriften tydeligere på Oversikt.")
+                .appBodyStyle()
+
+            HStack(spacing: 8) {
+                quickGoalChip("50 000")
+                quickGoalChip("100 000")
+                quickGoalChip("300 000")
+            }
+
+            currencyField(
+                label: "Målbeløp (valgfritt)",
+                placeholder: "f.eks. 150 000",
+                text: $viewModel.goalAmountText
+            )
+
+            DatePicker("Måldato", selection: $viewModel.goalDate, displayedComponents: .date)
+            Text("Forslag: ca. 24 måneder frem.")
+                .appSecondaryStyle()
         }
     }
 
     private var habitsStep: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Trygghet og gode vaner")
+            Text("Trygghet og vaner")
                 .appCardTitleStyle()
-            Text("Velg det som passer rytmen din.")
+            Text("Et lite dytt hver måned holder oversikten levende.")
                 .appBodyStyle()
-            Toggle("Månedlig insjekk-påminnelse", isOn: $viewModel.reminderEnabled)
+
+            Toggle("Månedlig insjekk", isOn: $viewModel.reminderEnabled)
             if viewModel.reminderEnabled {
                 Stepper("Dag i måneden: \(viewModel.reminderDay)", value: $viewModel.reminderDay, in: 1...28)
+                DatePicker("Klokkeslett", selection: $viewModel.reminderTime, displayedComponents: .hourAndMinute)
             }
-            Toggle("Lås appen med Face ID (valgfritt)", isOn: $viewModel.faceIDEnabled)
-            Text("Du kan endre alt senere i Innstillinger.")
+
+            Toggle("Face ID-lås", isOn: $viewModel.faceIDEnabled)
+            Text("Du kan endre dette senere i Innstillinger.")
                 .appSecondaryStyle()
         }
     }
@@ -214,10 +278,12 @@ struct OnboardingView: View {
             .buttonStyle(.borderedProminent)
             .padding(.horizontal)
 
-            Button(secondaryButtonTitle) {
-                handleSecondaryAction()
+            if let secondary = secondaryButtonTitle {
+                Button(secondary) {
+                    handleSecondaryAction()
+                }
+                .appSecondaryStyle()
             }
-            .appSecondaryStyle()
         }
     }
 
@@ -225,18 +291,20 @@ struct OnboardingView: View {
         switch viewModel.currentStep {
         case .welcome: return "Kom i gang"
         case .focus: return "Neste"
+        case .firstWealth: return "Fortsett"
+        case .budget: return "Lagre og fortsett"
         case .goal: return "Lagre og fortsett"
-        case .snapshot: return "Lagre snapshot"
-        case .budget: return "Lagre budsjett"
         case .habits: return "Gå til Oversikt"
         }
     }
 
-    private var secondaryButtonTitle: String {
+    private var secondaryButtonTitle: String? {
         switch viewModel.currentStep {
         case .welcome: return "Hopp over onboarding"
+        case .firstWealth: return "Legg inn senere"
+        case .goal: return "Ikke nå"
         case .habits: return "Fullfør uten påminnelse"
-        default: return "Hopp over"
+        case .focus, .budget: return nil
         }
     }
 
@@ -252,10 +320,21 @@ struct OnboardingView: View {
         viewModel.skipCurrent(preference: preference, context: modelContext)
     }
 
+    private func quickGoalChip(_ value: String) -> some View {
+        Button(value) {
+            viewModel.goalAmountText = value
+        }
+        .font(.footnote.weight(.semibold))
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(AppTheme.surface, in: Capsule())
+        .overlay(Capsule().stroke(AppTheme.divider, lineWidth: 1))
+    }
+
     private func snapshotField(_ name: String) -> some View {
         currencyField(
             label: "\(name) (valgfritt)",
-            placeholder: "f.eks. 200 000",
+            placeholder: "f.eks. 40 000",
             text: Binding(
                 get: { viewModel.snapshotText[name] ?? "" },
                 set: { viewModel.snapshotText[name] = $0 }
@@ -263,14 +342,14 @@ struct OnboardingView: View {
         )
     }
 
-    private func currencyField(label: String, placeholder: String, text: Binding<String>, allowSign: Bool = false) -> some View {
+    private func currencyField(label: String, placeholder: String, text: Binding<String>) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(label)
                 .appBodyStyle()
             HStack {
                 Text("kr")
                     .appSecondaryStyle()
-                TextField(placeholder, text: monetaryBinding(text, allowSign: allowSign))
+                TextField(placeholder, text: monetaryBinding(text))
                     .keyboardType(.numbersAndPunctuation)
                     .multilineTextAlignment(.trailing)
                     .monospacedDigit()
@@ -279,27 +358,20 @@ struct OnboardingView: View {
         }
     }
 
-    private func monetaryBinding(_ source: Binding<String>, allowSign: Bool = false) -> Binding<String> {
+    private func monetaryBinding(_ source: Binding<String>) -> Binding<String> {
         Binding(
             get: { source.wrappedValue },
             set: { newValue in
-                source.wrappedValue = formatMonetaryInput(newValue, allowSign: allowSign)
+                source.wrappedValue = formatMonetaryInput(newValue)
             }
         )
     }
 
-    private func formatMonetaryInput(_ raw: String, allowSign: Bool) -> String {
-        var text = raw.replacingOccurrences(of: " ", with: "")
-        var sign = ""
-
-        if allowSign, let first = text.first, first == "+" || first == "-" {
-            sign = String(first)
-            text.removeFirst()
-        }
-
+    private func formatMonetaryInput(_ raw: String) -> String {
+        let text = raw.replacingOccurrences(of: " ", with: "")
         let digits = String(text.filter(\.isNumber))
-        guard !digits.isEmpty else { return sign }
-        return sign + groupedThousands(digits)
+        guard !digits.isEmpty else { return "" }
+        return groupedThousands(digits)
     }
 
     private func groupedThousands(_ digits: String) -> String {
@@ -320,9 +392,21 @@ private struct DemoPreviewSheet: View {
         NavigationStack {
             ScrollView(.horizontal) {
                 HStack(spacing: 16) {
-                    previewCard(title: "Mål", text: "42 % nådd · 34 måneder igjen")
-                    previewCard(title: "Portefølje", text: "Fond 54 % · Aksjer 21 % · BSU 15 %")
-                    previewCard(title: "Utvikling", text: "I år: +kr 12 400")
+                    previewCard(
+                        title: "Total formue",
+                        text: "NOK 124 000",
+                        detail: "+NOK 2 300 siden forrige insjekk"
+                    )
+                    previewCard(
+                        title: "Målprogresjon",
+                        text: "42 % nådd",
+                        detail: "24 måneder igjen"
+                    )
+                    previewCard(
+                        title: "Utvikling",
+                        text: "I år: +NOK 12 400",
+                        detail: "Fond 58 % av porteføljen"
+                    )
                 }
                 .padding()
             }
@@ -330,11 +414,15 @@ private struct DemoPreviewSheet: View {
         }
     }
 
-    private func previewCard(title: String, text: String) -> some View {
+    private func previewCard(title: String, text: String, detail: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title).appCardTitleStyle()
-            Text(text).appBodyStyle()
-            Text("Eksempeldata").appSecondaryStyle()
+            Text(title)
+                .appCardTitleStyle()
+            Text(text)
+                .font(.title3.weight(.semibold))
+                .monospacedDigit()
+            Text(detail)
+                .appSecondaryStyle()
         }
         .frame(width: 280, height: 170, alignment: .topLeading)
         .padding()

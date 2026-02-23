@@ -299,7 +299,7 @@ struct OverviewView: View {
             }
 
             if chartData.isEmpty {
-                Text("Legg inn én måned til for å se utvikling.")
+                Text(latestSnapshot == nil ? "Utvikling: kommer etter 2 insjekker." : "Legg inn én måned til for å se utvikling.")
                     .appBodyStyle()
                     .foregroundStyle(AppTheme.textSecondary)
             } else {

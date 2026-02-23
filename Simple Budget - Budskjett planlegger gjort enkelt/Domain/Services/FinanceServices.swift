@@ -271,18 +271,18 @@ enum OnboardingService {
         preference: UserPreference,
         focus: OnboardingFocus,
         tone: AppToneStyle,
-        includeIncome: Bool,
-        monthlyIncome: Double?,
+        firstWealthTotal: Double?,
         goalAmount: Double?,
         goalDate: Date?,
         snapshotValues: [String: Double],
         snapshotInputProvided: Bool,
-        monthlyFlow: Double?,
         budgetCategories: [String],
         monthlyBudget: Double?,
         budgetTrackOnly: Bool,
         reminderEnabled: Bool,
         reminderDay: Int,
+        reminderHour: Int,
+        reminderMinute: Int,
         faceIDEnabled: Bool,
         selectedBuckets: [String],
         customBucketName: String?
@@ -316,10 +316,6 @@ enum OnboardingService {
             )
         }
 
-        if includeIncome, let monthlyIncome, monthlyIncome > 0 {
-            context.insert(Transaction(date: .now, amount: monthlyIncome, kind: .income, note: "Onboarding: inntekt"))
-        }
-
         if let goalAmount, goalAmount > 0 {
             let resolvedDate = goalDate ?? Calendar.current.date(byAdding: .month, value: 24, to: .now) ?? .now
             context.insert(Goal(targetAmount: goalAmount, targetDate: resolvedDate, includeAccounts: true))
@@ -327,20 +323,19 @@ enum OnboardingService {
 
         if snapshotInputProvided {
             let key = DateService.periodKey(from: .now)
-            let values: [InvestmentSnapshotValue] = selectedBuckets.map { name in
+            let values: [InvestmentSnapshotValue] = selectedBuckets.compactMap { name in
                 let bucketID = "bucket_" + name.lowercased().replacingOccurrences(of: " ", with: "_")
+                let typed = snapshotValues[name] ?? 0
+                if typed <= 0 { return nil }
                 return InvestmentSnapshotValue(
                     periodKey: key,
                     bucketID: bucketID,
-                    amount: snapshotValues[name] ?? 0
+                    amount: typed
                 )
             }
-            let total = values.reduce(0) { $0 + $1.amount }
+            let breakdownTotal = values.reduce(0) { $0 + $1.amount }
+            let total = breakdownTotal > 0 ? breakdownTotal : max(firstWealthTotal ?? 0, 0)
             context.insert(InvestmentSnapshot(periodKey: key, capturedAt: .now, totalValue: total, bucketValues: values))
-        }
-
-        if let monthlyFlow, monthlyFlow != 0 {
-            context.insert(Transaction(date: .now, amount: monthlyFlow, kind: .transfer, note: "Onboarding: inn/ut denne måneden"))
         }
 
         let budgetCategoryIDs = budgetCategories.map { categoryID(for: $0) }
@@ -362,6 +357,8 @@ enum OnboardingService {
 
         preference.checkInReminderEnabled = reminderEnabled
         preference.checkInReminderDay = max(1, min(28, reminderDay))
+        preference.checkInReminderHour = max(0, min(23, reminderHour))
+        preference.checkInReminderMinute = max(0, min(59, reminderMinute))
         preference.faceIDLockEnabled = faceIDEnabled
         preference.onboardingFocus = focus
         preference.toneStyle = tone

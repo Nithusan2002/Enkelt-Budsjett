@@ -5,10 +5,16 @@ import SwiftData
 enum OnboardingStep: Int, CaseIterable {
     case welcome
     case focus
-    case goal
-    case snapshot
+    case firstWealth
     case budget
+    case goal
     case habits
+}
+
+enum BudgetStarterPackage: String, CaseIterable {
+    case basic
+    case student
+    case trackingOnly
 }
 
 @MainActor
@@ -18,33 +24,24 @@ final class OnboardingViewModel: ObservableObject {
     @Published var tone: AppToneStyle
     @Published var showDemo = false
 
-    @Published var includeIncome = false
-    @Published var monthlyIncomeText = ""
-
     @Published var goalAmountText = ""
     @Published var goalDate = Calendar.current.date(byAdding: .month, value: 24, to: .now) ?? .now
 
+    @Published var firstWealthTotalText = ""
+    @Published var showBucketBreakdown = false
     @Published var snapshotText: [String: String] = [
         "Fond": "",
         "Aksjer": "",
-        "BSU": "",
-        "Buffer": "",
+        "IPS": "",
         "Krypto": ""
     ]
-    @Published var monthlyFlowText = ""
 
-    @Published var budgetCategories: [String: Bool] = [
-        "Mat": true,
-        "Bolig": true,
-        "Transport": true,
-        "Fritid": true,
-        "Sparing": true
-    ]
+    @Published var budgetPackage: BudgetStarterPackage = .basic
     @Published var monthlyBudgetText = ""
-    @Published var budgetTrackOnly = false
 
     @Published var reminderEnabled = true
     @Published var reminderDay = 5
+    @Published var reminderTime = Calendar.current.date(bySettingHour: 18, minute: 0, second: 0, of: .now) ?? .now
     @Published var faceIDEnabled = false
 
     init(preference: UserPreference) {
@@ -53,17 +50,23 @@ final class OnboardingViewModel: ObservableObject {
         self.currentStep = OnboardingStep(rawValue: preference.onboardingCurrentStep) ?? .welcome
         self.reminderEnabled = preference.checkInReminderEnabled
         self.reminderDay = preference.checkInReminderDay
+        self.reminderTime = Calendar.current.date(
+            bySettingHour: preference.checkInReminderHour,
+            minute: preference.checkInReminderMinute,
+            second: 0,
+            of: .now
+        ) ?? .now
         self.faceIDEnabled = preference.faceIDLockEnabled
     }
 
     var orderedSteps: [OnboardingStep] {
         switch focus {
         case .budget:
-            return [.welcome, .focus, .goal, .budget, .snapshot, .habits]
+            return [.welcome, .focus, .budget, .firstWealth, .goal, .habits]
         case .investments:
-            return [.welcome, .focus, .goal, .snapshot, .budget, .habits]
+            return [.welcome, .focus, .firstWealth, .budget, .goal, .habits]
         case .both:
-            return [.welcome, .focus, .goal, .snapshot, .budget, .habits]
+            return [.welcome, .focus, .firstWealth, .budget, .goal, .habits]
         }
     }
 
@@ -87,6 +90,20 @@ final class OnboardingViewModel: ObservableObject {
             logEvent("onboarding_skipped_from_welcome")
             return
         }
+        if currentStep == .goal {
+            goalAmountText = ""
+            next(preference: preference, context: context)
+            logEvent("onboarding_goal_skipped")
+            return
+        }
+        if currentStep == .firstWealth {
+            firstWealthTotalText = ""
+            showBucketBreakdown = false
+            snapshotText = ["Fond": "", "Aksjer": "", "IPS": "", "Krypto": ""]
+            next(preference: preference, context: context)
+            logEvent("onboarding_first_wealth_skipped")
+            return
+        }
         if currentStep == .habits {
             finish(preference: preference, context: context, forceReminderOff: true)
             logEvent("onboarding_completed_without_reminder")
@@ -97,34 +114,35 @@ final class OnboardingViewModel: ObservableObject {
     }
 
     func finish(preference: UserPreference, context: ModelContext, forceReminderOff: Bool = false) {
-        let selectedBuckets = ["Fond", "Aksjer", "BSU", "Buffer", "Krypto"]
+        let selectedBuckets = ["Fond", "Aksjer", "IPS", "Krypto"]
+        let totalWealth = parseDouble(firstWealthTotalText)
         let goalAmount = parseDouble(goalAmountText)
-        let income = parseDouble(monthlyIncomeText)
-        let flow = parseDouble(monthlyFlowText)
-        let selectedBudgetCategories = budgetCategories.filter(\.value).map(\.key)
+        let selectedBudgetCategories = categories(for: budgetPackage)
         let monthlyBudget = parseDouble(monthlyBudgetText)
         let snapshotValues = snapshotText.reduce(into: [String: Double]()) { partialResult, entry in
             partialResult[entry.key] = parseDouble(entry.value) ?? 0
         }
-        let snapshotInputProvided = snapshotText.values.contains { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        let snapshotInputProvided = totalWealth != nil || snapshotText.values.contains { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        let reminderHour = Calendar.current.component(.hour, from: reminderTime)
+        let reminderMinute = Calendar.current.component(.minute, from: reminderTime)
 
         try? OnboardingService.complete(
             context: context,
             preference: preference,
             focus: focus,
             tone: tone,
-            includeIncome: includeIncome,
-            monthlyIncome: includeIncome ? income : nil,
+            firstWealthTotal: totalWealth,
             goalAmount: goalAmount,
             goalDate: goalAmount != nil ? goalDate : nil,
             snapshotValues: snapshotValues,
             snapshotInputProvided: snapshotInputProvided,
-            monthlyFlow: flow,
-            budgetCategories: selectedBudgetCategories.isEmpty ? ["Mat", "Bolig", "Transport", "Fritid", "Sparing"] : selectedBudgetCategories,
-            monthlyBudget: budgetTrackOnly ? nil : monthlyBudget,
-            budgetTrackOnly: budgetTrackOnly,
+            budgetCategories: selectedBudgetCategories,
+            monthlyBudget: budgetPackage == .trackingOnly ? nil : monthlyBudget,
+            budgetTrackOnly: budgetPackage == .trackingOnly,
             reminderEnabled: forceReminderOff ? false : reminderEnabled,
             reminderDay: reminderEnabled ? reminderDay : 5,
+            reminderHour: reminderEnabled ? reminderHour : 18,
+            reminderMinute: reminderEnabled ? reminderMinute : 0,
             faceIDEnabled: faceIDEnabled,
             selectedBuckets: selectedBuckets,
             customBucketName: nil
@@ -162,6 +180,8 @@ final class OnboardingViewModel: ObservableObject {
         preference.onboardingCurrentStep = currentStep.rawValue
         preference.checkInReminderEnabled = reminderEnabled
         preference.checkInReminderDay = max(1, min(28, reminderDay))
+        preference.checkInReminderHour = Calendar.current.component(.hour, from: reminderTime)
+        preference.checkInReminderMinute = Calendar.current.component(.minute, from: reminderTime)
         preference.faceIDLockEnabled = faceIDEnabled
         try? context.save()
     }
@@ -169,10 +189,40 @@ final class OnboardingViewModel: ObservableObject {
     private func parseDouble(_ text: String) -> Double? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
-        return Double(trimmed.replacingOccurrences(of: ",", with: "."))
+        let normalized = trimmed
+            .replacingOccurrences(of: " ", with: "")
+            .replacingOccurrences(of: ",", with: ".")
+        return Double(normalized)
     }
 
     private func logEvent(_ event: String) {
         print("[onboarding_event] \(event)")
+    }
+
+    func title(for package: BudgetStarterPackage) -> String {
+        switch package {
+        case .basic: return "Basic (anbefalt)"
+        case .student: return "Student"
+        case .trackingOnly: return "Bare sporing"
+        }
+    }
+
+    func subtitle(for package: BudgetStarterPackage) -> String {
+        switch package {
+        case .basic: return "Mat, Transport, Fritid, Bolig, Sparing"
+        case .student: return "Mat, Transport, Abonnement, Uteliv, Sparing"
+        case .trackingOnly: return "Ingen grenser nå"
+        }
+    }
+
+    private func categories(for package: BudgetStarterPackage) -> [String] {
+        switch package {
+        case .basic:
+            return ["Mat", "Transport", "Fritid", "Bolig", "Sparing"]
+        case .student:
+            return ["Mat", "Transport", "Abonnement", "Uteliv", "Sparing"]
+        case .trackingOnly:
+            return []
+        }
     }
 }
