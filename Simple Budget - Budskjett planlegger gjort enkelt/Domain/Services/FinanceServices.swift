@@ -249,19 +249,101 @@ enum ChallengeService {
 
 enum BootstrapService {
     static func ensurePreference(context: ModelContext) throws {
+        var didChange = false
         do {
             var descriptor = FetchDescriptor<UserPreference>()
             descriptor.fetchLimit = 1
             let existing = try context.fetch(descriptor)
             if existing.isEmpty {
                 context.insert(UserPreference())
+                didChange = true
+            }
+
+            if ensureDefaultCategories(context: context) {
+                didChange = true
+            }
+
+            if didChange {
                 try context.save()
             }
         } catch {
             // Recovery path for broken/old local stores after schema changes.
             context.insert(UserPreference())
+            _ = ensureDefaultCategories(context: context)
             try context.save()
         }
+    }
+
+    @discardableResult
+    private static func ensureDefaultCategories(context: ModelContext) -> Bool {
+        let existing = (try? context.fetch(FetchDescriptor<Category>())) ?? []
+        let existingIDs = Set(existing.map(\.id))
+        let defaults: [(String, String, CategoryType, Int)] = [
+            ("cat_housing", "Bolig", .expense, 1),
+            ("cat_food", "Mat", .expense, 2),
+            ("cat_transport", "Transport", .expense, 3),
+            ("cat_leisure", "Fritid", .expense, 4),
+            ("cat_savings", "Sparingskonto", .savings, 5),
+
+            ("cat_expense_bilvask", "Bilvask", .expense, 10),
+            ("cat_expense_spotify", "Spotify", .expense, 11),
+            ("cat_expense_apple_music", "Apple Music", .expense, 12),
+            ("cat_expense_icloud", "iCloud", .expense, 13),
+            ("cat_expense_playstation_plus", "PlayStation Plus", .expense, 14),
+            ("cat_expense_xbox_live", "Xbox Live", .expense, 15),
+            ("cat_expense_legebesok", "Legebesøk", .expense, 16),
+            ("cat_expense_medisiner", "Medisiner", .expense, 17),
+            ("cat_expense_frisor", "Frisør", .expense, 18),
+            ("cat_expense_kommunale_avgifter", "Kommunale avgifter", .expense, 19),
+            ("cat_expense_vann_avlop", "Vann og avløp", .expense, 20),
+            ("cat_expense_feiing", "Feiing", .expense, 21),
+            ("cat_expense_reise", "Reise", .expense, 22),
+            ("cat_expense_klaer", "Klær", .expense, 23),
+            ("cat_expense_mobler", "Møbler", .expense, 24),
+            ("cat_expense_blomster", "Blomster", .expense, 25),
+            ("cat_expense_barnehage", "Barnehage", .expense, 26),
+            ("cat_expense_hyttelan", "Hyttelån", .expense, 27),
+            ("cat_expense_nedbetaling_lan", "Nedbetaling av lån", .expense, 28),
+            ("cat_expense_kjaeledyr", "Kjæledyr", .expense, 29),
+            ("cat_expense_netflix", "Netflix", .expense, 30),
+            ("cat_expense_prime_video", "Prime Video", .expense, 31),
+            ("cat_expense_disney_plus", "Disney+", .expense, 32),
+            ("cat_expense_matkasse", "Matkasse", .expense, 33),
+            ("cat_expense_kollektivtransport", "Kollektivtransport", .expense, 34),
+            ("cat_expense_trening", "Trening", .expense, 35),
+            ("cat_expense_investering_aksjer", "Investering i aksjer", .expense, 36),
+            ("cat_expense_investering_fond", "Investering i fond", .expense, 37),
+            ("cat_expense_forsikring", "Forsikring", .expense, 38),
+            ("cat_expense_reiseforsikring", "Reiseforsikring", .expense, 39),
+            ("cat_expense_innboforsikring", "Innboforsikring", .expense, 40),
+            ("cat_expense_bilforsikring", "Bilforsikring", .expense, 41),
+            ("cat_expense_bompenger", "Bompenger", .expense, 42),
+            ("cat_expense_parkering", "Parkering", .expense, 43),
+            ("cat_expense_lading_elbil", "Lading av elbil", .expense, 44),
+            ("cat_expense_drivstoff", "Drivstoff", .expense, 45),
+            ("cat_expense_lunsj_jobb", "Lunsj på jobb", .expense, 46),
+            ("cat_expense_uteliv", "Uteliv", .expense, 47),
+            ("cat_expense_internett", "Internett", .expense, 48),
+            ("cat_expense_mobilabonnement", "Mobilabonnement", .expense, 49),
+
+            ("cat_income_salary", "Lønn", .income, 50),
+            ("cat_income_student_loan", "Studielån", .income, 51),
+            ("cat_income_pension", "Pensjon", .income, 52),
+            ("cat_income_interest", "Renteinntekter", .income, 53),
+            ("cat_income_dividend", "Utbytte", .income, 54),
+            ("cat_income_child_benefit", "Barnetrygd", .income, 55),
+            ("cat_income_resale", "Salg av ting på Finn/Tise", .income, 56),
+            ("cat_income_rental_property", "Utleie av eiendom", .income, 57),
+            ("cat_income_rental_cabin", "Utleie av hytte", .income, 58),
+            ("cat_income_rental_car", "Utleie av bil", .income, 59)
+        ]
+
+        var didInsert = false
+        for item in defaults where !existingIDs.contains(item.0) {
+            context.insert(Category(id: item.0, name: item.1, type: item.2, sortOrder: item.3))
+            didInsert = true
+        }
+        return didInsert
     }
 }
 

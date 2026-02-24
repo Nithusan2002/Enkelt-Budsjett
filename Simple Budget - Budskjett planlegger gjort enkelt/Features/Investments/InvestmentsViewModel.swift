@@ -176,9 +176,7 @@ final class InvestmentsViewModel: ObservableObject {
 
     func insight(
         snapshots: [InvestmentSnapshot],
-        buckets: [InvestmentBucket],
-        goal: Goal?,
-        accounts: [Account]
+        buckets: [InvestmentBucket]
     ) -> InvestmentInsightData {
         let latest = latestSnapshot(snapshots)
         let previous = previousSnapshot(snapshots)
@@ -196,21 +194,6 @@ final class InvestmentsViewModel: ObservableObject {
                 return InvestmentInsightData(
                     title: "Porteføljefordeling",
                     detail: "\(first.bucketName) utgjør \(formatPercent(first.percent)) av porteføljen."
-                )
-            }
-        }
-
-        if let goal {
-            let wealth = GoalService.currentWealth(
-                latestInvestmentTotal: latest?.totalValue ?? 0,
-                accounts: accounts,
-                includeAccounts: goal.includeAccounts
-            )
-            if goal.targetAmount > 0 {
-                let progress = min(1, wealth / goal.targetAmount)
-                return InvestmentInsightData(
-                    title: "Målfremdrift",
-                    detail: "Du er \(Int((progress * 100).rounded())) % mot målet ditt."
                 )
             }
         }
@@ -242,6 +225,28 @@ final class InvestmentsViewModel: ObservableObject {
     func restoreBucket(_ bucket: InvestmentBucket, context: ModelContext, existingBuckets: [InvestmentBucket]) {
         bucket.isActive = true
         bucket.sortOrder = (existingBuckets.map(\.sortOrder).max() ?? 0) + 1
+        try? context.save()
+    }
+
+    func moveActiveBuckets(
+        from source: IndexSet,
+        to destination: Int,
+        allBuckets: [InvestmentBucket],
+        context: ModelContext
+    ) {
+        var activeBuckets = allBuckets.filter(\.isActive).sorted { $0.sortOrder < $1.sortOrder }
+        guard !activeBuckets.isEmpty else { return }
+
+        activeBuckets.move(fromOffsets: source, toOffset: destination)
+        for (index, bucket) in activeBuckets.enumerated() {
+            bucket.sortOrder = index
+        }
+
+        let hiddenBuckets = allBuckets.filter { !$0.isActive }.sorted { $0.sortOrder < $1.sortOrder }
+        for (offset, bucket) in hiddenBuckets.enumerated() {
+            bucket.sortOrder = activeBuckets.count + offset
+        }
+
         try? context.save()
     }
 
@@ -331,6 +336,49 @@ final class InvestmentsViewModel: ObservableObject {
         newBucketName = ""
         selectedBucketColorHex = AppTheme.customBucketPalette[0]
         addBucketError = nil
+    }
+
+    func ensureDefaultBuckets(context: ModelContext, existingBuckets: [InvestmentBucket]) {
+        let defaults: [(id: String, name: String, colorHex: String)] = [
+            ("funds", "Fond", "#0EA5E9"),
+            ("stocks", "Aksjer", "#8B5CF6"),
+            ("bsu", "BSU", "#22C55E"),
+            ("buffer", "Buffer", "#F59E0B"),
+            ("crypto", "Krypto", "#EA580C")
+        ]
+
+        var didChange = false
+        var nextSortOrder = (existingBuckets.map(\.sortOrder).max() ?? 0) + 1
+
+        for item in defaults {
+            if let existing = existingBuckets.first(where: {
+                $0.id == item.id ||
+                $0.name.compare(item.name, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
+            }) {
+                if existing.colorHex == nil || existing.colorHex?.isEmpty == true {
+                    existing.colorHex = item.colorHex
+                    didChange = true
+                }
+                continue
+            }
+
+            context.insert(
+                InvestmentBucket(
+                    id: item.id,
+                    name: item.name,
+                    colorHex: item.colorHex,
+                    isDefault: true,
+                    isActive: true,
+                    sortOrder: nextSortOrder
+                )
+            )
+            nextSortOrder += 1
+            didChange = true
+        }
+
+        if didChange {
+            try? context.save()
+        }
     }
 
     private func formattedMonthDay(_ date: Date) -> String {

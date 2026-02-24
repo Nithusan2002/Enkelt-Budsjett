@@ -7,8 +7,6 @@ struct InvestmentsView: View {
     @Query(sort: \InvestmentBucket.sortOrder) private var buckets: [InvestmentBucket]
     @Query(sort: \InvestmentSnapshot.periodKey) private var snapshots: [InvestmentSnapshot]
     @Query private var preferences: [UserPreference]
-    @Query(sort: \Goal.createdAt, order: .reverse) private var goals: [Goal]
-    @Query private var accounts: [Account]
 
     @StateObject private var viewModel = InvestmentsViewModel()
 
@@ -19,6 +17,9 @@ struct InvestmentsView: View {
     }
     private var filteredSnapshots: [InvestmentSnapshot] {
         viewModel.filteredSnapshots(snapshots, range: viewModel.selectedRange)
+    }
+    private var activeBuckets: [InvestmentBucket] {
+        buckets.filter(\.isActive)
     }
 
     private var snapshotToken: String {
@@ -31,11 +32,11 @@ struct InvestmentsView: View {
         List {
             heroSection
             developmentSection
-            insightSection
-            holdingsSection
-            hiddenHoldingsSection
             distributionSection
+            holdingsSection
+            insightSection
             historySection
+            hiddenHoldingsSection
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
@@ -44,7 +45,7 @@ struct InvestmentsView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    viewModel.showCheckIn = true
+                    openCheckIn()
                 } label: {
                     Label("Oppdater", systemImage: "arrow.triangle.2.circlepath")
                 }
@@ -82,6 +83,7 @@ struct InvestmentsView: View {
             }
         }
         .onAppear {
+            viewModel.ensureDefaultBuckets(context: modelContext, existingBuckets: buckets)
             viewModel.onAppear(preference: preferences.first, snapshots: snapshots)
         }
         .onChange(of: snapshotToken) { _, _ in
@@ -101,7 +103,7 @@ struct InvestmentsView: View {
                     }
                     Spacer()
                     Button {
-                        viewModel.showCheckIn = true
+                        openCheckIn()
                     } label: {
                         Label("Oppdater", systemImage: "arrow.triangle.2.circlepath")
                     }
@@ -169,7 +171,7 @@ struct InvestmentsView: View {
                         Text("Legg inn én måned til for å se utvikling.")
                             .appSecondaryStyle()
                         Button("Oppdater verdier") {
-                            viewModel.showCheckIn = true
+                            openCheckIn()
                         }
                         .buttonStyle(.bordered)
                         .tint(AppTheme.primary)
@@ -212,9 +214,7 @@ struct InvestmentsView: View {
     private var insightSection: some View {
         let insight = viewModel.insight(
             snapshots: snapshots,
-            buckets: buckets,
-            goal: goals.first(where: \.isActive),
-            accounts: accounts
+            buckets: buckets
         )
 
         return Section {
@@ -254,6 +254,7 @@ struct InvestmentsView: View {
                     NavigationLink(value: row.id) {
                         bucketRow(row)
                     }
+                    .moveDisabled(false)
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         if let bucket = buckets.first(where: { $0.id == row.id }) {
                             Button("Rediger") {
@@ -266,6 +267,14 @@ struct InvestmentsView: View {
                             }
                         }
                     }
+                }
+                .onMove { source, destination in
+                    viewModel.moveActiveBuckets(
+                        from: source,
+                        to: destination,
+                        allBuckets: buckets,
+                        context: modelContext
+                    )
                 }
             }
         } header: {
@@ -371,7 +380,7 @@ struct InvestmentsView: View {
                     Text("Grovt tall er nok.")
                         .appSecondaryStyle()
                     Button("Oppdater verdier") {
-                        viewModel.showCheckIn = true
+                        openCheckIn()
                     }
                     .appCTAStyle()
                     .buttonStyle(.borderedProminent)
@@ -521,6 +530,17 @@ struct InvestmentsView: View {
             .prefix(3)
             .map { "\($0.bucketName) \(formatPercent($0.percent))" }
             .joined(separator: ", ")
+    }
+
+    private func openCheckIn() {
+        if activeBuckets.isEmpty {
+            viewModel.ensureDefaultBuckets(context: modelContext, existingBuckets: buckets)
+            DispatchQueue.main.async {
+                viewModel.showCheckIn = true
+            }
+            return
+        }
+        viewModel.showCheckIn = true
     }
 
 }

@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import Charts
+import UIKit
 
 struct BudgetView: View {
     @Environment(\.modelContext) private var modelContext
@@ -51,7 +52,7 @@ struct BudgetView: View {
             }
         }
         .sheet(isPresented: $viewModel.showAddTransaction) {
-            AddTransactionSheet(categories: categories.filter { $0.type == .expense && $0.isActive }) { date, amount, kind, categoryID, note in
+            AddTransactionSheet(categories: categories.filter(\.isActive)) { date, amount, kind, categoryID, note in
                 viewModel.addTransaction(
                     context: modelContext,
                     date: date,
@@ -356,44 +357,122 @@ private struct AddTransactionSheet: View {
 
     @State private var date: Date = .now
     @State private var amountText: String = ""
-    @State private var kind: TransactionKind = .expense
+    @State private var selectedType: TransactionKind?
     @State private var selectedCategoryID: String?
     @State private var note: String = ""
+    @State private var attemptedSave = false
+    @State private var showSavedBanner = false
+    @State private var showPostSaveActions = false
+    @FocusState private var amountFocused: Bool
 
-    private var needsCategory: Bool {
-        kind == .expense || kind == .refund
+    @AppStorage("budget.last_category.expense") private var lastExpenseCategoryID: String = ""
+    @AppStorage("budget.last_category.income") private var lastIncomeCategoryID: String = ""
+
+    private var kind: TransactionKind {
+        selectedType ?? .expense
+    }
+
+    private var availableCategories: [Category] {
+        guard let selectedType else { return [] }
+        switch selectedType {
+        case .expense:
+            return categories.filter { $0.type == .expense }.sorted { $0.sortOrder < $1.sortOrder }
+        case .income:
+            return categories.filter { $0.type == .income }.sorted { $0.sortOrder < $1.sortOrder }
+        default:
+            return []
+        }
+    }
+
+    private var isValid: Bool {
+        selectedType != nil && parsedAmount > 0 && selectedCategoryID != nil
     }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section("Type") {
-                    Picker("Transaksjonstype", selection: $kind) {
-                        Text("Utgift").tag(TransactionKind.expense)
-                        Text("Inntekt").tag(TransactionKind.income)
-                        Text("Refusjon").tag(TransactionKind.refund)
-                        Text("Overføring").tag(TransactionKind.transfer)
+                    HStack(spacing: 10) {
+                        typeCard(title: "Utgift", systemImage: "arrow.up.circle.fill", type: .expense)
+                        typeCard(title: "Inntekt", systemImage: "arrow.down.circle.fill", type: .income)
                     }
                 }
 
-                Section("Detaljer") {
-                    DatePicker("Dato", selection: $date, displayedComponents: [.date])
-                    TextField("Beløp", text: $amountText)
-                        .keyboardType(.decimalPad)
-                        .textFieldStyle(.appInput)
-                        .multilineTextAlignment(.trailing)
-                        .monospacedDigit()
-
-                    if needsCategory {
-                        Picker("Kategori", selection: $selectedCategoryID) {
-                            Text("Velg kategori").tag(String?.none)
-                            ForEach(categories) { category in
-                                Text(category.name).tag(Optional(category.id))
+                if selectedType != nil {
+                    Section(selectedType == .expense ? "Ny utgift" : "Ny inntekt") {
+                        if availableCategories.isEmpty {
+                            Text("Ingen kategorier for valgt type.")
+                                .appSecondaryStyle()
+                        } else {
+                            LazyVGrid(
+                                columns: [GridItem(.adaptive(minimum: 155), spacing: 10)],
+                                alignment: .leading,
+                                spacing: 10
+                            ) {
+                                ForEach(availableCategories) { category in
+                                    let isSelected = selectedCategoryID == category.id
+                                    Button {
+                                        selectedCategoryID = category.id
+                                    } label: {
+                                        HStack(spacing: 8) {
+                                            Image(systemName: symbolForCategory(category.name))
+                                                .font(.subheadline.weight(.semibold))
+                                            Text(category.name)
+                                                .font(.subheadline.weight(.semibold))
+                                                .lineLimit(1)
+                                            Spacer(minLength: 0)
+                                            if isSelected {
+                                                Image(systemName: "checkmark.circle.fill")
+                                                    .font(.footnote.weight(.bold))
+                                            }
+                                        }
+                                        .foregroundStyle(isSelected ? AppTheme.primary : AppTheme.textPrimary)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 10)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .background(
+                                            isSelected ? AppTheme.primary.opacity(0.14) : AppTheme.surface,
+                                            in: RoundedRectangle(cornerRadius: 12)
+                                        )
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .stroke(isSelected ? AppTheme.primary : AppTheme.divider, lineWidth: isSelected ? 1.4 : 1)
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
+                                }
                             }
+                            .padding(.vertical, 4)
+                            .animation(.easeInOut(duration: 0.15), value: selectedCategoryID)
+                        }
+
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Beløp")
+                                .appSecondaryStyle()
+                            HStack(spacing: 8) {
+                                Text("kr")
+                                    .font(.title3.weight(.semibold))
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                TextField("f.eks. 450", text: $amountText)
+                                    .keyboardType(.decimalPad)
+                                    .font(.title2.weight(.semibold))
+                                    .monospacedDigit()
+                                    .focused($amountFocused)
+                            }
+                            Text("Grovt tall holder.")
+                                .appSecondaryStyle()
+                        }
+
+                        if attemptedSave && selectedCategoryID == nil {
+                            Text("Velg kategori for å lagre.")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(AppTheme.negative)
                         }
                     }
+                }
 
-                    TextField("Notat (valgfritt)", text: $note)
+                Section("Notat") {
+                    TextField("Hva var dette?", text: $note)
                         .textFieldStyle(.appInput)
                 }
             }
@@ -404,10 +483,63 @@ private struct AddTransactionSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Lagre") {
+                        attemptedSave = true
+                        guard isValid else { return }
                         onSave(date, parsedAmount, kind, selectedCategoryID, note)
-                        dismiss()
+                        persistLastCategoryIfNeeded()
+                        amountFocused = false
+                        let haptic = UIImpactFeedbackGenerator(style: .light)
+                        haptic.impactOccurred()
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            showSavedBanner = true
+                            showPostSaveActions = true
+                        }
+                        resetForNextEntry()
                     }
-                    .disabled(parsedAmount <= 0 || (needsCategory && selectedCategoryID == nil))
+                    .disabled(!isValid)
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                if showSavedBanner || showPostSaveActions {
+                    VStack(spacing: 8) {
+                        if showSavedBanner {
+                            Text("Lagret ✓")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(AppTheme.positive)
+                                .transition(.opacity)
+                        }
+                        if showPostSaveActions {
+                            HStack(spacing: 10) {
+                                Button("Legg til en til") {
+                                    amountFocused = true
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        showSavedBanner = false
+                                        showPostSaveActions = false
+                                    }
+                                }
+                                .buttonStyle(.bordered)
+
+                                Button("Ferdig") {
+                                    dismiss()
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .tint(AppTheme.primary)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    .padding(.bottom, 10)
+                    .background(AppTheme.surface.opacity(0.98))
+                }
+            }
+            .onAppear {
+                preselectCategoryForCurrentType()
+            }
+            .onChange(of: amountText) { _, newValue in
+                let formatted = formatAmountInputLive(newValue)
+                if formatted != newValue {
+                    amountText = formatted
                 }
             }
         }
@@ -415,6 +547,150 @@ private struct AddTransactionSheet: View {
 
     private var parsedAmount: Double {
         parseInputAmount(amountText) ?? 0
+    }
+
+    private func preselectCategoryForCurrentType() {
+        if availableCategories.isEmpty {
+            selectedCategoryID = nil
+            return
+        }
+        switch kind {
+        case .expense:
+            if availableCategories.contains(where: { $0.id == lastExpenseCategoryID }) {
+                selectedCategoryID = lastExpenseCategoryID
+            } else if let first = availableCategories.first {
+                selectedCategoryID = first.id
+            }
+        case .income:
+            if availableCategories.contains(where: { $0.id == lastIncomeCategoryID }) {
+                selectedCategoryID = lastIncomeCategoryID
+            } else if let firstIncomeCategory = availableCategories.first {
+                selectedCategoryID = firstIncomeCategory.id
+            }
+        case .transfer, .manualSaving:
+            break
+        case .refund:
+            break
+        }
+    }
+
+    private func clearSelectionIfInvalidForType() {
+        guard let selectedCategoryID else { return }
+        if !availableCategories.contains(where: { $0.id == selectedCategoryID }) {
+            self.selectedCategoryID = nil
+        }
+    }
+
+    private func persistLastCategoryIfNeeded() {
+        guard let selectedCategoryID else { return }
+        if kind == .expense {
+            lastExpenseCategoryID = selectedCategoryID
+        } else if kind == .income {
+            lastIncomeCategoryID = selectedCategoryID
+        }
+    }
+
+    private func resetForNextEntry() {
+        amountText = ""
+        note = ""
+        date = .now
+        selectedCategoryID = nil
+        selectedType = nil
+        attemptedSave = false
+    }
+
+    private func typeCard(title: String, systemImage: String, type: TransactionKind) -> some View {
+        let isSelected = selectedType == type
+        return Button {
+            selectedType = type
+            attemptedSave = false
+            clearSelectionIfInvalidForType()
+            preselectCategoryForCurrentType()
+            amountFocused = true
+        } label: {
+            VStack(spacing: 8) {
+                Image(systemName: systemImage)
+                    .font(.title3.weight(.semibold))
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .foregroundStyle(isSelected ? AppTheme.primary : AppTheme.textPrimary)
+            .background(
+                isSelected ? AppTheme.primary.opacity(0.14) : AppTheme.surface,
+                in: RoundedRectangle(cornerRadius: 12)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isSelected ? AppTheme.primary : AppTheme.divider, lineWidth: isSelected ? 1.4 : 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func symbolForCategory(_ name: String) -> String {
+        let key = name
+            .lowercased()
+            .folding(options: .diacriticInsensitive, locale: .current)
+
+        switch key {
+        case "bilvask": return "car.fill"
+        case "spotify", "apple music": return "music.note"
+        case "icloud", "netflix", "prime video", "disney+": return "arrow.triangle.2.circlepath"
+        case "playstation plus", "xbox live": return "gamecontroller.fill"
+        case "legebesok": return "heart"
+        case "medisiner": return "pills.fill"
+        case "frisor": return "scissors"
+        case "kommunale avgifter": return "building.columns.fill"
+        case "vann og avlop": return "water.waves"
+        case "feiing": return "house.fill"
+        case "reise": return "airplane"
+        case "klaer": return "tshirt.fill"
+        case "mobler": return "sofa.fill"
+        case "blomster": return "leaf"
+        case "barnehage": return "figure.2.and.child.holdinghands"
+        case "hyttelan": return "mountain.2.fill"
+        case "nedbetaling av lan": return "banknote.fill"
+        case "kjaeledyr": return "pawprint.fill"
+        case "matkasse": return "takeoutbag.and.cup.and.straw.fill"
+        case "kollektivtransport": return "tram.fill"
+        case "trening": return "figure.strengthtraining.traditional"
+        case "investering i aksjer": return "chart.bar.fill"
+        case "investering i fond": return "chart.pie.fill"
+        case "forsikring", "reiseforsikring", "innboforsikring": return "umbrella.fill"
+        case "bilforsikring", "bompenger", "drivstoff", "lading av elbil": return "car.fill"
+        case "parkering": return "parkingsign.circle"
+        case "lunsj pa jobb": return "fork.knife"
+        case "uteliv": return "party.popper.fill"
+        case "internett": return "globe"
+        case "mobilabonnement": return "phone"
+
+        case "lonn": return "party.popper.fill"
+        case "studielan": return "graduationcap.fill"
+        case "pensjon", "utbytte": return "banknote.fill"
+        case "renteinntekter": return "building.columns.fill"
+        case "barnetrygd": return "figure.2.and.child.holdinghands"
+        case "salg av ting pa finn/tise": return "hand.raised.fill"
+        case "utleie av eiendom": return "house.fill"
+        case "utleie av hytte": return "mountain.2.fill"
+        case "utleie av bil": return "car.fill"
+
+        case "bolig": return "house.fill"
+        case "mat": return "fork.knife"
+        case "transport": return "tram.fill"
+        case "fritid": return "sparkles"
+        case "sparingskonto": return "banknote.fill"
+        default:
+            break
+        }
+
+        if key.contains("mat") || key.contains("daglig") { return "fork.knife" }
+        if key.contains("transport") || key.contains("buss") || key.contains("tog") { return "tram.fill" }
+        if key.contains("bolig") || key.contains("husleie") { return "house.fill" }
+        if key.contains("spar") { return "banknote.fill" }
+        if key.contains("inntekt") || key.contains("lonn") { return "arrow.down.circle.fill" }
+        return "tag.fill"
     }
 }
 
@@ -463,8 +739,10 @@ private struct BudgetEditSheet: View {
 private func parseInputAmount(_ text: String) -> Double? {
     let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !trimmed.isEmpty else { return nil }
-    let normalized = trimmed
-        .replacingOccurrences(of: " ", with: "")
+    let withoutWhitespace = trimmed.components(separatedBy: .whitespacesAndNewlines).joined()
+    let normalized = withoutWhitespace
+        .replacingOccurrences(of: "\u{00A0}", with: "")
+        .replacingOccurrences(of: "\u{202F}", with: "")
         .replacingOccurrences(of: ",", with: ".")
     return Double(normalized)
 }
@@ -476,6 +754,48 @@ private func formatInputAmount(_ value: Double) -> String {
     formatter.minimumFractionDigits = 0
     formatter.maximumFractionDigits = 2
     return formatter.string(from: NSNumber(value: value)) ?? ""
+}
+
+private func formatAmountInputLive(_ rawText: String) -> String {
+    let trimmed = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else { return "" }
+
+    let filtered = trimmed.filter { $0.isNumber || $0 == "," || $0 == "." }
+    let separatorIndex = filtered.firstIndex(where: { $0 == "," || $0 == "." })
+
+    let integerPartRaw: String
+    let fractionRaw: String
+    let hasSeparator: Bool
+    let endsWithSeparator: Bool
+
+    if let separatorIndex {
+        integerPartRaw = String(filtered[..<separatorIndex])
+        let after = filtered.index(after: separatorIndex)
+        if after < filtered.endIndex {
+            fractionRaw = String(filtered[after...]).filter(\.isNumber)
+        } else {
+            fractionRaw = ""
+        }
+        hasSeparator = true
+        endsWithSeparator = separatorIndex == filtered.index(before: filtered.endIndex)
+    } else {
+        integerPartRaw = filtered.filter(\.isNumber)
+        fractionRaw = ""
+        hasSeparator = false
+        endsWithSeparator = false
+    }
+
+    let integerDigits = integerPartRaw.filter(\.isNumber)
+    let integerValue = Double(integerDigits) ?? 0
+    let formattedInteger = formatInputAmount(integerValue)
+
+    if hasSeparator {
+        let fraction = String(fractionRaw.prefix(2))
+        if endsWithSeparator || !fraction.isEmpty {
+            return "\(formattedInteger),\(fraction)"
+        }
+    }
+    return formattedInteger
 }
 
 private struct BudgetCategoryDetailView: View {
