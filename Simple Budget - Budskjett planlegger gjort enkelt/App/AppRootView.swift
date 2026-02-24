@@ -19,13 +19,13 @@ struct AppRootView: View {
 
     private var preference: UserPreference? { preferences.first }
     private var shouldUseFaceIDLock: Bool {
-        (preference?.onboardingCompleted ?? false) && (preference?.faceIDLockEnabled ?? false)
+        preference?.faceIDLockEnabled ?? false
     }
 
     var body: some View {
         ZStack {
             Group {
-                if let preference, preference.onboardingCompleted {
+                if preference != nil {
                     TabView(selection: $navigationState.selectedTab) {
                         NavigationStack { BudgetView() }
                             .tabItem { Label("Budsjett", systemImage: "list.bullet.rectangle") }
@@ -48,8 +48,6 @@ struct AppRootView: View {
                             .tag(AppTab.settings)
                     }
                     .environmentObject(navigationState)
-                } else if let preference {
-                    OnboardingView(preference: preference)
                 } else {
                     VStack(spacing: 12) {
                         ProgressView("Klargjør appen...")

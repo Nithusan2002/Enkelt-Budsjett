@@ -6,7 +6,6 @@ import SwiftData
 final class GoalEditorViewModel: ObservableObject {
     @Published var targetAmountText: String = ""
     @Published var targetDate: Date = Calendar.current.date(byAdding: .year, value: 2, to: .now) ?? .now
-    @Published var includeAccounts = true
 
     func onAppear(goal: Goal?) {
         if let goal, goal.targetAmount > 0 {
@@ -15,7 +14,6 @@ final class GoalEditorViewModel: ObservableObject {
             targetAmountText = ""
         }
         targetDate = goal?.targetDate ?? targetDate
-        includeAccounts = goal?.includeAccounts ?? true
     }
 
     var canSave: Bool {
@@ -27,10 +25,10 @@ final class GoalEditorViewModel: ObservableObject {
         if let goal {
             goal.targetAmount = targetAmount
             goal.targetDate = targetDate
-            goal.includeAccounts = includeAccounts
+            goal.includeAccounts = false
             goal.isActive = true
         } else {
-            context.insert(Goal(targetAmount: targetAmount, targetDate: targetDate, includeAccounts: includeAccounts))
+            context.insert(Goal(targetAmount: targetAmount, targetDate: targetDate, includeAccounts: false))
         }
         try? context.save()
     }

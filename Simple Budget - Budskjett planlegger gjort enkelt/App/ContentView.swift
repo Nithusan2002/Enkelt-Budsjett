@@ -31,7 +31,7 @@ private enum PreviewData {
         let container = try! ModelContainer(for: schema, configurations: [configuration])
         let context = container.mainContext
 
-        context.insert(UserPreference(onboardingCompleted: true))
+        context.insert(UserPreference())
         context.insert(InvestmentBucket(id: "bucket_fund", name: "Fond", isDefault: true, sortOrder: 1))
         context.insert(InvestmentBucket(id: "bucket_aksjer", name: "Aksjer", isDefault: true, sortOrder: 2))
         context.insert(InvestmentBucket(id: "bucket_bsu", name: "BSU", isDefault: true, sortOrder: 3))

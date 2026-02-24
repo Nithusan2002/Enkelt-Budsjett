@@ -11,14 +11,12 @@ struct GoalEditorView: View {
         NavigationStack {
             Form {
                 Section("Formue-mål") {
-                    TextField("Målbeløp", text: $viewModel.targetAmountText)
+                    TextField("Jeg vil ha en formue på", text: $viewModel.targetAmountText)
                         .keyboardType(.decimalPad)
                         .textFieldStyle(.appInput)
                         .multilineTextAlignment(.trailing)
                         .monospacedDigit()
                     DatePicker("Måldato", selection: $viewModel.targetDate, displayedComponents: .date)
-                        .appBodyStyle()
-                    Toggle("Inkluder konti i formue", isOn: $viewModel.includeAccounts)
                         .appBodyStyle()
                 }
             }

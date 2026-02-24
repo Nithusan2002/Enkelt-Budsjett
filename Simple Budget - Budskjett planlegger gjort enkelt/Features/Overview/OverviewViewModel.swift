@@ -67,6 +67,23 @@ final class OverviewViewModel: ObservableObject {
         buckets.first(where: { $0.id == id })?.name ?? id
     }
 
+    func budgetStatus(
+        plans: [BudgetPlan],
+        transactions: [Transaction],
+        now: Date = .now
+    ) -> (hasPlan: Bool, remaining: Double, net: Double) {
+        let monthKey = DateService.periodKey(from: now)
+        let hasPlan = plans.contains { $0.monthPeriodKey == monthKey && $0.plannedAmount > 0 }
+        let planned = plans
+            .filter { $0.monthPeriodKey == monthKey }
+            .reduce(0) { $0 + $1.plannedAmount }
+        let actual = BudgetService.actualExpenseTotal(for: monthKey, transactions: transactions)
+        let income = BudgetService.actualIncomeTotal(for: monthKey, transactions: transactions)
+        let net = income - actual
+        let remaining = planned - actual
+        return (hasPlan, remaining, net)
+    }
+
     func scopeText(activeGoal: Goal?) -> String {
         (activeGoal?.includeAccounts ?? true)
             ? "Formue = investeringer + konti markert for formue. Gjeld er ikke med i v1.0."
@@ -83,7 +100,7 @@ final class OverviewViewModel: ObservableObject {
             let lines = [
                 "Du har spart {x} i {p}.",
                 "Sterk start: {x} så langt i {p}.",
-                "Fin flyt nå: {x} bygget i {p}.",
+                "Fin flyt nå: {x} spart i {p}.",
                 "Du ligger på pluss med {x} i {p}.",
                 "Bra jobbet, {x} er på plass i {p}.",
                 "Små steg teller: {x} i {p}.",
