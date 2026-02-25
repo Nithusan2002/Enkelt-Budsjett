@@ -65,7 +65,7 @@ final class InvestmentsViewModel: ObservableObject {
             selectedRange = preference.defaultGraphView
         }
         updateDisplayedTotal(snapshots: snapshots, animate: false)
-        showTrendChip = latestSnapshot(snapshots) != nil
+        showTrendChip = previousSnapshot(snapshots) != nil
     }
 
     func refreshData(snapshots: [InvestmentSnapshot]) {
@@ -74,7 +74,7 @@ final class InvestmentsViewModel: ObservableObject {
             showTrendChip = false
         }
         withAnimation(.spring(response: 0.4, dampingFraction: 0.85).delay(0.1)) {
-            showTrendChip = latestSnapshot(snapshots) != nil
+            showTrendChip = previousSnapshot(snapshots) != nil
         }
     }
 

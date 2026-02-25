@@ -3,12 +3,20 @@ import SwiftData
 import Charts
 
 struct InvestmentsView: View {
+    @EnvironmentObject private var navigationState: AppNavigationState
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \InvestmentBucket.sortOrder) private var buckets: [InvestmentBucket]
     @Query(sort: \InvestmentSnapshot.periodKey) private var snapshots: [InvestmentSnapshot]
     @Query private var preferences: [UserPreference]
 
     @StateObject private var viewModel = InvestmentsViewModel()
+    @State private var showFullHistory = false
+    @State private var selectedDevelopmentDate: Date?
+
+    private enum SectionAnchor: String {
+        case development
+        case distribution
+    }
 
     private var latest: InvestmentSnapshot? { viewModel.latestSnapshot(snapshots) }
     private var hero: InvestmentHeroData { viewModel.heroData(snapshots: snapshots, preference: preferences.first) }
@@ -29,65 +37,75 @@ struct InvestmentsView: View {
     }
 
     var body: some View {
-        List {
-            heroSection
-            developmentSection
-            distributionSection
-            holdingsSection
-            insightSection
-            historySection
-            hiddenHoldingsSection
-        }
-        .listStyle(.insetGrouped)
-        .scrollContentBackground(.hidden)
-        .background(AppTheme.background)
-        .navigationTitle("Investeringer")
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    openCheckIn()
-                } label: {
-                    Label("Oppdater", systemImage: "arrow.triangle.2.circlepath")
+        ScrollViewReader { proxy in
+            List {
+                heroSection
+                developmentSection
+                    .id(SectionAnchor.development.rawValue)
+                distributionSection
+                    .id(SectionAnchor.distribution.rawValue)
+                holdingsSection
+                historySection
+                administrationSection
+            }
+            .listStyle(.insetGrouped)
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background)
+            .navigationTitle("Investeringer")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        openCheckIn()
+                    } label: {
+                        Label("Oppdater", systemImage: "arrow.triangle.2.circlepath")
+                    }
                 }
             }
-        }
-        .refreshable {
-            viewModel.refreshData(snapshots: snapshots)
-        }
-        .sheet(isPresented: $viewModel.showCheckIn) {
-            InvestmentCheckInView(buckets: buckets, latestSnapshot: latest)
-        }
-        .sheet(isPresented: $viewModel.showAddBucketSheet) {
-            AddInvestmentBucketSheet(
-                name: $viewModel.newBucketName,
-                selectedColorHex: $viewModel.selectedBucketColorHex,
-                errorMessage: viewModel.addBucketError
-            ) {
-                viewModel.addBucket(context: modelContext, existingBuckets: buckets)
-            } onCancel: {
-                viewModel.resetAddBucketState()
+            .refreshable {
+                viewModel.refreshData(snapshots: snapshots)
             }
-        }
-        .sheet(item: $viewModel.selectedBucketForEdit) { bucket in
-            EditInvestmentBucketSheet(
-                bucket: bucket,
-                existingBuckets: buckets
-            )
-        }
-        .navigationDestination(for: String.self) { bucketID in
-            if let bucket = buckets.first(where: { $0.id == bucketID }) {
-                BucketDetailView(bucket: bucket, snapshots: snapshots)
-            } else {
-                Text("Finner ikke beholdning")
-                    .appSecondaryStyle()
+            .sheet(isPresented: $viewModel.showCheckIn) {
+                InvestmentCheckInView(buckets: buckets, latestSnapshot: latest)
             }
-        }
-        .onAppear {
-            viewModel.ensureDefaultBuckets(context: modelContext, existingBuckets: buckets)
-            viewModel.onAppear(preference: preferences.first, snapshots: snapshots)
-        }
-        .onChange(of: snapshotToken) { _, _ in
-            viewModel.refreshData(snapshots: snapshots)
+            .sheet(isPresented: $viewModel.showAddBucketSheet) {
+                AddInvestmentBucketSheet(
+                    name: $viewModel.newBucketName,
+                    selectedColorHex: $viewModel.selectedBucketColorHex,
+                    errorMessage: viewModel.addBucketError
+                ) {
+                    viewModel.addBucket(context: modelContext, existingBuckets: buckets)
+                } onCancel: {
+                    viewModel.resetAddBucketState()
+                }
+            }
+            .sheet(item: $viewModel.selectedBucketForEdit) { bucket in
+                EditInvestmentBucketSheet(
+                    bucket: bucket,
+                    existingBuckets: buckets
+                )
+            }
+            .navigationDestination(for: String.self) { bucketID in
+                if let bucket = buckets.first(where: { $0.id == bucketID }) {
+                    BucketDetailView(bucket: bucket, snapshots: snapshots)
+                } else {
+                    Text("Finner ikke beholdning")
+                        .appSecondaryStyle()
+                }
+            }
+            .onAppear {
+                viewModel.ensureDefaultBuckets(context: modelContext, existingBuckets: buckets)
+                viewModel.onAppear(preference: preferences.first, snapshots: snapshots)
+            }
+            .onChange(of: snapshotToken) { _, _ in
+                viewModel.refreshData(snapshots: snapshots)
+            }
+            .onChange(of: navigationState.investmentsFocus) { _, focus in
+                guard let focus else { return }
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    proxy.scrollTo(focus.rawValue, anchor: .top)
+                }
+                navigationState.investmentsFocus = nil
+            }
         }
     }
 
@@ -122,17 +140,22 @@ struct InvestmentsView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .layoutPriority(2)
 
-                if viewModel.showTrendChip {
+                if latest == nil {
+                    Text("Legg inn første snapshot. Grovt tall holder.")
+                        .appSecondaryStyle()
+                } else if viewModel.showTrendChip {
                     trendChip(changeKr: hero.changeKr, changePct: hero.changePct)
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
 
-                sparkline(series: viewModel.totalSparkline(snapshots: snapshots, range: .last12Months), color: AppTheme.primary)
-                    .frame(height: 56)
-                    .padding(.horizontal, 2)
-                    .padding(.vertical, 6)
-                    .background(AppTheme.background, in: RoundedRectangle(cornerRadius: 10))
-                    .accessibilityHidden(true)
+                if !snapshots.isEmpty {
+                    sparkline(series: viewModel.totalSparkline(snapshots: snapshots, range: .last12Months), color: AppTheme.primary)
+                        .frame(height: 56)
+                        .padding(.horizontal, 2)
+                        .padding(.vertical, 6)
+                        .background(AppTheme.background, in: RoundedRectangle(cornerRadius: 10))
+                        .accessibilityHidden(true)
+                }
 
                 VStack(alignment: .leading, spacing: 6) {
                     heroMetaRow(icon: "calendar", text: hero.lastCheckInText)
@@ -192,38 +215,58 @@ struct InvestmentsView: View {
                         )
                         .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
                         .foregroundStyle(AppTheme.secondary)
+
+                        if let selectedDevelopmentDate,
+                           let selectedSnapshot = nearestSnapshot(to: selectedDevelopmentDate, in: filteredSnapshots),
+                           selectedSnapshot.periodKey == snapshot.periodKey {
+                            RuleMark(x: .value("Valgt dato", selectedSnapshot.capturedAt))
+                                .foregroundStyle(AppTheme.textSecondary.opacity(0.5))
+                                .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                                .annotation(position: .topLeading) {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(formatDate(selectedSnapshot.capturedAt))
+                                            .font(.caption2.weight(.semibold))
+                                        Text(formatNOK(selectedSnapshot.totalValue))
+                                            .font(.caption.weight(.semibold))
+                                    }
+                                    .padding(8)
+                                    .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 8))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(AppTheme.divider, lineWidth: 1)
+                                    )
+                                }
+                        }
                     }
                     .frame(height: 170)
                     .chartXAxis(.hidden)
+                    .chartOverlay { proxy in
+                        GeometryReader { geometry in
+                            Rectangle()
+                                .fill(Color.clear)
+                                .contentShape(Rectangle())
+                                .gesture(
+                                    DragGesture(minimumDistance: 0)
+                                        .onChanged { value in
+                                            let origin = geometry[proxy.plotAreaFrame].origin
+                                            let relativeX = value.location.x - origin.x
+                                            if let date: Date = proxy.value(atX: relativeX) {
+                                                selectedDevelopmentDate = date
+                                            }
+                                        }
+                                        .onEnded { _ in
+                                            selectedDevelopmentDate = nil
+                                        }
+                                )
+                        }
+                    }
                     .animation(.easeInOut(duration: 0.5), value: viewModel.selectedRange)
                     .accessibilityLabel("Utviklingsgraf for investeringer")
                     .accessibilityValue(developmentChartAccessibilitySummary(filteredSnapshots))
                 }
-            }
-            .padding(14)
-            .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
-            .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(AppTheme.divider, lineWidth: 1)
-            )
-            .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
-            .listRowBackground(Color.clear)
-        }
-    }
 
-    private var insightSection: some View {
-        let insight = viewModel.insight(
-            snapshots: snapshots,
-            buckets: buckets
-        )
-
-        return Section {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(insight.title)
-                    .appCardTitleStyle()
-                Text(insight.detail)
-                    .appBodyStyle()
-                    .foregroundStyle(AppTheme.textSecondary)
+                Text("Basert på totalsummene du legger inn.")
+                    .appSecondaryStyle()
             }
             .padding(14)
             .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
@@ -237,7 +280,7 @@ struct InvestmentsView: View {
     }
 
     private var holdingsSection: some View {
-        Section {
+        Section("Beholdning") {
             if bucketRows.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Ingen aktive beholdninger ennå.")
@@ -277,43 +320,41 @@ struct InvestmentsView: View {
                     )
                 }
             }
-        } header: {
-            HStack {
-                Text("Beholdning")
-                Spacer()
-                Button {
-                    viewModel.resetAddBucketState()
-                    viewModel.showAddBucketSheet = true
-                } label: {
-                    Label("Ny type", systemImage: "plus.circle.fill")
-                        .font(.subheadline.weight(.semibold))
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(AppTheme.primary)
-            }
         }
     }
 
-    private var hiddenHoldingsSection: some View {
+    private var administrationSection: some View {
         let hiddenBuckets = buckets.filter { !$0.isActive }
-        return Section("Skjulte beholdninger") {
+        return Section("Administrasjon") {
+            Button {
+                viewModel.resetAddBucketState()
+                viewModel.showAddBucketSheet = true
+            } label: {
+                Label("Ny type", systemImage: "plus.circle")
+            }
+            .foregroundStyle(AppTheme.primary)
+
             if hiddenBuckets.isEmpty {
                 Text("Ingen skjulte beholdningstyper.")
                     .appSecondaryStyle()
             } else {
-                ForEach(hiddenBuckets) { bucket in
-                    HStack {
-                        Circle()
-                            .fill(AppTheme.portfolioColor(for: bucket))
-                            .frame(width: 10, height: 10)
-                        Text(bucket.name)
-                            .appBodyStyle()
-                        Spacer()
-                        Button("Vis igjen") {
-                            viewModel.restoreBucket(bucket, context: modelContext, existingBuckets: buckets)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Skjulte beholdninger")
+                        .appSecondaryStyle()
+                    ForEach(hiddenBuckets) { bucket in
+                        HStack {
+                            Circle()
+                                .fill(AppTheme.portfolioColor(for: bucket))
+                                .frame(width: 10, height: 10)
+                            Text(bucket.name)
+                                .appBodyStyle()
+                            Spacer()
+                            Button("Vis igjen") {
+                                viewModel.restoreBucket(bucket, context: modelContext, existingBuckets: buckets)
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(AppTheme.primary)
                         }
-                        .buttonStyle(.bordered)
-                        .tint(AppTheme.primary)
                     }
                 }
             }
@@ -371,7 +412,7 @@ struct InvestmentsView: View {
     }
 
     private var historySection: some View {
-        let history = viewModel.latestHistory(snapshots)
+        let history = showFullHistory ? viewModel.history(snapshots) : viewModel.latestHistory(snapshots)
         return Section("Siste oppdateringer") {
             if history.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
@@ -390,13 +431,22 @@ struct InvestmentsView: View {
             } else {
                 ForEach(history, id: \.periodKey) { snapshot in
                     HStack {
-                        Text(formatDate(snapshot.capturedAt))
+                        Text(formatPeriodKeyAsDate(snapshot.periodKey))
                             .appBodyStyle()
                         Spacer()
                         Text(formatNOK(snapshot.totalValue))
                             .appBodyStyle()
                             .monospacedDigit()
                     }
+                }
+                if snapshots.count > 6 {
+                    Button(showFullHistory ? "Vis færre" : "Se alle") {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            showFullHistory.toggle()
+                        }
+                    }
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(AppTheme.primary)
                 }
             }
         }
@@ -530,6 +580,12 @@ struct InvestmentsView: View {
             .prefix(3)
             .map { "\($0.bucketName) \(formatPercent($0.percent))" }
             .joined(separator: ", ")
+    }
+
+    private func nearestSnapshot(to date: Date, in snapshots: [InvestmentSnapshot]) -> InvestmentSnapshot? {
+        snapshots.min(by: {
+            abs($0.capturedAt.timeIntervalSince(date)) < abs($1.capturedAt.timeIntervalSince(date))
+        })
     }
 
     private func openCheckIn() {
