@@ -1,29 +1,86 @@
 import SwiftUI
 import SwiftData
-import Charts
 import UIKit
 
 struct BudgetView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Category.sortOrder) private var categories: [Category]
     @Query(sort: \BudgetMonth.startDate) private var months: [BudgetMonth]
-    @Query private var plans: [BudgetPlan]
+    @Query private var groupPlans: [BudgetGroupPlan]
     @Query private var transactions: [Transaction]
 
     @StateObject private var viewModel = BudgetViewModel()
+    @State private var showMonthPicker = false
 
     private var periodKey: String { viewModel.periodKey() }
-    private var summary: BudgetSummaryData {
-        viewModel.summary(periodKey: periodKey, plans: plans, categories: categories, transactions: transactions)
+    private var groupRows: [BudgetGroupRow] {
+        viewModel.groupRows(
+            periodKey: periodKey,
+            categories: categories,
+            groupPlans: groupPlans,
+            transactions: transactions
+        )
     }
-    private var rows: [BudgetCategoryRow] {
-        viewModel.categoryRows(periodKey: periodKey, categories: categories, plans: plans, transactions: transactions)
+    private var fixedByGroup: [String: Double] {
+        viewModel.fixedSpentByGroup(
+            periodKey: periodKey,
+            categories: categories,
+            transactions: transactions
+        )
+    }
+    private var incomeRows: [BudgetIncomeRow] {
+        categories
+            .filter { $0.type == .income && $0.isActive }
+            .map { category in
+                let amount = transactions
+                    .filter {
+                        DateService.periodKey(from: $0.date) == periodKey &&
+                        $0.kind == .income &&
+                        $0.categoryID == category.id
+                    }
+                    .reduce(0) { $0 + abs($1.amount) }
+                return BudgetIncomeRow(id: category.id, title: category.name, amount: amount)
+            }
+            .filter { $0.amount > 0 }
+            .sorted { $0.amount > $1.amount }
+    }
+    private var savingsRows: [BudgetSavingsRow] {
+        let savingsCategoryIDs = Set(
+            categories
+                .filter { $0.type == .savings && $0.isActive }
+                .map(\.id)
+        )
+
+        let grouped = Dictionary(grouping: transactions) { tx in
+            tx.categoryID ?? ""
+        }
+
+        return categories
+            .filter { $0.type == .savings && $0.isActive }
+            .map { category in
+                let amount = (grouped[category.id] ?? [])
+                    .filter { tx in
+                        DateService.periodKey(from: tx.date) == periodKey &&
+                        (tx.kind == .manualSaving || (tx.categoryID != nil && savingsCategoryIDs.contains(tx.categoryID!)))
+                    }
+                    .reduce(0) { $0 + abs($1.amount) }
+                return BudgetSavingsRow(id: category.id, title: category.name, amount: amount)
+            }
+            .filter { $0.amount > 0 }
+            .sorted { $0.amount > $1.amount }
+    }
+    private var summary: BudgetSummaryData {
+        viewModel.summary(
+            periodKey: periodKey,
+            groupRows: groupRows,
+            transactions: transactions
+        )
     }
     private var hasPlannedBudget: Bool {
         summary.planned > 0
     }
     private var overBudgetCount: Int {
-        rows.filter(\.isOverBudget).count
+        groupRows.filter(\.isOverBudget).count
     }
     private var fixedTotalThisMonth: Double {
         FixedItemsService.fixedTotalForMonth(periodKey: periodKey, transactions: transactions)
@@ -35,20 +92,21 @@ struct BudgetView: View {
                 MonthHeaderView(
                     monthLabel: monthLabel(viewModel.selectedMonthDate),
                     onPrevious: { viewModel.changeMonth(by: -1) },
-                    onNext: { viewModel.changeMonth(by: 1) }
+                    onNext: { viewModel.changeMonth(by: 1) },
+                    onPickMonth: { showMonthPicker = true }
                 )
 
                 BudgetHeroCardView(
                     hasPlannedBudget: hasPlannedBudget,
                     remaining: summary.remaining,
-                    actual: summary.actual,
+                    trackedActual: summary.trackedActual,
+                    expenseTotal: summary.expenseTotal,
                     planned: summary.planned,
-                    income: summary.income,
-                    net: summary.net,
+                    monthDate: viewModel.selectedMonthDate,
                     overBudgetCount: overBudgetCount,
-                    fixedTotalThisMonth: fixedTotalThisMonth,
-                    onShowOverBudget: {
-                        viewModel.selectedFilter = .overBudget
+                    isOverBudgetFilterActive: viewModel.selectedFilter == .overLimit,
+                    onToggleOverBudget: {
+                        viewModel.selectedFilter = viewModel.selectedFilter == .overLimit ? .all : .overLimit
                     }
                 )
 
@@ -72,13 +130,24 @@ struct BudgetView: View {
                 }
                 .buttonStyle(.plain)
 
-                if hasPlannedBudget {
-                    CategoryListView(rows: rows) { row in
-                        viewModel.editorTarget = BudgetEditorTarget(id: row.id, categoryName: row.title, categoryID: row.id)
-                    }
+                if !incomeRows.isEmpty {
+                    IncomeListView(rows: incomeRows)
                 }
+
+                if !savingsRows.isEmpty {
+                    SavingsListView(rows: savingsRows)
+                }
+
+                GroupListView(
+                    rows: groupRows,
+                    fixedByGroup: fixedByGroup,
+                    onSetLimits: { viewModel.showGroupLimitsSheet = true }
+                )
             }
             .padding()
+        }
+        .refreshable {
+            viewModel.ensureMonthExists(context: modelContext, months: months)
         }
         .background(AppTheme.background)
         .navigationTitle("Budsjett")
@@ -90,6 +159,14 @@ struct BudgetView: View {
                     Label("Legg til", systemImage: "plus")
                 }
             }
+        }
+        .sheet(isPresented: $showMonthPicker) {
+            BudgetMonthPickerSheet(
+                selectedDate: viewModel.selectedMonthDate,
+                onSelect: { date in
+                    viewModel.selectedMonthDate = DateService.monthBounds(for: date).start
+                }
+            )
         }
         .sheet(isPresented: $viewModel.showAddTransaction) {
             AddTransactionSheet(categories: categories.filter(\.isActive)) { date, amount, kind, categoryID, note in
@@ -103,39 +180,30 @@ struct BudgetView: View {
                 )
             }
         }
-        .sheet(item: $viewModel.editorTarget) { target in
-            BudgetEditSheet(
-                categoryName: target.categoryName,
-                initialValue: plans.first { $0.monthPeriodKey == periodKey && $0.categoryID == target.categoryID }?.plannedAmount ?? 0
-            ) { newValue in
-                viewModel.upsertBudgetPlan(
-                    context: modelContext,
-                    periodKey: periodKey,
-                    categoryID: target.categoryID,
-                    plannedAmount: newValue,
-                    plans: plans
-                )
-            }
+        .sheet(isPresented: $viewModel.showGroupLimitsSheet) {
+            SetGroupLimitsSheet(
+                periodKey: periodKey,
+                groupPlans: groupPlans,
+                fixedByGroup: fixedByGroup,
+                viewModel: viewModel
+            )
         }
-        .navigationDestination(for: String.self) { categoryID in
-            if let category = categories.first(where: { $0.id == categoryID }) {
-                BudgetCategoryDetailView(
-                    category: category,
-                    periodKey: periodKey,
-                    plans: plans,
-                    transactions: transactions,
-                    viewModel: viewModel
-                )
-            } else {
-                Text("Finner ikke kategori")
-                    .appSecondaryStyle()
-            }
+        .navigationDestination(for: BudgetGroup.self) { group in
+            BudgetGroupDetailView(
+                group: group,
+                periodKey: periodKey,
+                categories: categories,
+                groupPlans: groupPlans,
+                transactions: transactions,
+                showAddTransaction: $viewModel.showAddTransaction,
+                viewModel: viewModel
+            )
         }
         .onAppear {
-            viewModel.ensureMonthExists(context: modelContext, months: months, plans: plans)
+            viewModel.ensureMonthExists(context: modelContext, months: months)
         }
         .onChange(of: viewModel.selectedMonthDate) { _, _ in
-            viewModel.ensureMonthExists(context: modelContext, months: months, plans: plans)
+            viewModel.ensureMonthExists(context: modelContext, months: months)
         }
     }
 
@@ -149,33 +217,135 @@ struct BudgetView: View {
     }
 }
 
+private struct BudgetIncomeRow: Identifiable {
+    let id: String
+    let title: String
+    let amount: Double
+}
+
+private struct BudgetSavingsRow: Identifiable {
+    let id: String
+    let title: String
+    let amount: Double
+}
+
+private struct IncomeListView: View {
+    let rows: [BudgetIncomeRow]
+
+    private var total: Double {
+        rows.reduce(0) { $0 + $1.amount }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Inntekter")
+                    .appCardTitleStyle()
+                Spacer()
+                Text(formatNOK(total))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(AppTheme.positive)
+                    .monospacedDigit()
+            }
+
+            ForEach(rows) { row in
+                HStack {
+                    Text(row.title)
+                        .appBodyStyle()
+                    Spacer()
+                    Text(formatNOK(row.amount))
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(AppTheme.positive)
+                        .monospacedDigit()
+                }
+                .padding(.vertical, 3)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.divider, lineWidth: 1))
+    }
+}
+
+private struct SavingsListView: View {
+    let rows: [BudgetSavingsRow]
+
+    private var total: Double {
+        rows.reduce(0) { $0 + $1.amount }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Sparing")
+                    .appCardTitleStyle()
+                Spacer()
+                Text(formatNOK(total))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(AppTheme.secondary)
+                    .monospacedDigit()
+            }
+
+            ForEach(rows) { row in
+                HStack {
+                    Text(row.title)
+                        .appBodyStyle()
+                    Spacer()
+                    Text(formatNOK(row.amount))
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(AppTheme.secondary)
+                        .monospacedDigit()
+                }
+                .padding(.vertical, 3)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.divider, lineWidth: 1))
+    }
+}
+
 private struct MonthHeaderView: View {
     let monthLabel: String
     let onPrevious: () -> Void
     let onNext: () -> Void
+    let onPickMonth: () -> Void
 
     var body: some View {
-        HStack {
+        HStack(spacing: 8) {
             Button(action: onPrevious) {
                 Image(systemName: "chevron.left")
+                    .font(.subheadline.weight(.semibold))
+                    .frame(width: 30, height: 30)
             }
-            .buttonStyle(.bordered)
-
+            .buttonStyle(.plain)
             Spacer()
 
-            Text(monthLabel)
-                .font(.headline.weight(.semibold))
-                .accessibilityLabel("Valgt måned")
-                .accessibilityValue(monthLabel)
+            Button(action: onPickMonth) {
+                HStack(spacing: 6) {
+                    Text(monthLabel)
+                        .font(.headline.weight(.semibold))
+                    Image(systemName: "chevron.down")
+                        .font(.caption.weight(.semibold))
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Valgt måned")
+            .accessibilityValue(monthLabel)
 
             Spacer()
 
             Button(action: onNext) {
                 Image(systemName: "chevron.right")
+                    .font(.subheadline.weight(.semibold))
+                    .frame(width: 30, height: 30)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.plain)
         }
-        .padding(12)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
         .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.divider, lineWidth: 1))
     }
@@ -184,17 +354,17 @@ private struct MonthHeaderView: View {
 private struct BudgetHeroCardView: View {
     let hasPlannedBudget: Bool
     let remaining: Double
-    let actual: Double
+    let trackedActual: Double
+    let expenseTotal: Double
     let planned: Double
-    let income: Double
-    let net: Double
+    let monthDate: Date
     let overBudgetCount: Int
-    let fixedTotalThisMonth: Double
-    let onShowOverBudget: () -> Void
+    let isOverBudgetFilterActive: Bool
+    let onToggleOverBudget: () -> Void
 
     private var usedPercent: Double {
         guard planned > 0 else { return 0 }
-        return min(max(actual / planned, 0), 1)
+        return min(max(trackedActual / planned, 0), 1)
     }
 
     var body: some View {
@@ -205,7 +375,7 @@ private struct BudgetHeroCardView: View {
                 Text(formatNOK(remaining))
                     .appBigNumberStyle()
                     .foregroundStyle(remaining < 0 ? AppTheme.negative : AppTheme.textPrimary)
-                Text("Brukt \(formatNOK(actual)) av \(formatNOK(planned))")
+                Text("Brukt \(formatNOK(trackedActual)) av \(formatNOK(planned))")
                     .appSecondaryStyle()
 
                 ProgressView(value: usedPercent, total: 1)
@@ -213,96 +383,120 @@ private struct BudgetHeroCardView: View {
 
                 if overBudgetCount > 0 {
                     Button {
-                        onShowOverBudget()
+                        onToggleOverBudget()
                     } label: {
-                        Text("Over budsjett i \(overBudgetCount) kategorier")
+                        Text(
+                            isOverBudgetFilterActive
+                                ? "Vis alle kategorier"
+                                : "Over budsjett i \(overBudgetCount) kategorier"
+                        )
                             .font(.footnote.weight(.semibold))
                             .padding(.horizontal, 10)
                             .padding(.vertical, 6)
-                            .background(AppTheme.warning.opacity(0.12), in: Capsule())
+                            .background(
+                                (isOverBudgetFilterActive ? AppTheme.secondary : AppTheme.warning).opacity(0.12),
+                                in: Capsule()
+                            )
                     }
                     .buttonStyle(.plain)
                 }
             } else {
                 Text("Netto hittil")
                     .appSecondaryStyle()
-                Text(formatNOK(net))
+                Text(formatNOK(expenseTotal))
                     .appBigNumberStyle()
-                    .foregroundStyle(net < 0 ? AppTheme.negative : AppTheme.textPrimary)
-                Text("Utgifter: \(formatNOK(actual)) • Inntekt: \(formatNOK(income))")
+                    .foregroundStyle(AppTheme.textPrimary)
+                Text("Forbruk hittil i \(monthName())")
                     .appSecondaryStyle()
 
                 Text("Du kan også bare spore uten grenser.")
                     .font(.footnote)
                     .foregroundStyle(AppTheme.textSecondary)
             }
-
-            Text("Faste poster denne måneden: \(formatNOK(fixedTotalThisMonth))")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(AppTheme.textSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(hasPlannedBudget ? "Igjen å bruke" : "Netto hittil")
-        .accessibilityValue(hasPlannedBudget ? formatNOK(remaining) : formatNOK(net))
+        .accessibilityLabel(hasPlannedBudget ? "Igjen å bruke" : "Forbruk hittil")
+        .accessibilityValue(hasPlannedBudget ? formatNOK(remaining) : formatNOK(expenseTotal))
+    }
+
+    private func monthName() -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "nb_NO")
+        formatter.dateFormat = "MMMM"
+        return formatter.string(from: monthDate)
     }
 }
 
-private struct CategoryListView: View {
-    let rows: [BudgetCategoryRow]
-    let onEdit: (BudgetCategoryRow) -> Void
+private struct GroupListView: View {
+    let rows: [BudgetGroupRow]
+    let fixedByGroup: [String: Double]
+    let onSetLimits: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Kategorier")
-                .appCardTitleStyle()
+            HStack {
+                Text("Kategorier")
+                    .appCardTitleStyle()
+                Spacer()
+                Button("Sett grenser") {
+                    onSetLimits()
+                }
+                .font(.footnote.weight(.semibold))
+                .buttonStyle(.plain)
+                .foregroundStyle(AppTheme.primary)
+            }
 
             if rows.isEmpty {
-                Text("Ingen kategorier å vise for denne måneden.")
+                Text("Legg til en transaksjon for å starte sporing.")
                     .appSecondaryStyle()
             }
 
             ForEach(rows) { row in
-                VStack(alignment: .leading, spacing: 8) {
-                    NavigationLink(value: row.id) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(row.title)
-                                    .appCardTitleStyle()
-                                Text("\(formatNOK(row.spent)) / \(formatNOK(row.planned))")
-                                    .appSecondaryStyle()
-                            }
-                            Spacer()
-                            Text(row.isOverBudget ? "Over" : "OK")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(row.isOverBudget ? AppTheme.warning : AppTheme.positive)
-                        }
-                    }
-                    .buttonStyle(.plain)
-
-                    let progressTotal = max(row.planned, 1)
-                    let progressValue = min(max(row.spent, 0), progressTotal)
-                    ProgressView(value: progressValue, total: progressTotal)
-                        .tint(row.isOverBudget ? AppTheme.warning : AppTheme.secondary)
-
-                    HStack {
-                        Spacer()
-                        Button("Endre budsjett") {
-                            onEdit(row)
-                        }
-                        .font(.footnote.weight(.semibold))
-                    }
+                NavigationLink(value: row.group) {
+                    GroupRowView(
+                        row: row,
+                        fixedSpent: fixedByGroup[row.group.rawValue] ?? 0
+                    )
                 }
-                .padding(.vertical, 6)
+                .buttonStyle(.plain)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.divider, lineWidth: 1))
+    }
+}
+
+private struct BudgetMonthPickerSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @State var selectedDate: Date
+    let onSelect: (Date) -> Void
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                DatePicker(
+                    "Måned",
+                    selection: $selectedDate,
+                    displayedComponents: [.date]
+                )
+                .datePickerStyle(.graphical)
+            }
+            .navigationTitle("Velg måned")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Ferdig") {
+                        onSelect(selectedDate)
+                        dismiss()
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -320,6 +514,7 @@ private struct AddTransactionSheet: View {
     @State private var attemptedSave = false
     @State private var showSavedBanner = false
     @State private var showPostSaveActions = false
+    @State private var expenseCategoryFilter: ExpenseCategoryFilter = .regular
     @FocusState private var amountFocused: Bool
 
     @AppStorage("budget.last_category.expense") private var lastExpenseCategoryID: String = ""
@@ -333,7 +528,15 @@ private struct AddTransactionSheet: View {
         guard let selectedType else { return [] }
         switch selectedType {
         case .expense:
-            return categories.filter { $0.type == .expense }.sorted { $0.sortOrder < $1.sortOrder }
+            let expenseLike = categories.filter { $0.type == .expense || $0.type == .savings }
+            let filtered: [Category]
+            switch expenseCategoryFilter {
+            case .regular:
+                filtered = expenseLike.filter { $0.type == .expense }
+            case .savings:
+                filtered = expenseLike.filter { $0.type == .savings }
+            }
+            return filtered.sorted { $0.sortOrder < $1.sortOrder }
         case .income:
             return categories.filter { $0.type == .income }.sorted { $0.sortOrder < $1.sortOrder }
         default:
@@ -357,6 +560,15 @@ private struct AddTransactionSheet: View {
 
                 if selectedType != nil {
                     Section(selectedType == .expense ? "Ny utgift" : "Ny inntekt") {
+                        if selectedType == .expense {
+                            Picker("Kategori-filter", selection: $expenseCategoryFilter) {
+                                ForEach(ExpenseCategoryFilter.allCases, id: \.self) { filter in
+                                    Text(filter.title).tag(filter)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                        }
+
                         if availableCategories.isEmpty {
                             Text("Ingen kategorier for valgt type.")
                                 .appSecondaryStyle()
@@ -503,6 +715,10 @@ private struct AddTransactionSheet: View {
             .onAppear {
                 preselectCategoryForCurrentType()
             }
+            .onChange(of: expenseCategoryFilter) { _, _ in
+                clearSelectionIfInvalidForType()
+                preselectCategoryForCurrentType()
+            }
             .onChange(of: amountText) { _, newValue in
                 let formatted = formatAmountInputLive(newValue)
                 if formatted != newValue {
@@ -634,14 +850,10 @@ private struct AddTransactionSheet: View {
         case "mobilabonnement": return "phone"
 
         case "lonn": return "party.popper.fill"
-        case "studielan": return "graduationcap.fill"
-        case "pensjon", "utbytte": return "banknote.fill"
-        case "renteinntekter": return "building.columns.fill"
-        case "barnetrygd": return "figure.2.and.child.holdinghands"
-        case "salg av ting pa finn/tise": return "hand.raised.fill"
-        case "utleie av eiendom": return "house.fill"
-        case "utleie av hytte": return "mountain.2.fill"
-        case "utleie av bil": return "car.fill"
+        case "lanekassen (stipend/lan)": return "graduationcap.fill"
+        case "ekstrajobb / sideinntekt": return "briefcase.fill"
+        case "salg (finn.no / brukt)": return "hand.raised.fill"
+        case "gaver / penger mottatt": return "gift.fill"
 
         case "bolig": return "house.fill"
         case "mat": return "fork.knife"
@@ -661,44 +873,16 @@ private struct AddTransactionSheet: View {
     }
 }
 
-private struct BudgetEditSheet: View {
-    @Environment(\.dismiss) private var dismiss
+private enum ExpenseCategoryFilter: CaseIterable {
+    case regular
+    case savings
 
-    let categoryName: String
-    let initialValue: Double
-    let onSave: (Double) -> Void
-
-    @State private var plannedText: String = ""
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section("Kategori") {
-                    Text(categoryName)
-                }
-                Section("Planlagt beløp") {
-                    TextField("Beløp", text: $plannedText)
-                        .keyboardType(.decimalPad)
-                        .textFieldStyle(.appInput)
-                        .multilineTextAlignment(.trailing)
-                        .monospacedDigit()
-                }
-            }
-            .navigationTitle("Endre budsjett")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Avbryt") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Lagre") {
-                        onSave(max(parseInputAmount(plannedText) ?? 0, 0))
-                        dismiss()
-                    }
-                }
-            }
-            .onAppear {
-                plannedText = initialValue > 0 ? formatInputAmount(initialValue) : ""
-            }
+    var title: String {
+        switch self {
+        case .regular:
+            return "Vanlige"
+        case .savings:
+            return "Sparing"
         }
     }
 }
@@ -765,58 +949,338 @@ private func formatAmountInputLive(_ rawText: String) -> String {
     return formattedInteger
 }
 
-private struct BudgetCategoryDetailView: View {
+private struct GroupRowView: View {
+    let row: BudgetGroupRow
+    let fixedSpent: Double
+
+    private var planned: Double? {
+        guard let value = row.planned, value > 0 else { return nil }
+        return value
+    }
+
+    private var progressValue: Double {
+        guard let planned else { return 0 }
+        return min(max(row.spent, 0), max(planned, 1))
+    }
+
+    private var progressTotal: Double {
+        max(planned ?? 1, 1)
+    }
+
+    private var variableSpent: Double {
+        max(row.spent - fixedSpent, 0)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(row.title)
+                    .font(.headline.weight(.semibold))
+                    .foregroundStyle(AppTheme.textPrimary)
+                Spacer()
+                if let planned {
+                    Text("\(formatNOK(row.spent)) / \(formatNOK(planned))")
+                        .font(.subheadline.weight(.semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(AppTheme.textPrimary)
+                } else {
+                    Text("\(formatNOK(row.spent)) brukt hittil")
+                        .font(.subheadline.weight(.semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(AppTheme.textPrimary)
+                }
+            }
+
+            if planned != nil {
+                ProgressView(value: progressValue, total: progressTotal)
+                    .tint(row.isOverBudget ? AppTheme.warning : AppTheme.secondary)
+            }
+
+            if fixedSpent > 0 {
+                Text("Fast: \(formatNOK(fixedSpent)) • Variabel: \(formatNOK(variableSpent))")
+                    .font(.footnote)
+                    .foregroundStyle(AppTheme.textSecondary)
+                    .monospacedDigit()
+            }
+
+            HStack {
+                if row.isOverBudget {
+                    statusPill(text: "Over", color: AppTheme.warning)
+                } else if row.isNearLimit {
+                    statusPill(text: "Nær grensen", color: AppTheme.textSecondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(AppTheme.textSecondary)
+            }
+        }
+        .padding(.vertical, 8)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(row.title)
+        .accessibilityValue(accessibilityValue)
+    }
+
+    private var accessibilityValue: String {
+        if let planned {
+            let status: String
+            if row.isOverBudget {
+                status = "over budsjett"
+            } else if row.isNearLimit {
+                status = "nær grensen"
+            } else {
+                status = "innenfor"
+            }
+            return "Brukt \(formatNOK(row.spent)) av \(formatNOK(planned)), \(status)"
+        }
+        return "Brukt \(formatNOK(row.spent)), ingen grense"
+    }
+
+    private func statusPill(text: String, color: Color) -> some View {
+        Text(text)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(color)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(color.opacity(0.12), in: Capsule())
+    }
+}
+
+private struct SetGroupLimitsSheet: View {
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
 
-    let category: Category
     let periodKey: String
-    let plans: [BudgetPlan]
-    let transactions: [Transaction]
-
+    let groupPlans: [BudgetGroupPlan]
+    let fixedByGroup: [String: Double]
     @ObservedObject var viewModel: BudgetViewModel
 
-    @State private var showEditor = false
+    @State private var values: [BudgetGroup: String] = Dictionary(
+        uniqueKeysWithValues: BudgetGroup.allCases.map { ($0, "") }
+    )
 
-    private var planned: Double {
-        plans.first { $0.monthPeriodKey == periodKey && $0.categoryID == category.id }?.plannedAmount ?? 0
+    private var hasAnyInput: Bool {
+        BudgetGroup.allCases.contains { group in
+            let text = values[group, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
+            if text.isEmpty { return false }
+            return (parseInputAmount(text) ?? 0) > 0
+        }
+    }
+
+    private var hasExistingForMonth: Bool {
+        groupPlans.contains { $0.monthPeriodKey == periodKey }
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Text("Du trenger bare å sette de du vil. Tomt = kun sporing.")
+                        .appSecondaryStyle()
+                }
+
+                Section("Grupper") {
+                    ForEach(BudgetGroup.allCases) { group in
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                Text(group.title)
+                                Spacer()
+                                HStack(spacing: 6) {
+                                    Text("kr")
+                                        .foregroundStyle(AppTheme.textSecondary)
+                                    TextField("Tomt", text: binding(for: group))
+                                        .keyboardType(.decimalPad)
+                                        .multilineTextAlignment(.trailing)
+                                        .monospacedDigit()
+                                        .frame(maxWidth: 140)
+                                }
+                            }
+
+                            let fixedTotal = fixedByGroup[group.rawValue] ?? 0
+                            if fixedTotal > 0 {
+                                Text("Faste poster: \(formatNOK(fixedTotal))")
+                                    .font(.footnote)
+                                    .foregroundStyle(AppTheme.textSecondary)
+                                    .monospacedDigit()
+                            }
+
+                            if let entered = parsedValue(for: group),
+                               let fixedTotal = fixedByGroup[group.rawValue],
+                               fixedTotal > 0,
+                               entered > 0,
+                               entered < fixedTotal {
+                                Text("Lavere enn faste poster i gruppen.")
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundStyle(AppTheme.warning)
+                            }
+                        }
+                    }
+                }
+
+                Section {
+                    Button("Kopier forrige måned") {
+                        let previous = viewModel.copyPreviousMonthGroupPlans(periodKey: periodKey, groupPlans: groupPlans)
+                        for group in BudgetGroup.allCases {
+                            if let value = previous[group] ?? nil, value > 0 {
+                                values[group] = formatInputAmount(value)
+                            } else {
+                                values[group] = ""
+                            }
+                        }
+                    }
+
+                    Button("Fyll forslag") {
+                        for group in BudgetGroup.allCases {
+                            let fixedTotal = fixedByGroup[group.rawValue] ?? 0
+                            guard fixedTotal > 0 else { continue }
+                            let suggestion = roundToNearestTen(fixedTotal * 1.15)
+                            values[group] = formatInputAmount(suggestion)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Grenser")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Avbryt") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Lagre") {
+                        var parsed: [BudgetGroup: Double?] = [:]
+                        for group in BudgetGroup.allCases {
+                            let raw = values[group, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
+                            if raw.isEmpty {
+                                parsed[group] = nil
+                            } else {
+                                let value = parseInputAmount(raw) ?? 0
+                                parsed[group] = value > 0 ? value : nil
+                            }
+                        }
+                        viewModel.upsertGroupPlans(
+                            context: modelContext,
+                            periodKey: periodKey,
+                            values: parsed,
+                            existingPlans: groupPlans
+                        )
+                        dismiss()
+                    }
+                    .disabled(!hasAnyInput && !hasExistingForMonth)
+                }
+            }
+            .onAppear {
+                let current = groupPlans.filter { $0.monthPeriodKey == periodKey }
+                for group in BudgetGroup.allCases {
+                    if let existing = current.first(where: { $0.groupKey == group.rawValue }), existing.plannedAmount > 0 {
+                        values[group] = formatInputAmount(existing.plannedAmount)
+                    } else {
+                        values[group] = ""
+                    }
+                }
+            }
+        }
+    }
+
+    private func binding(for group: BudgetGroup) -> Binding<String> {
+        Binding(
+            get: { values[group, default: ""] },
+            set: { newValue in
+                values[group] = formatAmountInputLive(newValue)
+            }
+        )
+    }
+
+    private func parsedValue(for group: BudgetGroup) -> Double? {
+        let raw = values[group, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !raw.isEmpty else { return nil }
+        return parseInputAmount(raw)
+    }
+
+    private func roundToNearestTen(_ value: Double) -> Double {
+        (value / 10).rounded() * 10
+    }
+}
+
+private struct BudgetGroupDetailView: View {
+    @Environment(\.modelContext) private var modelContext
+
+    let group: BudgetGroup
+    let periodKey: String
+    let categories: [Category]
+    let groupPlans: [BudgetGroupPlan]
+    let transactions: [Transaction]
+    @Binding var showAddTransaction: Bool
+    @ObservedObject var viewModel: BudgetViewModel
+
+    private var planned: Double? {
+        groupPlans.first { $0.monthPeriodKey == periodKey && $0.groupKey == group.rawValue }?.plannedAmount
     }
 
     private var spent: Double {
-        BudgetService.spentByCategory(for: periodKey, categoryID: category.id, transactions: transactions)
+        rows.reduce(0) { $0 + BudgetService.budgetImpact($1) }
+    }
+
+    private var groupCategories: [Category] {
+        viewModel.categoriesForGroup(group, categories: categories)
+    }
+
+    private var rows: [Transaction] {
+        viewModel.transactionsForGroup(group, periodKey: periodKey, categories: categories, transactions: transactions)
+    }
+
+    private var spentByCategory: [(category: Category, spent: Double)] {
+        groupCategories
+            .map { category in
+                let spent = rows
+                    .filter { $0.categoryID == category.id }
+                    .reduce(0) { $0 + BudgetService.budgetImpact($1) }
+                return (category, max(spent, 0))
+            }
+            .sorted { lhs, rhs in
+                if lhs.spent != rhs.spent { return lhs.spent > rhs.spent }
+                return lhs.category.name.localizedCaseInsensitiveCompare(rhs.category.name) == .orderedAscending
+            }
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(category.name)
+                    Text(group.title)
                         .appCardTitleStyle()
-                    Text("\(formatNOK(spent)) / \(formatNOK(planned))")
-                        .appBodyStyle()
-                    Text("Avvik: \(formatNOK(spent - planned))")
-                        .appSecondaryStyle()
+                    if let planned, planned > 0 {
+                        Text("\(formatNOK(spent)) / \(formatNOK(planned))")
+                            .appBodyStyle()
+                        Text("Avvik: \(formatNOK(spent - planned))")
+                            .appSecondaryStyle()
+                    } else {
+                        Text("\(formatNOK(spent)) brukt hittil")
+                            .appBodyStyle()
+                    }
                 }
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
                 .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.divider, lineWidth: 1))
 
-                let trend = viewModel.trendPoints(categoryID: category.id, periodKey: periodKey, transactions: transactions)
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Trend i måneden")
+                    Text("Brukt per kategori")
                         .appCardTitleStyle()
-                    if trend.isEmpty {
-                        Text("Ingen registreringer ennå.")
+                    if spentByCategory.isEmpty {
+                        Text("Ingen kategorier i denne gruppen.")
                             .appSecondaryStyle()
                     } else {
-                        Chart(trend) { point in
-                            LineMark(
-                                x: .value("Dag", point.day),
-                                y: .value("Kumulativ", point.cumulative)
-                            )
-                            .foregroundStyle(AppTheme.secondary)
+                        ForEach(spentByCategory, id: \.category.id) { row in
+                            HStack {
+                                Text(row.category.name)
+                                    .appBodyStyle()
+                                Spacer()
+                                Text(formatNOK(row.spent))
+                                    .font(.subheadline.weight(.semibold))
+                                    .monospacedDigit()
+                                    .foregroundStyle(AppTheme.textPrimary)
+                            }
+                            .padding(.vertical, 2)
                         }
-                        .frame(height: 160)
                     }
                 }
                 .padding()
@@ -827,7 +1291,11 @@ private struct BudgetCategoryDetailView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Transaksjoner")
                         .appCardTitleStyle()
-                    ForEach(viewModel.transactionsForCategory(categoryID: category.id, periodKey: periodKey, transactions: transactions), id: \.date) { transaction in
+                    if rows.isEmpty {
+                        Text("Ingen transaksjoner i \(group.title.lowercased()) ennå.")
+                            .appSecondaryStyle()
+                    }
+                    ForEach(rows, id: \.date) { transaction in
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(formatDate(transaction.date))
@@ -862,23 +1330,12 @@ private struct BudgetCategoryDetailView: View {
             .padding()
         }
         .background(AppTheme.background)
-        .navigationTitle(category.name)
+        .navigationTitle(group.title)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button("Rediger budsjett") {
-                    showEditor = true
+                Button("Legg til") {
+                    showAddTransaction = true
                 }
-            }
-        }
-        .sheet(isPresented: $showEditor) {
-            BudgetEditSheet(categoryName: category.name, initialValue: planned) { newValue in
-                viewModel.upsertBudgetPlan(
-                    context: modelContext,
-                    periodKey: periodKey,
-                    categoryID: category.id,
-                    plannedAmount: newValue,
-                    plans: plans
-                )
             }
         }
     }

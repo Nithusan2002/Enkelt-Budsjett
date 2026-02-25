@@ -18,6 +18,7 @@ private enum PreviewData {
             BudgetMonth.self,
             Category.self,
             BudgetPlan.self,
+            BudgetGroupPlan.self,
             Transaction.self,
             Account.self,
             InvestmentBucket.self,

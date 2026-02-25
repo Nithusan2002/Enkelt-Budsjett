@@ -14,16 +14,16 @@ enum AppTheme {
     static let warning = Color(light: "#D97706", dark: "#FFB547")
     static let negative = Color(light: "#DC2626", dark: "#FF6B6B")
 
-    static let portfolioFund = Color(light: "#0EA5E9", dark: "#53C8FF")
-    static let portfolioStock = Color(light: "#8B5CF6", dark: "#BE9BFF")
-    static let portfolioBSU = Color(light: "#22C55E", dark: "#5CE08D")
-    static let portfolioBuffer = Color(light: "#F59E0B", dark: "#FFC15D")
-    static let portfolioIPS = Color(light: "#22C55E", dark: "#5CE08D")
-    static let portfolioCrypto = Color(light: "#EA580C", dark: "#FB8A3C")
+    static let portfolioFund = Color(light: "#1F9BD3", dark: "#48B6E9")
+    static let portfolioStock = Color(light: "#7A5AD6", dark: "#A78BF1")
+    static let portfolioBSU = Color(light: "#2FB66B", dark: "#57CF8E")
+    static let portfolioBuffer = Color(light: "#D9951F", dark: "#E9AF4C")
+    static let portfolioIPS = Color(light: "#2FB66B", dark: "#57CF8E")
+    static let portfolioCrypto = Color(light: "#D9671E", dark: "#EE8A4A")
     static let customBucketPalette: [String] = [
-        "#0EA5E9", "#8B5CF6", "#22C55E", "#EA580C",
-        "#F43F5E", "#14B8A6", "#6366F1", "#F59E0B",
-        "#10B981", "#EF4444", "#06B6D4", "#A855F7"
+        "#1F9BD3", "#7A5AD6", "#2FB66B", "#D9671E",
+        "#0F8B8D", "#475569", "#C2410C", "#CA8A04",
+        "#BE185D", "#0EA5E9", "#059669", "#7C3AED"
     ]
 
     static func portfolioColor(for bucketIDOrName: String) -> Color {

@@ -7,6 +7,30 @@ enum CategoryType: String, Codable, CaseIterable {
     case savings
 }
 
+enum BudgetGroup: String, Codable, CaseIterable, Identifiable {
+    case bolig
+    case fast
+    case hverdags
+    case fritid
+    case annet
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .bolig: return "Bolig"
+        case .fast: return "Fast"
+        case .hverdags: return "Hverdags"
+        case .fritid: return "Fritid"
+        case .annet: return "Annet"
+        }
+    }
+
+    static func from(key: String) -> BudgetGroup {
+        BudgetGroup(rawValue: key) ?? .annet
+    }
+}
+
 enum TransactionKind: String, Codable, CaseIterable {
     case expense
     case income
@@ -98,15 +122,73 @@ final class Category {
     @Attribute(.unique) var id: String
     var name: String
     var type: CategoryType
+    var groupKey: String
     var isActive: Bool
     var sortOrder: Int
 
-    init(id: String = UUID().uuidString, name: String, type: CategoryType, isActive: Bool = true, sortOrder: Int) {
+    init(
+        id: String = UUID().uuidString,
+        name: String,
+        type: CategoryType,
+        groupKey: String? = nil,
+        isActive: Bool = true,
+        sortOrder: Int
+    ) {
         self.id = id
         self.name = name
         self.type = type
+        self.groupKey = groupKey ?? Category.defaultGroupKey(forName: name, type: type)
         self.isActive = isActive
         self.sortOrder = sortOrder
+    }
+
+    static func defaultGroupKey(forName name: String, type: CategoryType) -> String {
+        let key = name
+            .lowercased()
+            .folding(options: .diacriticInsensitive, locale: .current)
+
+        switch type {
+        case .income:
+            return BudgetGroup.fast.rawValue
+        case .savings:
+            return BudgetGroup.hverdags.rawValue
+        case .expense:
+            if key.contains("husleie") || key.contains("bolig") || key.contains("innbo") ||
+                key.contains("kommunale") || key.contains("vann") || key.contains("avlop") || key.contains("feiing") {
+                return BudgetGroup.bolig.rawValue
+            }
+            if key.contains("abonnement") || key.contains("spotify") || key.contains("netflix") ||
+                key.contains("apple") || key.contains("icloud") || key.contains("internett") ||
+                key.contains("mobil") || key.contains("forsikring") {
+                return BudgetGroup.fast.rawValue
+            }
+            if key.contains("mat") || key.contains("transport") || key.contains("kollektiv") ||
+                key.contains("drivstoff") || key.contains("bom") || key.contains("lading") ||
+                key.contains("daglig") {
+                return BudgetGroup.hverdags.rawValue
+            }
+            if key.contains("uteliv") || key.contains("reise") || key.contains("fritid") ||
+                key.contains("klaer") || key.contains("shopping") || key.contains("trening") ||
+                key.contains("hobby") {
+                return BudgetGroup.fritid.rawValue
+            }
+            return BudgetGroup.annet.rawValue
+        }
+    }
+}
+
+@Model
+final class BudgetGroupPlan {
+    @Attribute(.unique) var uniqueKey: String
+    var monthPeriodKey: String
+    var groupKey: String
+    var plannedAmount: Double
+
+    init(monthPeriodKey: String, groupKey: String, plannedAmount: Double) {
+        self.monthPeriodKey = monthPeriodKey
+        self.groupKey = groupKey
+        self.plannedAmount = plannedAmount
+        self.uniqueKey = "\(monthPeriodKey)|\(groupKey)"
     }
 }
 

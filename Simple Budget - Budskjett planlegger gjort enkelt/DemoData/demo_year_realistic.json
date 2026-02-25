@@ -11,11 +11,23 @@
     { "id": "cat_misc", "name": "Diverse", "sortOrder": 7 }
   ],
   "incomeCategories": [
-    { "id": "cat_salary", "name": "Lønn", "sortOrder": 101 },
-    { "id": "cat_stipend", "name": "Stipend", "sortOrder": 102 }
+    { "id": "cat_income_salary", "name": "Lønn", "sortOrder": 101 },
+    { "id": "cat_income_lanekassen", "name": "Lånekassen (stipend/lån)", "sortOrder": 102 },
+    { "id": "cat_income_side_hustle", "name": "Ekstrajobb / sideinntekt", "sortOrder": 103 },
+    { "id": "cat_income_resale", "name": "Salg (Finn.no / brukt)", "sortOrder": 104 },
+    { "id": "cat_income_gifts_received", "name": "Gaver / penger mottatt", "sortOrder": 105 }
   ],
   "savingsCategories": [
-    { "id": "cat_saving", "name": "Sparing/Buffer", "sortOrder": 201 }
+    { "id": "cat_savings_buffer", "name": "Buffer / nødfond", "sortOrder": 201 },
+    { "id": "cat_savings_account", "name": "Sparekonto (generelt)", "sortOrder": 202 },
+    { "id": "cat_savings_bsu", "name": "BSU", "sortOrder": 203 },
+    { "id": "cat_savings_home_equity", "name": "Boligsparing / egenkapital", "sortOrder": 204 },
+    { "id": "cat_savings_investing", "name": "Investeringer (innskudd fond/aksjer)", "sortOrder": 205 },
+    { "id": "cat_savings_travel", "name": "Ferie / reise", "sortOrder": 206 },
+    { "id": "cat_savings_big_purchase", "name": "Større kjøp (mobil/PC/møbler)", "sortOrder": 207 },
+    { "id": "cat_savings_car_transport", "name": "Bil / transport (vedlikehold/egenkapital)", "sortOrder": 208 },
+    { "id": "cat_savings_ips", "name": "IPS / pensjon", "sortOrder": 209 },
+    { "id": "cat_savings_gifts", "name": "Gaver / julegaver", "sortOrder": 210 }
   ],
   "monthlyFactors": {
     "1": 1.00,
@@ -32,10 +44,10 @@
     "12": 1.22
   },
   "investmentBuckets": [
-    { "id": "funds", "name": "Fond", "sortOrder": 1, "colorHex": "#0EA5E9" },
-    { "id": "stocks", "name": "Aksjer", "sortOrder": 2, "colorHex": "#8B5CF6" },
-    { "id": "bsu", "name": "BSU", "sortOrder": 3, "colorHex": "#22C55E" },
-    { "id": "buffer", "name": "Buffer", "sortOrder": 4, "colorHex": "#F59E0B" },
-    { "id": "crypto", "name": "Krypto", "sortOrder": 5, "colorHex": "#EA580C" }
+    { "id": "funds", "name": "Fond", "sortOrder": 1, "colorHex": "#1F9BD3" },
+    { "id": "stocks", "name": "Aksjer", "sortOrder": 2, "colorHex": "#7A5AD6" },
+    { "id": "bsu", "name": "BSU", "sortOrder": 3, "colorHex": "#2FB66B" },
+    { "id": "buffer", "name": "Buffer", "sortOrder": 4, "colorHex": "#D9951F" },
+    { "id": "crypto", "name": "Krypto", "sortOrder": 5, "colorHex": "#D9671E" }
   ]
 }

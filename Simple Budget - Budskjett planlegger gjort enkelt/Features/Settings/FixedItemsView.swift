@@ -5,6 +5,8 @@ struct FixedItemsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \FixedItem.title) private var fixedItems: [FixedItem]
     @Query(sort: \Category.sortOrder) private var categories: [Category]
+    @Query private var transactions: [Transaction]
+    @Query private var fixedItemSkips: [FixedItemSkip]
 
     @State private var editorItem: FixedItem?
     @State private var showAddSheet = false
@@ -111,7 +113,17 @@ struct FixedItemsView: View {
 
     private func deleteItems(at offsets: IndexSet) {
         for index in offsets {
-            modelContext.delete(fixedItems[index])
+            let item = fixedItems[index]
+
+            for transaction in transactions where transaction.fixedItemID == item.id {
+                modelContext.delete(transaction)
+            }
+
+            for skip in fixedItemSkips where skip.fixedItemID == item.id {
+                modelContext.delete(skip)
+            }
+
+            modelContext.delete(item)
         }
         try? modelContext.save()
     }
@@ -139,8 +151,15 @@ private struct FixedItemEditorSheet: View {
     let onSave: (FixedItemDraft, Bool) -> Void
 
     @State private var draft = FixedItemDraft()
-    @State private var createCurrentMonth = true
+    @State private var createCurrentMonth = false
+    @State private var hasCustomizedCreateCurrentMonth = false
     @State private var useEndDate = false
+    @State private var showDayPicker = false
+    @State private var showCategoryPicker = false
+    @State private var showAmountError = false
+    @State private var showCategoryError = false
+    @State private var showAdvanced = false
+    @FocusState private var titleFocused: Bool
 
     init(
         categories: [Category],
@@ -163,27 +182,65 @@ private struct FixedItemEditorSheet: View {
         }
     }
 
+    private var selectedCategoryName: String {
+        filteredCategories.first(where: { $0.id == draft.categoryID })?.name ?? "Velg kategori"
+    }
+
     private var isValid: Bool {
-        !draft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        draft.amount > 0 &&
-        !draft.categoryID.isEmpty
+        draft.amount > 0 && !draft.categoryID.isEmpty
+    }
+
+    private var resolvedTitleForSave: String {
+        let trimmed = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            return trimmed
+        }
+        return selectedCategoryName == "Velg kategori" ? "Fast post" : selectedCategoryName
+    }
+
+    private var automaticMonthDescription: String {
+        "Vi oppretter en transaksjon på valgt dag hver måned."
+    }
+
+    private var shouldShowCreateForCurrentMonth: Bool {
+        guard existing == nil else { return false }
+        let calendar = Calendar.current
+        let monthStartToday = calendar.date(from: calendar.dateComponents([.year, .month], from: .now)) ?? .now
+        let monthStartForStartDate = calendar.date(from: calendar.dateComponents([.year, .month], from: draft.startDate)) ?? draft.startDate
+        guard monthStartToday == monthStartForStartDate else { return false }
+        return draft.dayOfMonth >= 1 && draft.dayOfMonth <= 31
+    }
+
+    private var createCurrentMonthTitle: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "nb_NO")
+        formatter.dateFormat = "MMMM yyyy"
+        return "Opprett også for \(formatter.string(from: draft.startDate).capitalized)"
+    }
+
+    private var suggestedCreateCurrentMonthDefault: Bool {
+        let todayDay = Calendar.current.component(.day, from: .now)
+        return todayDay < draft.dayOfMonth
+    }
+
+    private var createCurrentMonthBinding: Binding<Bool> {
+        Binding(
+            get: { createCurrentMonth },
+            set: { newValue in
+                hasCustomizedCreateCurrentMonth = true
+                createCurrentMonth = newValue
+            }
+        )
     }
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("Fast post") {
+                Section("Det viktigste") {
                     TextField("Navn", text: $draft.title)
-                        .textFieldStyle(.appInput)
-                    TextField("Beløp", text: $draft.amountText)
-                        .keyboardType(.decimalPad)
-                        .textFieldStyle(.appInput)
-                        .onChange(of: draft.amountText) { _, value in
-                            let formatted = formatFixedItemAmountInputLive(value)
-                            if formatted != value {
-                                draft.amountText = formatted
-                            }
-                        }
+                        .focused($titleFocused)
+                        .textInputAutocapitalization(.sentences)
+                        .submitLabel(.next)
 
                     Picker("Type", selection: $draft.kind) {
                         Text("Utgift").tag(TransactionKind.expense)
@@ -191,54 +248,120 @@ private struct FixedItemEditorSheet: View {
                     }
                     .pickerStyle(.segmented)
 
-                    Picker("Kategori", selection: $draft.categoryID) {
-                        Text("Velg kategori").tag("")
-                        ForEach(filteredCategories) { category in
-                            Text(category.name).tag(category.id)
+                    HStack(spacing: 10) {
+                        Text("kr")
+                            .font(.headline.weight(.semibold))
+                            .foregroundStyle(AppTheme.textSecondary)
+                            .accessibilityHidden(true)
+                        TextField("Beløp", text: $draft.amountText)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .accessibilityLabel("Beløp i kroner")
+                            .onChange(of: draft.amountText) { _, value in
+                                let formatted = formatFixedItemAmountInputLive(value)
+                                if formatted != value {
+                                    draft.amountText = formatted
+                                }
+                            }
+                    }
+
+                    if showAmountError && draft.amount <= 0 {
+                        Text("Skriv inn et beløp for å lagre.")
+                            .font(.footnote)
+                            .foregroundStyle(AppTheme.negative)
+                    }
+
+                    Button {
+                        showCategoryPicker = true
+                    } label: {
+                        HStack {
+                            Text("Kategori")
+                            Spacer()
+                            Text(selectedCategoryName)
+                                .foregroundStyle(draft.categoryID.isEmpty ? AppTheme.textSecondary : AppTheme.textPrimary)
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(AppTheme.textSecondary)
                         }
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Kategori, \(selectedCategoryName)")
 
-                    Picker("Dag i måneden", selection: $draft.dayOfMonth) {
-                        ForEach(1...31, id: \.self) { day in
-                            Text("\(day)").tag(day)
+                    if showCategoryError && draft.categoryID.isEmpty {
+                        Text("Velg kategori for å lagre.")
+                            .font(.footnote)
+                            .foregroundStyle(AppTheme.negative)
+                    }
+
+                    Button {
+                        showDayPicker = true
+                    } label: {
+                        HStack {
+                            Text("Dag i måneden")
+                            Spacer()
+                            Text("\(draft.dayOfMonth).")
+                                .foregroundStyle(AppTheme.textPrimary)
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(AppTheme.textSecondary)
                         }
                     }
-
-                    DatePicker("Startdato", selection: $draft.startDate, displayedComponents: [.date])
-                    Toggle("Sluttdato", isOn: $useEndDate)
-                    if useEndDate {
-                        DatePicker(
-                            "Sluttdato",
-                            selection: Binding(
-                                get: { draft.endDate ?? draft.startDate },
-                                set: { draft.endDate = $0 }
-                            ),
-                            in: draft.startDate...,
-                            displayedComponents: [.date]
-                        )
-                    }
-
-                    Toggle("Aktiv", isOn: $draft.isActive)
-                    Toggle("Opprett automatisk", isOn: $draft.autoCreate)
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Dag i måneden, valgt \(draft.dayOfMonth)")
                 }
 
-                Section("Nåværende måned") {
-                    Toggle("Opprett også for denne måneden", isOn: $createCurrentMonth)
-                        .disabled(existing != nil)
-                    if existing != nil {
-                        Text("Gjelder kun ved opprettelse av ny fast post.")
+                Section("Automatikk") {
+                    Text(automaticMonthDescription)
+                        .appSecondaryStyle()
+                    Toggle("Opprett automatisk hver måned", isOn: $draft.autoCreate)
+                        .accessibilityLabel("Opprett automatisk hver måned")
+                    Text("Transaksjonen legges inn på valgt dag.")
+                        .appSecondaryStyle()
+                }
+
+                if shouldShowCreateForCurrentMonth {
+                    Section("Nåværende måned") {
+                        Toggle(createCurrentMonthTitle, isOn: createCurrentMonthBinding)
+                        Text("Legger inn transaksjonen for denne måneden med en gang.")
                             .appSecondaryStyle()
                     }
                 }
+
+                Section {
+                    DisclosureGroup("Avansert", isExpanded: $showAdvanced) {
+                        DatePicker("Startdato", selection: $draft.startDate, displayedComponents: [.date])
+                        Toggle("Sluttdato", isOn: $useEndDate)
+                        if useEndDate {
+                            DatePicker(
+                                "Velg sluttdato",
+                                selection: Binding(
+                                    get: { draft.endDate ?? draft.startDate },
+                                    set: { draft.endDate = $0 }
+                                ),
+                                in: draft.startDate...,
+                                displayedComponents: [.date]
+                            )
+                        }
+
+                        if existing != nil {
+                            Toggle("Aktiv", isOn: $draft.isActive)
+                        }
+                    }
+                }
             }
-            .navigationTitle(existing == nil ? "Legg til fast post" : "Rediger fast post")
+            .navigationTitle(existing == nil ? "Ny fast post" : "Fast post")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Avbryt") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Lagre") {
-                        onSave(draft, createCurrentMonth)
+                        showAmountError = draft.amount <= 0
+                        showCategoryError = draft.categoryID.isEmpty
+                        guard isValid else { return }
+                        var normalizedDraft = draft
+                        normalizedDraft.title = resolvedTitleForSave
+                        onSave(normalizedDraft, shouldShowCreateForCurrentMonth ? createCurrentMonth : false)
                         dismiss()
                     }
                     .disabled(!isValid)
@@ -261,12 +384,22 @@ private struct FixedItemEditorSheet: View {
                     draft.categoryID = first.id
                     useEndDate = false
                     draft.endDate = nil
+                    createCurrentMonth = suggestedCreateCurrentMonthDefault
                 }
+                titleFocused = existing == nil
             }
             .onChange(of: draft.kind) { _, _ in
                 if !filteredCategories.contains(where: { $0.id == draft.categoryID }) {
                     draft.categoryID = filteredCategories.first?.id ?? ""
                 }
+            }
+            .onChange(of: draft.dayOfMonth) { _, _ in
+                guard existing == nil, !hasCustomizedCreateCurrentMonth else { return }
+                createCurrentMonth = suggestedCreateCurrentMonthDefault
+            }
+            .onChange(of: draft.startDate) { _, _ in
+                guard existing == nil, !hasCustomizedCreateCurrentMonth else { return }
+                createCurrentMonth = suggestedCreateCurrentMonthDefault
             }
             .onChange(of: useEndDate) { _, enabled in
                 if !enabled {
@@ -275,6 +408,88 @@ private struct FixedItemEditorSheet: View {
                     draft.endDate = draft.startDate
                 }
             }
+            .sheet(isPresented: $showDayPicker) {
+                FixedItemDayPickerSheet(dayOfMonth: $draft.dayOfMonth)
+            }
+            .sheet(isPresented: $showCategoryPicker) {
+                FixedItemCategoryPickerSheet(
+                    categories: filteredCategories,
+                    selectedCategoryID: $draft.categoryID
+                )
+            }
+        }
+    }
+}
+
+private struct FixedItemDayPickerSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var dayOfMonth: Int
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Picker("Dag i måneden", selection: $dayOfMonth) {
+                    ForEach(1...31, id: \.self) { day in
+                        Text("\(day).")
+                            .tag(day)
+                    }
+                }
+                .pickerStyle(.wheel)
+            }
+            .navigationTitle("Dag i måneden")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Ferdig") { dismiss() }
+                }
+            }
+        }
+    }
+}
+
+private struct FixedItemCategoryPickerSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let categories: [Category]
+    @Binding var selectedCategoryID: String
+    @State private var searchText: String = ""
+
+    private var filteredCategories: [Category] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return categories }
+        return categories.filter { category in
+            category.name.localizedCaseInsensitiveContains(query)
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if filteredCategories.isEmpty {
+                    ContentUnavailableView {
+                        Label("Ingen treff", systemImage: "magnifyingglass")
+                    } description: {
+                        Text("Ingen kategorier matcher søket ditt.")
+                    }
+                } else {
+                    List(filteredCategories) { category in
+                        Button {
+                            selectedCategoryID = category.id
+                            dismiss()
+                        } label: {
+                            HStack {
+                                Text(category.name)
+                                Spacer()
+                                if category.id == selectedCategoryID {
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(AppTheme.primary)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .navigationTitle("Velg kategori")
+            .searchable(text: $searchText, prompt: "Søk kategori")
         }
     }
 }

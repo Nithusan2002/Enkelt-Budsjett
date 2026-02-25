@@ -33,7 +33,7 @@ final class InvestmentsViewModel: ObservableObject {
     @Published var showCheckIn = false
     @Published var showAddBucketSheet = false
     @Published var selectedRange: GraphViewRange = .yearToDate
-    @Published var developmentPeriod: InvestmentsDevelopmentPeriod = .yearToDate
+    @Published var developmentPeriod: InvestmentsDevelopmentPeriod = .last12Months
     @Published var selectedBucketForEdit: InvestmentBucket?
     @Published var displayedTotal: Double = 0
     @Published var showTrendChip = false
@@ -371,12 +371,13 @@ final class InvestmentsViewModel: ObservableObject {
     }
 
     func ensureDefaultBuckets(context: ModelContext, existingBuckets: [InvestmentBucket]) {
+        let legacyDefaultHex: Set<String> = ["#0EA5E9", "#8B5CF6", "#22C55E", "#F59E0B", "#EA580C"]
         let defaults: [(id: String, name: String, colorHex: String)] = [
-            ("funds", "Fond", "#0EA5E9"),
-            ("stocks", "Aksjer", "#8B5CF6"),
-            ("bsu", "BSU", "#22C55E"),
-            ("buffer", "Buffer", "#F59E0B"),
-            ("crypto", "Krypto", "#EA580C")
+            ("funds", "Fond", "#1F9BD3"),
+            ("stocks", "Aksjer", "#7A5AD6"),
+            ("bsu", "BSU", "#2FB66B"),
+            ("buffer", "Buffer", "#D9951F"),
+            ("crypto", "Krypto", "#D9671E")
         ]
 
         var didChange = false
@@ -387,7 +388,8 @@ final class InvestmentsViewModel: ObservableObject {
                 $0.id == item.id ||
                 $0.name.compare(item.name, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
             }) {
-                if existing.colorHex == nil || existing.colorHex?.isEmpty == true {
+                let existingHex = existing.colorHex?.uppercased()
+                if existingHex == nil || existingHex?.isEmpty == true || legacyDefaultHex.contains(existingHex ?? "") {
                     existing.colorHex = item.colorHex
                     didChange = true
                 }

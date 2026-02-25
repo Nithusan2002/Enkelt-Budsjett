@@ -3,15 +3,18 @@ import Charts
 import UIKit
 
 enum InvestmentsDevelopmentPeriod: String, CaseIterable {
-    case yearToDate
+    case sixMonths
     case last12Months
+    case total
 
     var title: String {
         switch self {
-        case .yearToDate:
-            return "I år"
+        case .sixMonths:
+            return "6 mnd"
         case .last12Months:
-            return "Siste 12 mnd"
+            return "12 mnd"
+        case .total:
+            return "Totalt"
         }
     }
 }
@@ -46,8 +49,15 @@ enum InvestmentsDevelopmentChartDataBuilder {
         period: InvestmentsDevelopmentPeriod,
         now: Date = .now
     ) -> [InvestmentsDevelopmentChartPoint] {
-        let range: GraphViewRange = period == .yearToDate ? .yearToDate : .oneYear
-        let filteredSnapshots = InvestmentService.filteredSnapshots(range: range, snapshots: snapshots, now: now)
+        let filteredSnapshots: [InvestmentSnapshot]
+        switch period {
+        case .sixMonths:
+            filteredSnapshots = rollingSnapshots(months: 6, snapshots: snapshots, now: now)
+        case .last12Months:
+            filteredSnapshots = InvestmentService.filteredSnapshots(range: .oneYear, snapshots: snapshots, now: now)
+        case .total:
+            filteredSnapshots = InvestmentService.filteredSnapshots(range: .max, snapshots: snapshots, now: now)
+        }
         let sortedBuckets = buckets
             .filter(\.isActive)
             .sorted { $0.sortOrder < $1.sortOrder }
@@ -104,7 +114,15 @@ enum InvestmentsDevelopmentChartDataBuilder {
     static func xAxisDates(points: [InvestmentsDevelopmentChartPoint], period: InvestmentsDevelopmentPeriod) -> [Date] {
         let dates = points.map(\.date)
         guard !dates.isEmpty else { return [] }
-        let targetCount = period == .yearToDate ? 4 : 6
+        let targetCount: Int
+        switch period {
+        case .sixMonths:
+            targetCount = 4
+        case .last12Months:
+            targetCount = 4
+        case .total:
+            targetCount = 5
+        }
         if dates.count <= targetCount { return dates }
 
         let step = max(1, dates.count / targetCount)
@@ -146,9 +164,27 @@ enum InvestmentsDevelopmentChartDataBuilder {
         let steps: [Double] = [1_000, 2_500, 5_000, 10_000, 25_000, 50_000, 100_000, 250_000, 500_000, 1_000_000]
         return steps.first(where: { value <= $0 }) ?? 2_000_000
     }
+
+    private static func rollingSnapshots(
+        months: Int,
+        snapshots: [InvestmentSnapshot],
+        now: Date
+    ) -> [InvestmentSnapshot] {
+        let sorted = InvestmentService.sortedSnapshots(snapshots)
+        let calendar = Calendar.current
+        let nowDay = calendar.startOfDay(for: now)
+        let monthStartNow = calendar.date(from: calendar.dateComponents([.year, .month], from: now)) ?? now
+        let monthsBack = max(0, months - 1)
+        let windowStart = calendar.date(byAdding: .month, value: -monthsBack, to: monthStartNow) ?? monthStartNow
+        return sorted.filter {
+            let day = calendar.startOfDay(for: $0.capturedAt)
+            return day >= windowStart && day <= nowDay
+        }
+    }
 }
 
 struct InvestmentsDevelopmentChartView: View {
+    @Environment(\.colorScheme) private var colorScheme
     let points: [InvestmentsDevelopmentChartPoint]
     @Binding var period: InvestmentsDevelopmentPeriod
     let onUpdateValues: () -> Void
@@ -196,6 +232,18 @@ struct InvestmentsDevelopmentChartView: View {
             total: 0,
             buckets: []
         )
+    }
+
+    private var areaOpacity: Double {
+        colorScheme == .dark ? 0.82 : 0.88
+    }
+
+    private var totalLineColor: Color {
+        colorScheme == .dark ? AppTheme.textPrimary.opacity(0.55) : AppTheme.textPrimary.opacity(0.42)
+    }
+
+    private var legendChipBackground: Color {
+        colorScheme == .dark ? AppTheme.surfaceElevated : AppTheme.background
     }
 
     var body: some View {
@@ -272,6 +320,7 @@ struct InvestmentsDevelopmentChartView: View {
                 )
                 .foregroundStyle(by: .value("Beholdning", row.bucketName))
                 .interpolationMethod(.catmullRom)
+                .opacity(areaOpacity)
             }
 
             ForEach(points) { point in
@@ -280,7 +329,7 @@ struct InvestmentsDevelopmentChartView: View {
                     y: .value("Total", point.total)
                 )
                 .lineStyle(StrokeStyle(lineWidth: 2.6, lineCap: .round, lineJoin: .round))
-                .foregroundStyle(AppTheme.textPrimary.opacity(0.65))
+                .foregroundStyle(totalLineColor)
             }
 
             if let selectedPoint {
@@ -294,12 +343,15 @@ struct InvestmentsDevelopmentChartView: View {
         }
         .frame(height: 260)
         .chartForegroundStyleScale(domain: stackedColorDomain, range: stackedColorRange)
+        .chartLegend(.hidden)
         .chartXScale(domain: chartDateDomain())
         .chartXAxis {
             AxisMarks(values: InvestmentsDevelopmentChartDataBuilder.xAxisDates(points: points, period: period)) { value in
                 AxisValueLabel {
                     if let date = value.as(Date.self) {
                         Text(monthLabel(date))
+                            .font(.caption2)
+                            .lineLimit(1)
                     }
                 }
                 .foregroundStyle(AppTheme.textSecondary)
@@ -396,7 +448,7 @@ struct InvestmentsDevelopmentChartView: View {
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
-                    .background(AppTheme.surfaceElevated, in: Capsule())
+                    .background(legendChipBackground, in: Capsule())
                     .overlay(Capsule().stroke(AppTheme.divider, lineWidth: 1))
                 }
             }
@@ -461,10 +513,14 @@ struct InvestmentsDevelopmentChartView: View {
     }
 
     private func monthLabel(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "nb_NO")
-        formatter.dateFormat = period == .last12Months ? "MMM yy" : "MMM"
-        return formatter.string(from: date).capitalized
+        let month = Calendar.current.component(.month, from: date)
+        let shortMonths = ["jan", "feb", "mar", "apr", "mai", "jun", "jul", "aug", "sep", "okt", "nov", "des"]
+        guard month >= 1 && month <= shortMonths.count else { return "" }
+        if period == .total {
+            let year = Calendar.current.component(.year, from: date) % 100
+            return "\(shortMonths[month - 1]) \(String(format: "%02d", year))"
+        }
+        return shortMonths[month - 1]
     }
 
     private func monthTitle(_ date: Date) -> String {

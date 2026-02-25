@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import SwiftData
 @testable import Simple_Budget___Budskjett_planlegger_gjort_enkelt
 
 struct Simple_Budget___Budskjett_planlegger_gjort_enkeltTests {
@@ -28,5 +29,101 @@ struct Simple_Budget___Budskjett_planlegger_gjort_enkeltTests {
             now: .now
         )
         #expect(monthly > 0)
+    }
+
+    @Test @MainActor func aggregatesBudgetByGroupAndSummary() async throws {
+        let viewModel = BudgetViewModel()
+        let periodKey = "2026-02"
+        let date = DateService.monthStart(from: periodKey) ?? .now
+
+        let categories = [
+            Category(id: "cat_rent", name: "Husleie", type: .expense, groupKey: BudgetGroup.bolig.rawValue, sortOrder: 1),
+            Category(id: "cat_food", name: "Mat", type: .expense, groupKey: BudgetGroup.hverdags.rawValue, sortOrder: 2)
+        ]
+        let groupPlans = [
+            BudgetGroupPlan(monthPeriodKey: periodKey, groupKey: BudgetGroup.bolig.rawValue, plannedAmount: 7000)
+        ]
+        let transactions = [
+            Transaction(date: date, amount: 7500, kind: .expense, categoryID: "cat_rent"),
+            Transaction(date: date, amount: 500, kind: .expense, categoryID: "cat_food")
+        ]
+
+        let rows = viewModel.groupRows(
+            periodKey: periodKey,
+            categories: categories,
+            groupPlans: groupPlans,
+            transactions: transactions
+        )
+        let summary = viewModel.summary(periodKey: periodKey, groupRows: rows, transactions: transactions)
+
+        let bolig = rows.first(where: { $0.group == .bolig })
+        let hverdags = rows.first(where: { $0.group == .hverdags })
+
+        #expect(bolig != nil)
+        #expect(bolig?.planned == 7000)
+        #expect(bolig?.spent == 7500)
+        #expect(bolig?.isOverBudget == true)
+
+        #expect(hverdags != nil)
+        #expect(hverdags?.planned == nil)
+        #expect(hverdags?.spent == 500)
+
+        #expect(summary.planned == 7000)
+        #expect(summary.trackedActual == 7500)
+        #expect(summary.expenseTotal == 8000)
+        #expect(summary.remaining == -500)
+    }
+
+    @Test @MainActor func upsertAndDeleteGroupPlans() async throws {
+        let schema = Schema([BudgetGroupPlan.self])
+        let container = try ModelContainer(for: schema, configurations: [ModelConfiguration(isStoredInMemoryOnly: true)])
+        let context = container.mainContext
+        let viewModel = BudgetViewModel()
+        let periodKey = "2026-03"
+
+        context.insert(BudgetGroupPlan(monthPeriodKey: periodKey, groupKey: BudgetGroup.fast.rawValue, plannedAmount: 1200))
+        try context.save()
+
+        let existingBefore = try context.fetch(FetchDescriptor<BudgetGroupPlan>())
+        #expect(existingBefore.count == 1)
+
+        viewModel.upsertGroupPlans(
+            context: context,
+            periodKey: periodKey,
+            values: [
+                .bolig: 8000,
+                .fast: nil
+            ],
+            existingPlans: existingBefore
+        )
+
+        let after = try context.fetch(FetchDescriptor<BudgetGroupPlan>())
+        let bolig = after.first(where: { $0.groupKey == BudgetGroup.bolig.rawValue })
+        let fast = after.first(where: { $0.groupKey == BudgetGroup.fast.rawValue })
+
+        #expect(bolig != nil)
+        #expect(bolig?.plannedAmount == 8000)
+        #expect(fast == nil)
+    }
+
+    @Test @MainActor func summaryWithoutLimitsUsesTrackingOnly() async throws {
+        let viewModel = BudgetViewModel()
+        let periodKey = "2026-04"
+        let date = DateService.monthStart(from: periodKey) ?? .now
+
+        let categories = [
+            Category(id: "cat_food", name: "Mat", type: .expense, groupKey: BudgetGroup.hverdags.rawValue, sortOrder: 1)
+        ]
+        let transactions = [
+            Transaction(date: date, amount: 900, kind: .expense, categoryID: "cat_food")
+        ]
+
+        let rows = viewModel.groupRows(periodKey: periodKey, categories: categories, groupPlans: [], transactions: transactions)
+        let summary = viewModel.summary(periodKey: periodKey, groupRows: rows, transactions: transactions)
+
+        #expect(summary.planned == 0)
+        #expect(summary.trackedActual == 0)
+        #expect(summary.expenseTotal == 900)
+        #expect(summary.remaining == 0)
     }
 }

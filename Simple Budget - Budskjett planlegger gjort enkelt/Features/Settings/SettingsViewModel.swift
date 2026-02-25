@@ -21,6 +21,8 @@ final class SettingsViewModel: ObservableObject {
 
     func wipeAllDataForDemo(context: ModelContext) throws {
         try DemoDataSeeder.wipeAllData(context: context)
+        try BootstrapService.ensurePreference(context: context)
+        try BootstrapService.ensureCurrentBudgetMonthAndRecurring(context: context)
     }
 
     func preference(from preferences: [UserPreference], context: ModelContext) -> UserPreference {
@@ -43,6 +45,7 @@ final class SettingsViewModel: ObservableObject {
             budgetMonths: try context.fetch(FetchDescriptor<BudgetMonth>()).map(BudgetMonthDTO.init),
             categories: try context.fetch(FetchDescriptor<Category>()).map(CategoryDTO.init),
             plans: try context.fetch(FetchDescriptor<BudgetPlan>()).map(BudgetPlanDTO.init),
+            groupPlans: try context.fetch(FetchDescriptor<BudgetGroupPlan>()).map(BudgetGroupPlanDTO.init),
             transactions: try context.fetch(FetchDescriptor<Transaction>()).map(TransactionDTO.init),
             fixedItems: try context.fetch(FetchDescriptor<FixedItem>()).map(FixedItemDTO.init),
             fixedItemSkips: try context.fetch(FetchDescriptor<FixedItemSkip>()).map(FixedItemSkipDTO.init),
@@ -69,6 +72,8 @@ final class SettingsViewModel: ObservableObject {
 
     func deleteAllData(context: ModelContext) throws {
         try DemoDataSeeder.wipeAllData(context: context)
+        try BootstrapService.ensurePreference(context: context)
+        try BootstrapService.ensureCurrentBudgetMonthAndRecurring(context: context)
     }
 }
 
@@ -77,6 +82,7 @@ private struct ExportPayload: Codable {
     let budgetMonths: [BudgetMonthDTO]
     let categories: [CategoryDTO]
     let plans: [BudgetPlanDTO]
+    let groupPlans: [BudgetGroupPlanDTO]
     let transactions: [TransactionDTO]
     let fixedItems: [FixedItemDTO]
     let fixedItemSkips: [FixedItemSkipDTO]
@@ -129,6 +135,19 @@ private struct BudgetPlanDTO: Codable {
         uniqueKey = model.uniqueKey
         monthPeriodKey = model.monthPeriodKey
         categoryID = model.categoryID
+        plannedAmount = model.plannedAmount
+    }
+}
+
+private struct BudgetGroupPlanDTO: Codable {
+    let uniqueKey: String
+    let monthPeriodKey: String
+    let groupKey: String
+    let plannedAmount: Double
+    init(_ model: BudgetGroupPlan) {
+        uniqueKey = model.uniqueKey
+        monthPeriodKey = model.monthPeriodKey
+        groupKey = model.groupKey
         plannedAmount = model.plannedAmount
     }
 }

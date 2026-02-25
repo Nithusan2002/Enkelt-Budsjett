@@ -501,6 +501,9 @@ enum BootstrapService {
             if ensureDefaultCategories(context: context) {
                 didChange = true
             }
+            if ensureCategoryGroups(context: context) {
+                didChange = true
+            }
 
             if didChange {
                 try context.save()
@@ -509,6 +512,7 @@ enum BootstrapService {
             // Recovery path for broken/old local stores after schema changes.
             context.insert(UserPreference())
             _ = ensureDefaultCategories(context: context)
+            _ = ensureCategoryGroups(context: context)
             try context.save()
         }
     }
@@ -548,59 +552,63 @@ enum BootstrapService {
             ("cat_food", "Mat", .expense, 2),
             ("cat_transport", "Transport", .expense, 3),
             ("cat_leisure", "Fritid", .expense, 4),
-            ("cat_savings", "Sparingskonto", .savings, 5),
+            ("cat_savings_buffer", "Buffer / nødfond", .savings, 5),
+            ("cat_savings_account", "Sparekonto (generelt)", .savings, 6),
+            ("cat_savings_bsu", "BSU", .savings, 7),
+            ("cat_savings_home_equity", "Boligsparing / egenkapital", .savings, 8),
+            ("cat_savings_investing", "Investeringer (innskudd fond/aksjer)", .savings, 9),
+            ("cat_savings_travel", "Ferie / reise", .savings, 10),
+            ("cat_savings_big_purchase", "Større kjøp (mobil/PC/møbler)", .savings, 11),
+            ("cat_savings_car_transport", "Bil / transport (vedlikehold/egenkapital)", .savings, 12),
+            ("cat_savings_ips", "IPS / pensjon", .savings, 13),
+            ("cat_savings_gifts", "Gaver / julegaver", .savings, 14),
 
-            ("cat_expense_bilvask", "Bilvask", .expense, 10),
-            ("cat_expense_spotify", "Spotify", .expense, 11),
-            ("cat_expense_apple_music", "Apple Music", .expense, 12),
-            ("cat_expense_icloud", "iCloud", .expense, 13),
-            ("cat_expense_playstation_plus", "PlayStation Plus", .expense, 14),
-            ("cat_expense_xbox_live", "Xbox Live", .expense, 15),
-            ("cat_expense_legebesok", "Legebesøk", .expense, 16),
-            ("cat_expense_medisiner", "Medisiner", .expense, 17),
-            ("cat_expense_frisor", "Frisør", .expense, 18),
-            ("cat_expense_kommunale_avgifter", "Kommunale avgifter", .expense, 19),
-            ("cat_expense_vann_avlop", "Vann og avløp", .expense, 20),
-            ("cat_expense_feiing", "Feiing", .expense, 21),
-            ("cat_expense_reise", "Reise", .expense, 22),
-            ("cat_expense_klaer", "Klær", .expense, 23),
-            ("cat_expense_mobler", "Møbler", .expense, 24),
-            ("cat_expense_blomster", "Blomster", .expense, 25),
-            ("cat_expense_barnehage", "Barnehage", .expense, 26),
-            ("cat_expense_hyttelan", "Hyttelån", .expense, 27),
-            ("cat_expense_nedbetaling_lan", "Nedbetaling av lån", .expense, 28),
-            ("cat_expense_kjaeledyr", "Kjæledyr", .expense, 29),
-            ("cat_expense_netflix", "Netflix", .expense, 30),
-            ("cat_expense_prime_video", "Prime Video", .expense, 31),
-            ("cat_expense_disney_plus", "Disney+", .expense, 32),
-            ("cat_expense_matkasse", "Matkasse", .expense, 33),
-            ("cat_expense_kollektivtransport", "Kollektivtransport", .expense, 34),
-            ("cat_expense_trening", "Trening", .expense, 35),
-            ("cat_expense_investering_aksjer", "Investering i aksjer", .expense, 36),
-            ("cat_expense_investering_fond", "Investering i fond", .expense, 37),
-            ("cat_expense_forsikring", "Forsikring", .expense, 38),
-            ("cat_expense_reiseforsikring", "Reiseforsikring", .expense, 39),
-            ("cat_expense_innboforsikring", "Innboforsikring", .expense, 40),
-            ("cat_expense_bilforsikring", "Bilforsikring", .expense, 41),
-            ("cat_expense_bompenger", "Bompenger", .expense, 42),
-            ("cat_expense_parkering", "Parkering", .expense, 43),
-            ("cat_expense_lading_elbil", "Lading av elbil", .expense, 44),
-            ("cat_expense_drivstoff", "Drivstoff", .expense, 45),
-            ("cat_expense_lunsj_jobb", "Lunsj på jobb", .expense, 46),
-            ("cat_expense_uteliv", "Uteliv", .expense, 47),
-            ("cat_expense_internett", "Internett", .expense, 48),
-            ("cat_expense_mobilabonnement", "Mobilabonnement", .expense, 49),
+            ("cat_expense_bilvask", "Bilvask", .expense, 20),
+            ("cat_expense_spotify", "Spotify", .expense, 21),
+            ("cat_expense_apple_music", "Apple Music", .expense, 22),
+            ("cat_expense_icloud", "iCloud", .expense, 23),
+            ("cat_expense_playstation_plus", "PlayStation Plus", .expense, 24),
+            ("cat_expense_xbox_live", "Xbox Live", .expense, 25),
+            ("cat_expense_legebesok", "Legebesøk", .expense, 26),
+            ("cat_expense_medisiner", "Medisiner", .expense, 27),
+            ("cat_expense_frisor", "Frisør", .expense, 28),
+            ("cat_expense_kommunale_avgifter", "Kommunale avgifter", .expense, 29),
+            ("cat_expense_vann_avlop", "Vann og avløp", .expense, 30),
+            ("cat_expense_feiing", "Feiing", .expense, 31),
+            ("cat_expense_reise", "Reise", .expense, 32),
+            ("cat_expense_klaer", "Klær", .expense, 33),
+            ("cat_expense_mobler", "Møbler", .expense, 34),
+            ("cat_expense_blomster", "Blomster", .expense, 35),
+            ("cat_expense_barnehage", "Barnehage", .expense, 36),
+            ("cat_expense_hyttelan", "Hyttelån", .expense, 37),
+            ("cat_expense_nedbetaling_lan", "Nedbetaling av lån", .expense, 38),
+            ("cat_expense_kjaeledyr", "Kjæledyr", .expense, 39),
+            ("cat_expense_netflix", "Netflix", .expense, 40),
+            ("cat_expense_prime_video", "Prime Video", .expense, 41),
+            ("cat_expense_disney_plus", "Disney+", .expense, 42),
+            ("cat_expense_matkasse", "Matkasse", .expense, 43),
+            ("cat_expense_kollektivtransport", "Kollektivtransport", .expense, 44),
+            ("cat_expense_trening", "Trening", .expense, 45),
+            ("cat_expense_investering_aksjer", "Investering i aksjer", .expense, 46),
+            ("cat_expense_investering_fond", "Investering i fond", .expense, 47),
+            ("cat_expense_forsikring", "Forsikring", .expense, 48),
+            ("cat_expense_reiseforsikring", "Reiseforsikring", .expense, 49),
+            ("cat_expense_innboforsikring", "Innboforsikring", .expense, 50),
+            ("cat_expense_bilforsikring", "Bilforsikring", .expense, 51),
+            ("cat_expense_bompenger", "Bompenger", .expense, 52),
+            ("cat_expense_parkering", "Parkering", .expense, 53),
+            ("cat_expense_lading_elbil", "Lading av elbil", .expense, 54),
+            ("cat_expense_drivstoff", "Drivstoff", .expense, 55),
+            ("cat_expense_lunsj_jobb", "Lunsj på jobb", .expense, 56),
+            ("cat_expense_uteliv", "Uteliv", .expense, 57),
+            ("cat_expense_internett", "Internett", .expense, 58),
+            ("cat_expense_mobilabonnement", "Mobilabonnement", .expense, 59),
 
-            ("cat_income_salary", "Lønn", .income, 50),
-            ("cat_income_student_loan", "Studielån", .income, 51),
-            ("cat_income_pension", "Pensjon", .income, 52),
-            ("cat_income_interest", "Renteinntekter", .income, 53),
-            ("cat_income_dividend", "Utbytte", .income, 54),
-            ("cat_income_child_benefit", "Barnetrygd", .income, 55),
-            ("cat_income_resale", "Salg av ting på Finn/Tise", .income, 56),
-            ("cat_income_rental_property", "Utleie av eiendom", .income, 57),
-            ("cat_income_rental_cabin", "Utleie av hytte", .income, 58),
-            ("cat_income_rental_car", "Utleie av bil", .income, 59)
+            ("cat_income_salary", "Lønn", .income, 70),
+            ("cat_income_lanekassen", "Lånekassen (stipend/lån)", .income, 71),
+            ("cat_income_side_hustle", "Ekstrajobb / sideinntekt", .income, 72),
+            ("cat_income_resale", "Salg (Finn.no / brukt)", .income, 73),
+            ("cat_income_gifts_received", "Gaver / penger mottatt", .income, 74)
         ]
 
         var didInsert = false
@@ -609,6 +617,19 @@ enum BootstrapService {
             didInsert = true
         }
         return didInsert
+    }
+
+    @discardableResult
+    private static func ensureCategoryGroups(context: ModelContext) -> Bool {
+        let categories = (try? context.fetch(FetchDescriptor<Category>())) ?? []
+        var didChange = false
+        for category in categories {
+            if category.groupKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                category.groupKey = Category.defaultGroupKey(forName: category.name, type: category.type)
+                didChange = true
+            }
+        }
+        return didChange
     }
 }
 
@@ -687,7 +708,8 @@ enum OnboardingService {
 
         let budgetCategoryIDs = budgetCategories.map { categoryID(for: $0) }
         for (index, id) in budgetCategoryIDs.enumerated() {
-            insertCategoryIfMissing(context: context, id: id, name: budgetCategories[index], type: id == "cat_savings" ? .savings : .expense, sortOrder: 10 + index)
+            let type: CategoryType = id.hasPrefix("cat_savings") ? .savings : .expense
+            insertCategoryIfMissing(context: context, id: id, name: budgetCategories[index], type: type, sortOrder: 10 + index)
         }
 
         if !budgetTrackOnly, let monthlyBudget, monthlyBudget > 0, !budgetCategoryIDs.isEmpty {
@@ -731,7 +753,16 @@ enum OnboardingService {
             ("cat_food", "Mat", .expense, 2),
             ("cat_transport", "Transport", .expense, 3),
             ("cat_leisure", "Fritid", .expense, 4),
-            ("cat_savings", "Sparingskonto", .savings, 5)
+            ("cat_savings_buffer", "Buffer / nødfond", .savings, 5),
+            ("cat_savings_account", "Sparekonto (generelt)", .savings, 6),
+            ("cat_savings_bsu", "BSU", .savings, 7),
+            ("cat_savings_home_equity", "Boligsparing / egenkapital", .savings, 8),
+            ("cat_savings_investing", "Investeringer (innskudd fond/aksjer)", .savings, 9),
+            ("cat_savings_travel", "Ferie / reise", .savings, 10),
+            ("cat_savings_big_purchase", "Større kjøp (mobil/PC/møbler)", .savings, 11),
+            ("cat_savings_car_transport", "Bil / transport (vedlikehold/egenkapital)", .savings, 12),
+            ("cat_savings_ips", "IPS / pensjon", .savings, 13),
+            ("cat_savings_gifts", "Gaver / julegaver", .savings, 14)
         ]
         for item in defaults {
             if !existingIDs.contains(item.0) {
@@ -746,7 +777,16 @@ enum OnboardingService {
         if lower.contains("bolig") { return "cat_housing" }
         if lower.contains("transport") { return "cat_transport" }
         if lower.contains("fritid") { return "cat_leisure" }
-        if lower.contains("sparing") { return "cat_savings" }
+        if lower.contains("bsu") { return "cat_savings_bsu" }
+        if lower.contains("buffer") || lower.contains("nødfond") { return "cat_savings_buffer" }
+        if lower.contains("ips") || lower.contains("pensjon") { return "cat_savings_ips" }
+        if lower.contains("boligsparing") || lower.contains("egenkapital") { return "cat_savings_home_equity" }
+        if lower.contains("ferie") || lower.contains("reise") { return "cat_savings_travel" }
+        if lower.contains("gave") || lower.contains("jul") { return "cat_savings_gifts" }
+        if lower.contains("større kjøp") || lower.contains("mobil") || lower.contains("pc") || lower.contains("møbler") { return "cat_savings_big_purchase" }
+        if lower.contains("bil") || lower.contains("transport") { return "cat_savings_car_transport" }
+        if lower.contains("investering") || lower.contains("fond") || lower.contains("aksjer") { return "cat_savings_investing" }
+        if lower.contains("sparing") || lower.contains("sparekonto") { return "cat_savings_account" }
         return "cat_" + lower.replacingOccurrences(of: " ", with: "_")
     }
 

@@ -446,10 +446,10 @@ struct FeatureLogicTests {
         let ytd = InvestmentsDevelopmentChartDataBuilder.points(
             snapshots: snapshots,
             buckets: [bucket],
-            period: .yearToDate,
+            period: .sixMonths,
             now: now
         )
-        #expect(ytd.allSatisfy { Calendar.current.component(.year, from: $0.date) == Calendar.current.component(.year, from: now) })
+        #expect(ytd.count <= 6)
 
         let last12 = InvestmentsDevelopmentChartDataBuilder.points(
             snapshots: snapshots,
@@ -480,7 +480,7 @@ struct FeatureLogicTests {
         let points = InvestmentsDevelopmentChartDataBuilder.points(
             snapshots: [snapshot],
             buckets: [fund, stock],
-            period: .yearToDate,
+            period: .sixMonths,
             now: date
         )
 

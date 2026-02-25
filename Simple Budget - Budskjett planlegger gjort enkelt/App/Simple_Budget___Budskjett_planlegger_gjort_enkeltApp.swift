@@ -17,6 +17,7 @@ struct Simple_Budget___Budskjett_planlegger_gjort_enkeltApp: App {
             BudgetMonth.self,
             Category.self,
             BudgetPlan.self,
+            BudgetGroupPlan.self,
             Transaction.self,
             Account.self,
             InvestmentBucket.self,

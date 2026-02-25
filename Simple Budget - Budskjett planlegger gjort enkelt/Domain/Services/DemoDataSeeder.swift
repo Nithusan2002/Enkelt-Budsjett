@@ -27,6 +27,7 @@ enum DemoDataSeeder {
         try createInvestmentBuckets(context: context, profile: profile)
         try createBudgetMonths(context: context, years: years)
         try createBudgetPlans(context: context, years: years, categories: categories, profile: profile)
+        try createBudgetGroupPlans(context: context, years: years, categories: categories, profile: profile)
         try createTransactions(context: context, years: years, categories: categories, profile: profile)
         try createInvestmentSnapshots(context: context, years: years, profile: profile)
         try createGoalAndPreference(context: context, endYear: endYear)
@@ -40,6 +41,7 @@ enum DemoDataSeeder {
 
     static func wipeAllData(context: ModelContext) throws {
         try deleteAll(BudgetPlan.self, context: context)
+        try deleteAll(BudgetGroupPlan.self, context: context)
         try deleteAll(BudgetMonth.self, context: context)
         try deleteAll(Transaction.self, context: context)
         try deleteAll(FixedItemSkip.self, context: context)
@@ -161,6 +163,49 @@ enum DemoDataSeeder {
         try context.save()
     }
 
+    private static func createBudgetGroupPlans(
+        context: ModelContext,
+        years: ClosedRange<Int>,
+        categories: [String: Category],
+        profile: DemoProfile
+    ) throws {
+        let categoryBase: [String: Double] = [
+            "cat_rent": 7500,
+            "cat_food": 3200,
+            "cat_transport": 620,
+            "cat_subscriptions": 290,
+            "cat_nightlife": 900,
+            "cat_shopping": 700,
+            "cat_misc": 550
+        ]
+
+        var groupBase: [String: Double] = [:]
+        for (categoryID, amount) in categoryBase {
+            guard let category = categories[categoryID] else { continue }
+            groupBase[category.groupKey, default: 0] += amount
+        }
+
+        for year in years {
+            for month in 1...12 {
+                let factor = profile.monthlyFactor(for: month)
+                let periodKey = String(format: "%04d-%02d", year, month)
+                for group in BudgetGroup.allCases {
+                    let base = groupBase[group.rawValue] ?? 0
+                    guard base > 0 else { continue }
+                    let planned = roundToNearestTen(base * factor)
+                    context.insert(
+                        BudgetGroupPlan(
+                            monthPeriodKey: periodKey,
+                            groupKey: group.rawValue,
+                            plannedAmount: planned
+                        )
+                    )
+                }
+            }
+        }
+        try context.save()
+    }
+
     private static func createTransactions(
         context: ModelContext,
         years: ClosedRange<Int>,
@@ -171,11 +216,17 @@ enum DemoDataSeeder {
             for month in 1...12 {
                 let factor = profile.monthlyFactor(for: month)
 
-                // Inntekt: stipend + ekstrajobb
-                insertTx(context, year, month, day: 7, amount: stipendAmount(month: month), kind: .income, categoryID: "cat_stipend", note: "Stipend")
-                insertTx(context, year, month, day: 15, amount: salaryAmount(month: month), kind: .income, categoryID: "cat_salary", note: "Ekstrajobb")
+                // Inntekt: Lånekassen + lønn/ekstrajobb
+                insertTx(context, year, month, day: 7, amount: stipendAmount(month: month), kind: .income, categoryID: "cat_income_lanekassen", note: "Lånekassen")
+                insertTx(context, year, month, day: 15, amount: salaryAmount(month: month), kind: .income, categoryID: "cat_income_salary", note: "Lønn")
                 if month % 2 == 0 {
-                    insertTx(context, year, month, day: 27, amount: salaryAmount(month: month) * 0.4, kind: .income, categoryID: "cat_salary", note: "Vakt")
+                    insertTx(context, year, month, day: 27, amount: salaryAmount(month: month) * 0.4, kind: .income, categoryID: "cat_income_side_hustle", note: "Vakt")
+                }
+                if month % 3 == 0 {
+                    insertTx(context, year, month, day: 23, amount: 450, kind: .income, categoryID: "cat_income_resale", note: "Salg brukt")
+                }
+                if month == 12 {
+                    insertTx(context, year, month, day: 20, amount: 900, kind: .income, categoryID: "cat_income_gifts_received", note: "Penger mottatt")
                 }
 
                 // Fast utgift
@@ -225,10 +276,10 @@ enum DemoDataSeeder {
                     insertTx(context, year, month, day: day, amount: amount, kind: .expense, categoryID: "cat_misc", note: "Diverse")
                 }
 
-                // Sparing/Buffer
-                insertTx(context, year, month, day: 25, amount: savingAmount(month: month), kind: .manualSaving, categoryID: "cat_saving", note: "Fast sparing")
+                // Sparing
+                insertTx(context, year, month, day: 25, amount: savingAmount(month: month), kind: .manualSaving, categoryID: "cat_savings_account", note: "Fast sparing")
                 if month % 3 == 0 {
-                    insertTx(context, year, month, day: 29, amount: 300, kind: .manualSaving, categoryID: "cat_saving", note: "Ekstra sparing")
+                    insertTx(context, year, month, day: 29, amount: 300, kind: .manualSaving, categoryID: "cat_savings_buffer", note: "Ekstra sparing")
                 }
 
                 // Refusjon av og til
@@ -477,11 +528,23 @@ private struct DemoProfile: Decodable {
             .init(id: "cat_misc", name: "Diverse", sortOrder: 7)
         ],
         incomeCategories: [
-            .init(id: "cat_salary", name: "Lønn", sortOrder: 101),
-            .init(id: "cat_stipend", name: "Stipend", sortOrder: 102)
+            .init(id: "cat_income_salary", name: "Lønn", sortOrder: 101),
+            .init(id: "cat_income_lanekassen", name: "Lånekassen (stipend/lån)", sortOrder: 102),
+            .init(id: "cat_income_side_hustle", name: "Ekstrajobb / sideinntekt", sortOrder: 103),
+            .init(id: "cat_income_resale", name: "Salg (Finn.no / brukt)", sortOrder: 104),
+            .init(id: "cat_income_gifts_received", name: "Gaver / penger mottatt", sortOrder: 105)
         ],
         savingsCategories: [
-            .init(id: "cat_saving", name: "Sparing/Buffer", sortOrder: 201)
+            .init(id: "cat_savings_buffer", name: "Buffer / nødfond", sortOrder: 201),
+            .init(id: "cat_savings_account", name: "Sparekonto (generelt)", sortOrder: 202),
+            .init(id: "cat_savings_bsu", name: "BSU", sortOrder: 203),
+            .init(id: "cat_savings_home_equity", name: "Boligsparing / egenkapital", sortOrder: 204),
+            .init(id: "cat_savings_investing", name: "Investeringer (innskudd fond/aksjer)", sortOrder: 205),
+            .init(id: "cat_savings_travel", name: "Ferie / reise", sortOrder: 206),
+            .init(id: "cat_savings_big_purchase", name: "Større kjøp (mobil/PC/møbler)", sortOrder: 207),
+            .init(id: "cat_savings_car_transport", name: "Bil / transport (vedlikehold/egenkapital)", sortOrder: 208),
+            .init(id: "cat_savings_ips", name: "IPS / pensjon", sortOrder: 209),
+            .init(id: "cat_savings_gifts", name: "Gaver / julegaver", sortOrder: 210)
         ],
         monthlyFactors: [
             "1": 1.00, "2": 0.97, "3": 1.00, "4": 1.02,
@@ -489,11 +552,11 @@ private struct DemoProfile: Decodable {
             "9": 0.98, "10": 1.00, "11": 1.04, "12": 1.22
         ],
         investmentBuckets: [
-            .init(id: "funds", name: "Fond", sortOrder: 1, colorHex: "#0EA5E9"),
-            .init(id: "stocks", name: "Aksjer", sortOrder: 2, colorHex: "#8B5CF6"),
-            .init(id: "bsu", name: "BSU", sortOrder: 3, colorHex: "#22C55E"),
-            .init(id: "buffer", name: "Buffer", sortOrder: 4, colorHex: "#F59E0B"),
-            .init(id: "crypto", name: "Krypto", sortOrder: 5, colorHex: "#EA580C")
+            .init(id: "funds", name: "Fond", sortOrder: 1, colorHex: "#1F9BD3"),
+            .init(id: "stocks", name: "Aksjer", sortOrder: 2, colorHex: "#7A5AD6"),
+            .init(id: "bsu", name: "BSU", sortOrder: 3, colorHex: "#2FB66B"),
+            .init(id: "buffer", name: "Buffer", sortOrder: 4, colorHex: "#D9951F"),
+            .init(id: "crypto", name: "Krypto", sortOrder: 5, colorHex: "#D9671E")
         ]
     )
 }

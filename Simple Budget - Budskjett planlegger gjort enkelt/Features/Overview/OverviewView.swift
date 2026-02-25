@@ -75,6 +75,12 @@ struct OverviewView: View {
             }
             .padding()
         }
+        .refreshable {
+            viewModel.onAppear(preference: preference)
+            withAnimation(.easeOut(duration: 0.35)) {
+                displayedWealth = currentWealth
+            }
+        }
         .background(AppTheme.background)
         .navigationTitle("Oversikt")
         .sheet(isPresented: $viewModel.showGoalEditor) {

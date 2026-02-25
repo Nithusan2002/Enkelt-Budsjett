@@ -114,7 +114,12 @@ struct InvestmentsView: View {
                 viewModel.refreshData(snapshots: snapshots)
             }
             .onChange(of: viewModel.developmentPeriod) { _, period in
-                viewModel.selectedRange = period == .yearToDate ? .yearToDate : .oneYear
+                switch period {
+                case .sixMonths, .last12Months:
+                    viewModel.selectedRange = .oneYear
+                case .total:
+                    viewModel.selectedRange = .max
+                }
             }
             .onChange(of: navigationState.investmentsFocus) { _, focus in
                 guard let focus else { return }
