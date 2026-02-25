@@ -85,7 +85,10 @@ struct OverviewView: View {
             GoalEditorView(goal: activeGoal)
         }
         .sheet(isPresented: $showCheckIn) {
-            InvestmentCheckInView(buckets: buckets, latestSnapshot: latestSnapshot)
+            InvestmentCheckInWizardView(
+                buckets: buckets,
+                snapshots: snapshots
+            )
         }
         .onAppear {
             viewModel.onAppear(preference: preference)
@@ -345,7 +348,7 @@ struct OverviewView: View {
 
     private func checkInChipText() -> String {
         if isCheckInDue {
-            return "Insjekk klar"
+            return "Innsjekk klar"
         }
         let day = min(max(preference?.checkInReminderDay ?? 5, 1), 28)
         let calendar = Calendar.current

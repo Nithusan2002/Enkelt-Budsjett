@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 enum AppTab {
     case overview
@@ -76,10 +77,12 @@ struct AppRootView: View {
         .foregroundStyle(AppTheme.textPrimary)
         .task {
             guard !bootstrapAttempted else { return }
+            applyBarAppearance()
             bootstrapAttempted = true
             viewModel.bootstrap(context: modelContext)
         }
         .onAppear {
+            applyBarAppearance()
             viewModel.configureLock(enabled: shouldUseFaceIDLock)
         }
         .onChange(of: shouldUseFaceIDLock) { _, newValue in
@@ -88,6 +91,32 @@ struct AppRootView: View {
         .onChange(of: scenePhase) { _, newValue in
             viewModel.handleScenePhaseChange(newValue)
         }
+    }
+
+    private func applyBarAppearance() {
+        let tabAppearance = UITabBarAppearance()
+        tabAppearance.configureWithOpaqueBackground()
+        tabAppearance.backgroundColor = UIColor(AppTheme.surface)
+        tabAppearance.shadowColor = UIColor(AppTheme.divider)
+
+        let normalColor = UIColor(AppTheme.textSecondary)
+        let selectedColor = UIColor(AppTheme.primary)
+        tabAppearance.stackedLayoutAppearance.normal.iconColor = normalColor
+        tabAppearance.stackedLayoutAppearance.normal.titleTextAttributes = [.foregroundColor: normalColor]
+        tabAppearance.stackedLayoutAppearance.selected.iconColor = selectedColor
+        tabAppearance.stackedLayoutAppearance.selected.titleTextAttributes = [.foregroundColor: selectedColor]
+
+        UITabBar.appearance().standardAppearance = tabAppearance
+        UITabBar.appearance().scrollEdgeAppearance = tabAppearance
+
+        let navAppearance = UINavigationBarAppearance()
+        navAppearance.configureWithTransparentBackground()
+        navAppearance.largeTitleTextAttributes = [.foregroundColor: UIColor(AppTheme.textPrimary)]
+        navAppearance.titleTextAttributes = [.foregroundColor: UIColor(AppTheme.textPrimary)]
+        UINavigationBar.appearance().standardAppearance = navAppearance
+        UINavigationBar.appearance().scrollEdgeAppearance = navAppearance
+        UINavigationBar.appearance().compactAppearance = navAppearance
+        UINavigationBar.appearance().tintColor = UIColor(AppTheme.primary)
     }
 
     private var lockOverlay: some View {

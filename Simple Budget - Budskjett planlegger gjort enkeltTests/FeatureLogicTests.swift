@@ -44,35 +44,109 @@ struct FeatureLogicTests {
 
     @Test
     @MainActor
-    func investmentCheckInParsesTextValuesIntoTotalAndSnapshot() throws {
+    func investmentWizardEffectiveValuesAndTotalsFollowRules() throws {
         let container = try makeInMemoryContainer()
         let context = container.mainContext
-        let now = Date()
+
+        let previousPeriodDate = Calendar.current.date(from: DateComponents(year: 2026, month: 2, day: 1)) ?? .now
+        let currentPeriodDate = Calendar.current.date(from: DateComponents(year: 2026, month: 3, day: 1)) ?? .now
+        let previousPeriodKey = DateService.periodKey(from: previousPeriodDate)
 
         let buckets = [
             InvestmentBucket(id: "bucket_fond", name: "Fond", isDefault: true, sortOrder: 1),
-            InvestmentBucket(id: "bucket_aksjer", name: "Aksjer", isDefault: true, sortOrder: 2)
+            InvestmentBucket(id: "bucket_aksjer", name: "Aksjer", isDefault: true, sortOrder: 2),
+            InvestmentBucket(id: "bucket_ny", name: "Ny type", isDefault: false, sortOrder: 3)
         ]
         buckets.forEach { context.insert($0) }
+        let previousValues = [
+            InvestmentSnapshotValue(periodKey: previousPeriodKey, bucketID: "bucket_fond", amount: 100_000),
+            InvestmentSnapshotValue(periodKey: previousPeriodKey, bucketID: "bucket_aksjer", amount: 25_000)
+        ]
+        context.insert(
+            InvestmentSnapshot(
+                periodKey: previousPeriodKey,
+                capturedAt: previousPeriodDate,
+                totalValue: 125_000,
+                bucketValues: previousValues
+            )
+        )
+        try context.save()
 
-        let viewModel = InvestmentCheckInViewModel()
-        viewModel.prepareValues(buckets: buckets, latestSnapshot: nil)
-        viewModel.setBinding("10 500", for: "bucket_fond")
-        viewModel.setBinding("1 200,5", for: "bucket_aksjer")
+        let viewModel = InvestmentCheckInWizardViewModel()
+        viewModel.loadInitialState(buckets: buckets, snapshots: try context.fetch(FetchDescriptor<InvestmentSnapshot>()), selectedMonth: currentPeriodDate)
+        viewModel.start()
 
-        let total = viewModel.total()
-        #expect(total == 11700.5)
+        viewModel.setMode(.unchanged, for: "bucket_fond")
+        viewModel.setMode(.changed, for: "bucket_aksjer")
+        viewModel.updateInput("26 500", for: "bucket_aksjer")
+        viewModel.setMode(.unchanged, for: "bucket_ny")
 
-        let periodKey = DateService.periodKey(from: now)
-        viewModel.saveSnapshot(context: context, periodKey: periodKey, total: total, capturedAt: now)
+        #expect(viewModel.effectiveValue(for: "bucket_fond") == 100_000)
+        #expect(viewModel.effectiveValue(for: "bucket_aksjer") == 26_500)
+        #expect(viewModel.effectiveValue(for: "bucket_ny") == 0)
+        #expect(viewModel.prevTotal == 125_000)
+        #expect(viewModel.newTotal == 126_500)
+        #expect(viewModel.delta == 1_500)
+    }
+
+    @Test
+    @MainActor
+    func investmentWizardSortOrderAndNewBucketInclusion() {
+        let buckets = [
+            InvestmentBucket(id: "b3", name: "Tre", isDefault: false, sortOrder: 3),
+            InvestmentBucket(id: "b1", name: "En", isDefault: false, sortOrder: 1),
+            InvestmentBucket(id: "b2", name: "To", isDefault: false, sortOrder: 2),
+            InvestmentBucket(id: "inactive", name: "Skjult", isDefault: false, isActive: false, sortOrder: 0)
+        ]
+        let viewModel = InvestmentCheckInWizardViewModel()
+        viewModel.loadInitialState(buckets: buckets, snapshots: [], selectedMonth: .now)
+
+        #expect(viewModel.buckets.map(\.id) == ["b1", "b2", "b3"])
+        #expect(viewModel.isNewType("b1"))
+        #expect(viewModel.isNewType("b2"))
+        #expect(viewModel.isNewType("b3"))
+    }
+
+    @Test
+    @MainActor
+    func investmentWizardUpsertsSnapshotPerPeriodKey() throws {
+        let container = try makeInMemoryContainer()
+        let context = container.mainContext
+        let currentPeriodDate = Calendar.current.date(from: DateComponents(year: 2026, month: 3, day: 1)) ?? .now
+        let currentPeriodKey = DateService.periodKey(from: currentPeriodDate)
+
+        let bucket = InvestmentBucket(id: "bucket_fond", name: "Fond", isDefault: true, sortOrder: 1)
+        context.insert(bucket)
+        let existing = InvestmentSnapshot(
+            periodKey: currentPeriodKey,
+            capturedAt: currentPeriodDate,
+            totalValue: 1000,
+            bucketValues: [
+                InvestmentSnapshotValue(periodKey: currentPeriodKey, bucketID: bucket.id, amount: 1000)
+            ]
+        )
+        context.insert(existing)
+        try context.save()
+
+        let viewModel = InvestmentCheckInWizardViewModel()
+        viewModel.loadInitialState(
+            buckets: [bucket],
+            snapshots: try context.fetch(FetchDescriptor<InvestmentSnapshot>()),
+            selectedMonth: currentPeriodDate
+        )
+        viewModel.start()
+        viewModel.setMode(.changed, for: bucket.id)
+        viewModel.updateInput("2 500", for: bucket.id)
+        viewModel.goNext()
+        try viewModel.saveSnapshot(context: context)
 
         let snapshots = try context.fetch(FetchDescriptor<InvestmentSnapshot>())
         #expect(snapshots.count == 1)
-        #expect(snapshots.first?.totalValue == 11700.5)
+        #expect(snapshots.first?.totalValue == 2500)
 
         let values = snapshots.first?.bucketValues ?? []
-        #expect(values.contains(where: { $0.bucketID == "bucket_fond" && $0.amount == 10500 }))
-        #expect(values.contains(where: { $0.bucketID == "bucket_aksjer" && $0.amount == 1200.5 }))
+        #expect(values.count == 1)
+        #expect(values.contains(where: { $0.bucketID == bucket.id && $0.amount == 2500 }))
     }
 
     @Test

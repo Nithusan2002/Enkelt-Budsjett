@@ -65,7 +65,14 @@ struct InvestmentsView: View {
                 viewModel.refreshData(snapshots: snapshots)
             }
             .sheet(isPresented: $viewModel.showCheckIn) {
-                InvestmentCheckInView(buckets: buckets, latestSnapshot: latest)
+                InvestmentCheckInWizardView(
+                    buckets: buckets,
+                    snapshots: snapshots,
+                    onRequestNewType: {
+                        viewModel.resetAddBucketState()
+                        viewModel.showAddBucketSheet = true
+                    }
+                )
             }
             .sheet(isPresented: $viewModel.showAddBucketSheet) {
                 AddInvestmentBucketSheet(
@@ -630,7 +637,7 @@ private struct AddInvestmentBucketSheet: View {
                                         .overlay {
                                             if selectedColorHex == hex {
                                                 Circle()
-                                                    .stroke(Color.white, lineWidth: 2)
+                                                    .stroke(AppTheme.background, lineWidth: 2)
                                                     .padding(2)
                                             }
                                         }
@@ -1079,106 +1086,5 @@ private struct BucketQuickUpdateSheet: View {
             .replacingOccurrences(of: " ", with: "")
             .replacingOccurrences(of: ",", with: ".")
         return Double(normalized)
-    }
-}
-
-struct InvestmentCheckInView: View {
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
-    let buckets: [InvestmentBucket]
-    let latestSnapshot: InvestmentSnapshot?
-    @StateObject private var viewModel = InvestmentCheckInViewModel()
-
-    private var periodKey: String { viewModel.periodKey() }
-    private var total: Double { viewModel.total() }
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section("Dato for insjekk") {
-                    DatePicker(
-                        "Denne innsjekken gjelder for",
-                        selection: $viewModel.selectedDate,
-                        displayedComponents: [.date]
-                    )
-                    .datePickerStyle(.compact)
-                }
-
-                Section("Beholdning") {
-                    ForEach(buckets.filter(\.isActive)) { bucket in
-                        HStack {
-                            Text(bucket.name)
-                                .appBodyStyle()
-                            Spacer()
-                            TextField(
-                                "Beløp",
-                                text: binding(for: bucket.id)
-                            )
-                            .multilineTextAlignment(.trailing)
-                            .keyboardType(.decimalPad)
-                            .textFieldStyle(.appInput)
-                            .monospacedDigit()
-                            .frame(width: 130)
-                        }
-                    }
-                }
-
-                Section("Oppsummering") {
-                    row("Valgt dato", 0, textValue: formatDate(viewModel.selectedDate))
-                    row("Ny total", total)
-                    row("Forrige total", latestSnapshot?.totalValue ?? 0)
-                    row("Endring", total - (latestSnapshot?.totalValue ?? 0))
-                }
-            }
-            .navigationTitle("Oppdater verdier")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Avbryt") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Lagre") {
-                        saveSnapshot()
-                        dismiss()
-                    }
-                    .appCTAStyle()
-                }
-            }
-            .onAppear {
-                viewModel.selectedDate = latestSnapshot?.capturedAt ?? .now
-                viewModel.prepareValues(buckets: buckets, latestSnapshot: latestSnapshot)
-            }
-        }
-    }
-
-    private func row(_ title: String, _ value: Double, textValue: String? = nil) -> some View {
-        HStack {
-            Text(title)
-                .appBodyStyle()
-            Spacer()
-            if let textValue {
-                Text(textValue)
-                    .appBodyStyle()
-                    .monospacedDigit()
-            } else {
-                Text(formatNOK(value))
-                    .monospacedDigit()
-            }
-        }
-    }
-
-    private func binding(for bucketID: String) -> Binding<String> {
-        Binding(
-            get: { viewModel.binding(for: bucketID) },
-            set: { viewModel.setBinding($0, for: bucketID) }
-        )
-    }
-
-    private func saveSnapshot() {
-        viewModel.saveSnapshot(
-            context: modelContext,
-            periodKey: periodKey,
-            total: total,
-            capturedAt: viewModel.selectedDate
-        )
     }
 }

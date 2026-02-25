@@ -8,7 +8,7 @@ struct AppInputFieldStyle: TextFieldStyle {
             .foregroundStyle(AppTheme.textPrimary)
             .padding(.horizontal, 12)
             .padding(.vertical, 11)
-            .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 12))
+            .background(AppTheme.surfaceElevated, in: RoundedRectangle(cornerRadius: 12))
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
                     .stroke(AppTheme.divider, lineWidth: 1)
@@ -79,7 +79,7 @@ extension View {
         self
             .padding(.horizontal, 12)
             .padding(.vertical, 11)
-            .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 12))
+            .background(AppTheme.surfaceElevated, in: RoundedRectangle(cornerRadius: 12))
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
                     .stroke(AppTheme.divider, lineWidth: 1)

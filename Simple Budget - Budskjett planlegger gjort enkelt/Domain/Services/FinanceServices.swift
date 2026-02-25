@@ -282,11 +282,55 @@ enum InvestmentService {
         return sorted[sorted.count - 2]
     }
 
+    static func previousSnapshot(
+        before periodKey: String,
+        snapshots: [InvestmentSnapshot]
+    ) -> InvestmentSnapshot? {
+        sortedSnapshots(snapshots)
+            .last(where: { $0.periodKey < periodKey })
+    }
+
+    static func snapshot(
+        for periodKey: String,
+        snapshots: [InvestmentSnapshot]
+    ) -> InvestmentSnapshot? {
+        snapshots.first(where: { $0.periodKey == periodKey })
+    }
+
     static func monthChange(current: InvestmentSnapshot?, previous: InvestmentSnapshot?) -> (kr: Double, pct: Double?) {
         guard let current else { return (0, nil) }
         guard let previous, previous.totalValue != 0 else { return (current.totalValue, nil) }
         let change = current.totalValue - previous.totalValue
         return (change, change / previous.totalValue)
+    }
+
+    static func upsertSnapshot(
+        context: ModelContext,
+        periodKey: String,
+        capturedAt: Date,
+        values: [InvestmentSnapshotValue]
+    ) throws {
+        let total = values.reduce(0) { $0 + $1.amount }
+        let descriptor = FetchDescriptor<InvestmentSnapshot>(
+            predicate: #Predicate { $0.periodKey == periodKey }
+        )
+        let existing = try context.fetch(descriptor).first
+
+        if let existing {
+            existing.capturedAt = capturedAt
+            existing.bucketValues = values
+            existing.totalValue = total
+        } else {
+            context.insert(
+                InvestmentSnapshot(
+                    periodKey: periodKey,
+                    capturedAt: capturedAt,
+                    totalValue: total,
+                    bucketValues: values
+                )
+            )
+        }
+        try context.save()
     }
 
     static func chartPoints(

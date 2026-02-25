@@ -2,23 +2,24 @@ import SwiftUI
 import UIKit
 
 enum AppTheme {
-    static let background = Color(light: "#FFF8F1", dark: "#0B1220")
-    static let surface = Color(light: "#FFFFFF", dark: "#111827")
-    static let primary = Color(light: "#EA580C", dark: "#F97316")
-    static let secondary = Color(light: "#0EA5E9", dark: "#38BDF8")
-    static let textPrimary = Color(light: "#1F2937", dark: "#F9FAFB")
-    static let textSecondary = Color(light: "#6B7280", dark: "#9CA3AF")
-    static let divider = Color(light: "#F1E7DC", dark: "#1F2937")
-    static let positive = Color(light: "#16A34A", dark: "#22C55E")
-    static let warning = Color(light: "#D97706", dark: "#F59E0B")
-    static let negative = Color(light: "#DC2626", dark: "#EF4444")
+    static let background = Color(light: "#FFF8F1", dark: "#0D1118")
+    static let surface = Color(light: "#FFFFFF", dark: "#151C26")
+    static let surfaceElevated = Color(light: "#FFFFFF", dark: "#1B2430")
+    static let primary = Color(light: "#EA580C", dark: "#FB8A3C")
+    static let secondary = Color(light: "#0EA5E9", dark: "#53C8FF")
+    static let textPrimary = Color(light: "#1F2937", dark: "#F5F7FA")
+    static let textSecondary = Color(light: "#6B7280", dark: "#A5B2C5")
+    static let divider = Color(light: "#F1E7DC", dark: "#273244")
+    static let positive = Color(light: "#16A34A", dark: "#3DD67A")
+    static let warning = Color(light: "#D97706", dark: "#FFB547")
+    static let negative = Color(light: "#DC2626", dark: "#FF6B6B")
 
-    static let portfolioFund = Color(light: "#0EA5E9", dark: "#38BDF8")
-    static let portfolioStock = Color(light: "#8B5CF6", dark: "#A78BFA")
-    static let portfolioBSU = Color(light: "#22C55E", dark: "#4ADE80")
-    static let portfolioBuffer = Color(light: "#F59E0B", dark: "#FBBF24")
-    static let portfolioIPS = Color(light: "#22C55E", dark: "#4ADE80")
-    static let portfolioCrypto = Color(light: "#EA580C", dark: "#F97316")
+    static let portfolioFund = Color(light: "#0EA5E9", dark: "#53C8FF")
+    static let portfolioStock = Color(light: "#8B5CF6", dark: "#BE9BFF")
+    static let portfolioBSU = Color(light: "#22C55E", dark: "#5CE08D")
+    static let portfolioBuffer = Color(light: "#F59E0B", dark: "#FFC15D")
+    static let portfolioIPS = Color(light: "#22C55E", dark: "#5CE08D")
+    static let portfolioCrypto = Color(light: "#EA580C", dark: "#FB8A3C")
     static let customBucketPalette: [String] = [
         "#0EA5E9", "#8B5CF6", "#22C55E", "#EA580C",
         "#F43F5E", "#14B8A6", "#6366F1", "#F59E0B",
