@@ -82,6 +82,14 @@ final class BudgetViewModel: ObservableObject {
             )
         }
 
+        let bounds = DateService.monthBounds(for: selectedMonthDate)
+        try? FixedItemsService.generateForMonth(
+            context: context,
+            periodKey: currentKey,
+            monthStart: bounds.start,
+            monthEnd: bounds.end
+        )
+
         let hasPlans = plans.contains { $0.monthPeriodKey == currentKey }
         if !hasPlans, let previousKey = DateService.offsetPeriodKey(currentKey, months: -1) {
             let previousPlans = plans.filter { $0.monthPeriodKey == previousKey }
@@ -253,6 +261,14 @@ final class BudgetViewModel: ObservableObject {
             note: note
         )
         context.insert(transaction)
+        try? context.save()
+    }
+
+    func deleteTransaction(context: ModelContext, transaction: Transaction) {
+        if transaction.fixedItemID != nil {
+            try? FixedItemsService.registerDeletionSkipIfNeeded(transaction: transaction, context: context)
+        }
+        context.delete(transaction)
         try? context.save()
     }
 

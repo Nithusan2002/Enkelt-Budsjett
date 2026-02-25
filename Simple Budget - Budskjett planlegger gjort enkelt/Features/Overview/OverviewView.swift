@@ -37,15 +37,6 @@ struct OverviewView: View {
         return false
     }
 
-    private var budgetStatus: (hasPlan: Bool, remaining: Double, net: Double) {
-        viewModel.budgetStatus(plans: plans, transactions: transactions)
-    }
-
-    private var budgetSetupDone: Bool {
-        let monthKey = DateService.periodKey(from: .now)
-        return plans.contains { $0.monthPeriodKey == monthKey && $0.plannedAmount > 0 }
-    }
-
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
@@ -90,7 +81,6 @@ struct OverviewView: View {
                 goalModule
                 statusModule
                 portfolioModule
-                budgetStatusModule
                 scopeModule
             }
             .padding()
@@ -289,36 +279,6 @@ struct OverviewView: View {
         .buttonStyle(.plain)
         .accessibilityLabel("Porteføljekort")
         .accessibilityHint("Åpner investeringer")
-    }
-
-    private var budgetStatusModule: some View {
-        Button {
-            navigationState.selectedTab = .budget
-        } label: {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Budsjettstatus")
-                    .appCardTitleStyle()
-
-                if !budgetSetupDone {
-                    Text("Velg en startpakke for å se igjen å bruke.")
-                        .appBodyStyle()
-                        .foregroundStyle(AppTheme.textSecondary)
-                } else if budgetStatus.hasPlan {
-                    Text("Igjen å bruke: \(formatNOK(budgetStatus.remaining))")
-                        .appBodyStyle()
-                        .foregroundStyle(budgetStatus.remaining < 0 ? AppTheme.negative : AppTheme.textPrimary)
-                } else {
-                    Text("Netto hittil: \(formatNOK(budgetStatus.net))")
-                        .appBodyStyle()
-                        .foregroundStyle(budgetStatus.net < 0 ? AppTheme.negative : AppTheme.textPrimary)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding()
-            .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
-            .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
-        }
-        .buttonStyle(.plain)
     }
 
     private var scopeModule: some View {

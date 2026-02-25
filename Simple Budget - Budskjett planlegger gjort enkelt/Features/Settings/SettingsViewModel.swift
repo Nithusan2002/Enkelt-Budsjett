@@ -25,6 +25,8 @@ final class SettingsViewModel: ObservableObject {
             categories: try context.fetch(FetchDescriptor<Category>()).map(CategoryDTO.init),
             plans: try context.fetch(FetchDescriptor<BudgetPlan>()).map(BudgetPlanDTO.init),
             transactions: try context.fetch(FetchDescriptor<Transaction>()).map(TransactionDTO.init),
+            fixedItems: try context.fetch(FetchDescriptor<FixedItem>()).map(FixedItemDTO.init),
+            fixedItemSkips: try context.fetch(FetchDescriptor<FixedItemSkip>()).map(FixedItemSkipDTO.init),
             accounts: try context.fetch(FetchDescriptor<Account>()).map(AccountDTO.init),
             buckets: try context.fetch(FetchDescriptor<InvestmentBucket>()).map(InvestmentBucketDTO.init),
             snapshots: try context.fetch(FetchDescriptor<InvestmentSnapshot>()).map(InvestmentSnapshotDTO.init),
@@ -50,6 +52,8 @@ final class SettingsViewModel: ObservableObject {
         try deleteAll(BudgetPlan.self, context: context)
         try deleteAll(BudgetMonth.self, context: context)
         try deleteAll(Transaction.self, context: context)
+        try deleteAll(FixedItemSkip.self, context: context)
+        try deleteAll(FixedItem.self, context: context)
         try deleteAll(Category.self, context: context)
         try deleteAll(Account.self, context: context)
         try deleteAll(InvestmentSnapshot.self, context: context)
@@ -77,6 +81,8 @@ private struct ExportPayload: Codable {
     let categories: [CategoryDTO]
     let plans: [BudgetPlanDTO]
     let transactions: [TransactionDTO]
+    let fixedItems: [FixedItemDTO]
+    let fixedItemSkips: [FixedItemSkipDTO]
     let accounts: [AccountDTO]
     let buckets: [InvestmentBucketDTO]
     let snapshots: [InvestmentSnapshotDTO]
@@ -137,6 +143,9 @@ private struct TransactionDTO: Codable {
     let categoryID: String?
     let accountID: String?
     let note: String
+    let recurringKey: String?
+    let fixedItemID: String?
+    @MainActor
     init(_ model: Transaction) {
         date = model.date
         amount = model.amount
@@ -144,6 +153,50 @@ private struct TransactionDTO: Codable {
         categoryID = model.categoryID
         accountID = model.accountID
         note = model.note
+        recurringKey = model.recurringKey
+        fixedItemID = model.fixedItemID
+    }
+}
+
+private struct FixedItemDTO: Codable {
+    let id: String
+    let title: String
+    let amount: Double
+    let categoryID: String
+    let kind: String
+    let dayOfMonth: Int
+    let startDate: Date
+    let endDate: Date?
+    let isActive: Bool
+    let autoCreate: Bool
+    let lastGeneratedPeriodKey: String?
+    @MainActor
+    init(_ model: FixedItem) {
+        id = model.id
+        title = model.title
+        amount = model.amount
+        categoryID = model.categoryID
+        kind = model.kind.rawValue
+        dayOfMonth = model.dayOfMonth
+        startDate = model.startDate
+        endDate = model.endDate
+        isActive = model.isActive
+        autoCreate = model.autoCreate
+        lastGeneratedPeriodKey = model.lastGeneratedPeriodKey
+    }
+}
+
+private struct FixedItemSkipDTO: Codable {
+    let uniqueKey: String
+    let fixedItemID: String
+    let periodKey: String
+    let createdAt: Date
+    @MainActor
+    init(_ model: FixedItemSkip) {
+        uniqueKey = model.uniqueKey
+        fixedItemID = model.fixedItemID
+        periodKey = model.periodKey
+        createdAt = model.createdAt
     }
 }
 

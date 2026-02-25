@@ -16,27 +16,67 @@ struct BudgetView: View {
     private var summary: BudgetSummaryData {
         viewModel.summary(periodKey: periodKey, plans: plans, categories: categories, transactions: transactions)
     }
-    private var previousActual: Double {
-        viewModel.previousMonthActual(periodKey: periodKey, transactions: transactions)
-    }
     private var rows: [BudgetCategoryRow] {
         viewModel.categoryRows(periodKey: periodKey, categories: categories, plans: plans, transactions: transactions)
     }
-    private var monthTransactions: [Transaction] {
-        viewModel.transactionsForMonth(periodKey: periodKey, transactions: transactions)
+    private var hasPlannedBudget: Bool {
+        summary.planned > 0
     }
-    private var hasPlansForMonth: Bool {
-        plans.contains { $0.monthPeriodKey == periodKey }
+    private var overBudgetCount: Int {
+        rows.filter(\.isOverBudget).count
+    }
+    private var fixedTotalThisMonth: Double {
+        FixedItemsService.fixedTotalForMonth(periodKey: periodKey, transactions: transactions)
     }
 
     var body: some View {
         ScrollView {
             VStack(spacing: 14) {
-                monthHeader
-                actionRow
-                summaryCard
-                insightCard
-                contentState
+                MonthHeaderView(
+                    monthLabel: monthLabel(viewModel.selectedMonthDate),
+                    onPrevious: { viewModel.changeMonth(by: -1) },
+                    onNext: { viewModel.changeMonth(by: 1) }
+                )
+
+                BudgetHeroCardView(
+                    hasPlannedBudget: hasPlannedBudget,
+                    remaining: summary.remaining,
+                    actual: summary.actual,
+                    planned: summary.planned,
+                    income: summary.income,
+                    net: summary.net,
+                    overBudgetCount: overBudgetCount,
+                    fixedTotalThisMonth: fixedTotalThisMonth,
+                    onShowOverBudget: {
+                        viewModel.selectedFilter = .overBudget
+                    }
+                )
+
+                NavigationLink {
+                    FixedItemsView()
+                } label: {
+                    HStack {
+                        Text("Faste poster denne måneden")
+                            .appBodyStyle()
+                        Spacer()
+                        Text(formatNOK(fixedTotalThisMonth))
+                            .font(.headline.weight(.semibold))
+                            .monospacedDigit()
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(AppTheme.textSecondary)
+                    }
+                    .padding()
+                    .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.divider, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+
+                if hasPlannedBudget {
+                    CategoryListView(rows: rows) { row in
+                        viewModel.editorTarget = BudgetEditorTarget(id: row.id, categoryName: row.title, categoryID: row.id)
+                    }
+                }
             }
             .padding()
         }
@@ -99,253 +139,168 @@ struct BudgetView: View {
         }
     }
 
-    private var monthHeader: some View {
+    private func monthLabel(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "nb_NO")
+        formatter.dateFormat = "MMM yyyy"
+        let raw = formatter.string(from: date).replacingOccurrences(of: ".", with: "")
+        guard let first = raw.first else { return raw }
+        return String(first).uppercased() + String(raw.dropFirst())
+    }
+}
+
+private struct MonthHeaderView: View {
+    let monthLabel: String
+    let onPrevious: () -> Void
+    let onNext: () -> Void
+
+    var body: some View {
         HStack {
-            Button {
-                viewModel.changeMonth(by: -1)
-            } label: {
+            Button(action: onPrevious) {
                 Image(systemName: "chevron.left")
             }
             .buttonStyle(.bordered)
 
             Spacer()
 
-            VStack(spacing: 2) {
-                Text("Måned")
-                    .appSecondaryStyle()
-                Text(viewModel.monthDateText())
-                    .font(.headline.weight(.semibold))
-            }
+            Text(monthLabel)
+                .font(.headline.weight(.semibold))
+                .accessibilityLabel("Valgt måned")
+                .accessibilityValue(monthLabel)
 
             Spacer()
 
-            Button {
-                viewModel.changeMonth(by: 1)
-            } label: {
+            Button(action: onNext) {
                 Image(systemName: "chevron.right")
             }
             .buttonStyle(.bordered)
         }
-        .padding()
+        .padding(12)
         .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.divider, lineWidth: 1))
     }
+}
 
-    private var actionRow: some View {
-        HStack(spacing: 10) {
-            Button("Legg til transaksjon") {
-                viewModel.showAddTransaction = true
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(AppTheme.primary)
-        }
+private struct BudgetHeroCardView: View {
+    let hasPlannedBudget: Bool
+    let remaining: Double
+    let actual: Double
+    let planned: Double
+    let income: Double
+    let net: Double
+    let overBudgetCount: Int
+    let fixedTotalThisMonth: Double
+    let onShowOverBudget: () -> Void
+
+    private var usedPercent: Double {
+        guard planned > 0 else { return 0 }
+        return min(max(actual / planned, 0), 1)
     }
 
-    private var summaryCard: some View {
+    var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Denne måneden")
-                .appCardTitleStyle()
+            if hasPlannedBudget {
+                Text("Igjen å bruke")
+                    .appSecondaryStyle()
+                Text(formatNOK(remaining))
+                    .appBigNumberStyle()
+                    .foregroundStyle(remaining < 0 ? AppTheme.negative : AppTheme.textPrimary)
+                Text("Brukt \(formatNOK(actual)) av \(formatNOK(planned))")
+                    .appSecondaryStyle()
 
-            if hasPlansForMonth {
-                HStack {
-                    summaryCell("Planlagt", summary.planned)
-                    summaryCell("Faktisk", summary.actual)
-                }
+                ProgressView(value: usedPercent, total: 1)
+                    .tint(remaining < 0 ? AppTheme.warning : AppTheme.secondary)
 
-                HStack {
-                    summaryCell("Avvik", summary.deviation, color: summary.deviation > 0 ? AppTheme.warning : AppTheme.positive)
-                    summaryCell("Igjen å bruke", summary.remaining, color: summary.remaining < 0 ? AppTheme.negative : AppTheme.textPrimary)
-                }
-
-                HStack {
-                    summaryCell("Inntekt", summary.income, color: AppTheme.positive)
-                    summaryCell("Netto etter utgifter", summary.net, color: summary.net < 0 ? AppTheme.negative : AppTheme.textPrimary)
+                if overBudgetCount > 0 {
+                    Button {
+                        onShowOverBudget()
+                    } label: {
+                        Text("Over budsjett i \(overBudgetCount) kategorier")
+                            .font(.footnote.weight(.semibold))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(AppTheme.warning.opacity(0.12), in: Capsule())
+                    }
+                    .buttonStyle(.plain)
                 }
             } else {
-                HStack {
-                    summaryCell("Faktisk utgifter", summary.actual)
-                    summaryCell("Inntekt", summary.income, color: AppTheme.positive)
-                }
-
-                HStack {
-                    summaryCell("Netto denne måneden", summary.net, color: summary.net < 0 ? AppTheme.negative : AppTheme.textPrimary)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Status")
-                            .appSecondaryStyle()
-                        Text(monthTransactions.isEmpty ? "Ingen føringer ennå" : "Sporing aktiv")
-                            .font(.headline.weight(.semibold))
-                            .foregroundStyle(AppTheme.textPrimary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.75)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(10)
-                    .background(AppTheme.background, in: RoundedRectangle(cornerRadius: 10))
-                }
-
-                Text("Sett budsjettgrenser for å få avvik og \"igjen å bruke\".")
+                Text("Netto hittil")
                     .appSecondaryStyle()
+                Text(formatNOK(net))
+                    .appBigNumberStyle()
+                    .foregroundStyle(net < 0 ? AppTheme.negative : AppTheme.textPrimary)
+                Text("Utgifter: \(formatNOK(actual)) • Inntekt: \(formatNOK(income))")
+                    .appSecondaryStyle()
+
+                Text("Du kan også bare spore uten grenser.")
+                    .font(.footnote)
+                    .foregroundStyle(AppTheme.textSecondary)
             }
 
-            let delta = summary.actual - previousActual
-            Text(previousActual > 0
-                 ? "Endring fra forrige måned: \(formatNOK(delta))"
-                 : "Ingen sammenligningsmåned ennå")
-                .appSecondaryStyle()
+            Text("Faste poster denne måneden: \(formatNOK(fixedTotalThisMonth))")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(AppTheme.textSecondary)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(hasPlannedBudget ? "Igjen å bruke" : "Netto hittil")
+        .accessibilityValue(hasPlannedBudget ? formatNOK(remaining) : formatNOK(net))
     }
+}
 
-    private var insightCard: some View {
-        let insight = viewModel.insight(summary: summary, rows: rows)
-        return VStack(alignment: .leading, spacing: 5) {
-            Text(insight.title)
-                .appCardTitleStyle()
-            Text(insight.detail)
-                .appBodyStyle()
-                .foregroundStyle(AppTheme.textSecondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(AppTheme.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.divider, lineWidth: 1))
-    }
+private struct CategoryListView: View {
+    let rows: [BudgetCategoryRow]
+    let onEdit: (BudgetCategoryRow) -> Void
 
-    @ViewBuilder
-    private var contentState: some View {
-        if !hasPlansForMonth && monthTransactions.isEmpty {
-            setupEmptyState
-        } else if hasPlansForMonth && monthTransactions.isEmpty {
-            zeroTransactionsState
-        } else if !hasPlansForMonth {
-            trackingOnlyState
-        } else {
-            categoriesSection(rows: rows)
-        }
-    }
-
-    private var setupEmptyState: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Klar for første budsjett?")
-                .appCardTitleStyle()
-            Text("Start med å registrere første utgift. Du kan sette budsjett per kategori etterpå.")
-                .appBodyStyle()
-                .foregroundStyle(AppTheme.textSecondary)
-            Button("Legg til første utgift") {
-                viewModel.showAddTransaction = true
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(AppTheme.primary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.divider, lineWidth: 1))
-    }
-
-    private var zeroTransactionsState: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Ingen utgifter registrert ennå")
-                .appCardTitleStyle()
-            Text("Legg til første utgift for å se status og avvik.")
-                .appBodyStyle()
-                .foregroundStyle(AppTheme.textSecondary)
-            Button("Legg til første utgift") {
-                viewModel.showAddTransaction = true
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(AppTheme.primary)
-            categoriesSection(rows: rows)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.divider, lineWidth: 1))
-    }
-
-    private var trackingOnlyState: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Sporing er aktiv")
-                .appCardTitleStyle()
-            Text("Du kan sette budsjett når som helst. Nå ser du faktisk forbruk og toppkategorier.")
-                .appBodyStyle()
-                .foregroundStyle(AppTheme.textSecondary)
-            ForEach(viewModel.topCategoryRows(periodKey: periodKey, categories: categories, plans: plans, transactions: transactions)) { row in
-                categoryRow(row)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.divider, lineWidth: 1))
-    }
-
-    private func categoriesSection(rows: [BudgetCategoryRow]) -> some View {
+    var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Kategorier")
                 .appCardTitleStyle()
+
             if rows.isEmpty {
-                Text("Ingen kategorier å vise for valgt filter.")
+                Text("Ingen kategorier å vise for denne måneden.")
                     .appSecondaryStyle()
             }
+
             ForEach(rows) { row in
-                categoryRow(row)
+                VStack(alignment: .leading, spacing: 8) {
+                    NavigationLink(value: row.id) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(row.title)
+                                    .appCardTitleStyle()
+                                Text("\(formatNOK(row.spent)) / \(formatNOK(row.planned))")
+                                    .appSecondaryStyle()
+                            }
+                            Spacer()
+                            Text(row.isOverBudget ? "Over" : "OK")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(row.isOverBudget ? AppTheme.warning : AppTheme.positive)
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    ProgressView(value: row.spent, total: max(row.planned, 1))
+                        .tint(row.isOverBudget ? AppTheme.warning : AppTheme.secondary)
+
+                    HStack {
+                        Spacer()
+                        Button("Endre budsjett") {
+                            onEdit(row)
+                        }
+                        .font(.footnote.weight(.semibold))
+                    }
+                }
+                .padding(.vertical, 6)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.divider, lineWidth: 1))
-    }
-
-    private func categoryRow(_ row: BudgetCategoryRow) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            NavigationLink(value: row.id) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(row.title)
-                            .appCardTitleStyle()
-                        Text("\(formatNOK(row.spent)) / \(formatNOK(row.planned))")
-                            .appSecondaryStyle()
-                    }
-                    Spacer()
-                    Text(row.isOverBudget ? "Over" : "OK")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(row.isOverBudget ? AppTheme.warning : AppTheme.positive)
-                }
-            }
-            .buttonStyle(.plain)
-
-            ProgressView(value: viewModel.progressValue(for: row), total: viewModel.progressTotal(for: row))
-                .tint(row.isOverBudget ? AppTheme.warning : AppTheme.secondary)
-
-            HStack {
-                Spacer()
-                Button("Endre budsjett") {
-                    viewModel.editorTarget = BudgetEditorTarget(id: row.id, categoryName: row.title, categoryID: row.id)
-                }
-                .font(.footnote.weight(.semibold))
-            }
-        }
-        .padding(.vertical, 6)
-    }
-
-    private func summaryCell(_ title: String, _ value: Double, color: Color = AppTheme.textPrimary) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .appSecondaryStyle()
-            Text(formatNOK(value))
-                .font(.headline.weight(.semibold))
-                .foregroundStyle(color)
-                .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(10)
-        .background(AppTheme.background, in: RoundedRectangle(cornerRadius: 10))
     }
 }
 
@@ -872,12 +827,28 @@ private struct BudgetCategoryDetailView: View {
                         .appCardTitleStyle()
                     ForEach(viewModel.transactionsForCategory(categoryID: category.id, periodKey: periodKey, transactions: transactions), id: \.date) { transaction in
                         HStack {
-                            Text(formatDate(transaction.date))
-                                .appSecondaryStyle()
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(formatDate(transaction.date))
+                                    .appSecondaryStyle()
+                                if transaction.recurringKey != nil {
+                                    Text("Fast post")
+                                        .font(.caption2.weight(.semibold))
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(AppTheme.primary.opacity(0.12), in: Capsule())
+                                }
+                            }
                             Spacer()
                             Text(formatNOK(BudgetService.budgetImpact(transaction)))
                                 .foregroundStyle(BudgetService.budgetImpact(transaction) >= 0 ? AppTheme.textPrimary : AppTheme.positive)
                                 .monospacedDigit()
+                        }
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                viewModel.deleteTransaction(context: modelContext, transaction: transaction)
+                            } label: {
+                                Label("Slett", systemImage: "trash")
+                            }
                         }
                     }
                 }

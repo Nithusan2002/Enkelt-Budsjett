@@ -121,6 +121,180 @@ struct FeatureLogicTests {
         #expect(summary.remaining == 7000)
     }
 
+    @Test
+    @MainActor
+    func fixedItemsGenerateOneTransactionPerMonth() throws {
+        let container = try makeInMemoryContainer()
+        let context = container.mainContext
+
+        let now = Date()
+        let key = DateService.periodKey(from: now)
+        let bounds = DateService.monthBounds(for: now)
+        let category = Category(id: "cat_food", name: "Mat", type: .expense, sortOrder: 1)
+        context.insert(category)
+        context.insert(
+            FixedItem(
+                title: "Husleie",
+                amount: 9000,
+                categoryID: category.id,
+                kind: .expense,
+                dayOfMonth: 5,
+                startDate: bounds.start,
+                isActive: true,
+                autoCreate: true
+            )
+        )
+        try context.save()
+
+        try FixedItemsService.generateForMonth(
+            context: context,
+            periodKey: key,
+            monthStart: bounds.start,
+            monthEnd: bounds.end
+        )
+
+        let transactions = try context.fetch(FetchDescriptor<Transaction>())
+        #expect(transactions.count == 1)
+        #expect(transactions.first?.recurringKey != nil)
+    }
+
+    @Test
+    @MainActor
+    func fixedItemsGenerationIsIdempotentAcrossMultipleCalls() throws {
+        let container = try makeInMemoryContainer()
+        let context = container.mainContext
+
+        let now = Date()
+        let key = DateService.periodKey(from: now)
+        let bounds = DateService.monthBounds(for: now)
+        let category = Category(id: "cat_food", name: "Mat", type: .expense, sortOrder: 1)
+        context.insert(category)
+        context.insert(
+            FixedItem(
+                title: "Spotify",
+                amount: 149,
+                categoryID: category.id,
+                kind: .expense,
+                dayOfMonth: 10,
+                startDate: bounds.start,
+                isActive: true,
+                autoCreate: true
+            )
+        )
+        try context.save()
+
+        try FixedItemsService.generateForMonth(
+            context: context,
+            periodKey: key,
+            monthStart: bounds.start,
+            monthEnd: bounds.end
+        )
+        try FixedItemsService.generateForMonth(
+            context: context,
+            periodKey: key,
+            monthStart: bounds.start,
+            monthEnd: bounds.end
+        )
+
+        let transactions = try context.fetch(FetchDescriptor<Transaction>())
+        #expect(transactions.count == 1)
+    }
+
+    @Test
+    @MainActor
+    func fixedItemsClampDayToLastDayOfMonth() throws {
+        let container = try makeInMemoryContainer()
+        let context = container.mainContext
+
+        var comps = DateComponents()
+        comps.year = 2026
+        comps.month = 2
+        comps.day = 1
+        let febStart = Calendar.current.date(from: comps) ?? .now
+        let febEnd = Calendar.current.date(byAdding: DateComponents(month: 1, day: -1), to: febStart) ?? febStart
+        let key = DateService.periodKey(from: febStart)
+
+        let category = Category(id: "cat_housing", name: "Bolig", type: .expense, sortOrder: 1)
+        context.insert(category)
+        context.insert(
+            FixedItem(
+                title: "Husleie",
+                amount: 12000,
+                categoryID: category.id,
+                kind: .expense,
+                dayOfMonth: 31,
+                startDate: febStart,
+                isActive: true,
+                autoCreate: true
+            )
+        )
+        try context.save()
+
+        try FixedItemsService.generateForMonth(
+            context: context,
+            periodKey: key,
+            monthStart: febStart,
+            monthEnd: febEnd,
+            now: febStart
+        )
+
+        let tx = try context.fetch(FetchDescriptor<Transaction>()).first
+        let day = Calendar.current.component(.day, from: tx?.date ?? febStart)
+        #expect(day == 28)
+    }
+
+    @Test
+    @MainActor
+    func fixedItemsSkipPreventsRegenerationAfterDelete() throws {
+        let container = try makeInMemoryContainer()
+        let context = container.mainContext
+
+        let now = Date()
+        let key = DateService.periodKey(from: now)
+        let bounds = DateService.monthBounds(for: now)
+        let category = Category(id: "cat_food", name: "Mat", type: .expense, sortOrder: 1)
+        context.insert(category)
+        let item = FixedItem(
+            title: "Matkasse",
+            amount: 899,
+            categoryID: category.id,
+            kind: .expense,
+            dayOfMonth: 6,
+            startDate: bounds.start,
+            isActive: true,
+            autoCreate: true
+        )
+        context.insert(item)
+        try context.save()
+
+        try FixedItemsService.generateForMonth(
+            context: context,
+            periodKey: key,
+            monthStart: bounds.start,
+            monthEnd: bounds.end
+        )
+        var transactions = try context.fetch(FetchDescriptor<Transaction>())
+        #expect(transactions.count == 1)
+
+        if let first = transactions.first {
+            try FixedItemsService.registerDeletionSkipIfNeeded(transaction: first, context: context)
+            context.delete(first)
+            try context.save()
+        }
+
+        try FixedItemsService.generateForMonth(
+            context: context,
+            periodKey: key,
+            monthStart: bounds.start,
+            monthEnd: bounds.end
+        )
+
+        transactions = try context.fetch(FetchDescriptor<Transaction>())
+        #expect(transactions.isEmpty)
+        let skips = try context.fetch(FetchDescriptor<FixedItemSkip>())
+        #expect(skips.count == 1)
+    }
+
     private func makeInMemoryContainer() throws -> ModelContainer {
         let schema = Schema([
             BudgetMonth.self,
@@ -131,6 +305,8 @@ struct FeatureLogicTests {
             InvestmentBucket.self,
             InvestmentSnapshot.self,
             InvestmentSnapshotValue.self,
+            FixedItem.self,
+            FixedItemSkip.self,
             Goal.self,
             Challenge.self,
             UserPreference.self
@@ -139,4 +315,3 @@ struct FeatureLogicTests {
         return try ModelContainer(for: schema, configurations: [configuration])
     }
 }
-

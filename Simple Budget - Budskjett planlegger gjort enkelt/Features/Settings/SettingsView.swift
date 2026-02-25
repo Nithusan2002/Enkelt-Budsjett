@@ -22,6 +22,7 @@ struct SettingsView: View {
         Form {
             remindersSection
             securitySection
+            fixedItemsSection
             dataSection
             helpSection
         }
@@ -148,6 +149,16 @@ struct SettingsView: View {
 
             Text("Brukes hvis du vil nullstille appen helt.")
                 .appSecondaryStyle()
+        }
+    }
+
+    private var fixedItemsSection: some View {
+        Section("Budsjett") {
+            NavigationLink {
+                FixedItemsView()
+            } label: {
+                settingsRow(title: "Faste poster", value: "")
+            }
         }
     }
 

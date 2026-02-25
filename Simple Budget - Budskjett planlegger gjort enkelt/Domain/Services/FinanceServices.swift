@@ -89,6 +89,164 @@ enum BudgetService {
     }
 }
 
+enum FixedItemsService {
+    static func recurringKey(fixedItemID: String, periodKey: String) -> String {
+        "\(fixedItemID)|\(periodKey)"
+    }
+
+    static func generateForMonth(
+        context: ModelContext,
+        periodKey: String,
+        monthStart: Date,
+        monthEnd: Date,
+        now: Date = .now
+    ) throws {
+        let fixedItems = try context.fetch(FetchDescriptor<FixedItem>())
+        let existingTransactions = try context.fetch(FetchDescriptor<Transaction>())
+        let skips = try context.fetch(FetchDescriptor<FixedItemSkip>())
+
+        let existingRecurringKeys = Set(existingTransactions.compactMap(\.recurringKey))
+        let skippedKeys = Set(skips.map(\.uniqueKey))
+
+        var didChange = false
+        for item in fixedItems where shouldGenerate(item, periodKey: periodKey, monthStart: monthStart, monthEnd: monthEnd, now: now) {
+            let key = recurringKey(fixedItemID: item.id, periodKey: periodKey)
+            if existingRecurringKeys.contains(key) || skippedKeys.contains(key) {
+                continue
+            }
+
+            let generatedDate = generatedDateForItem(item, monthStart: monthStart)
+            let transaction = Transaction(
+                date: generatedDate,
+                amount: abs(item.amount),
+                kind: item.kind,
+                categoryID: item.categoryID,
+                note: "Fast post",
+                recurringKey: key,
+                fixedItemID: item.id
+            )
+            context.insert(transaction)
+            item.lastGeneratedPeriodKey = periodKey
+            didChange = true
+        }
+
+        if didChange {
+            try context.save()
+        }
+    }
+
+    static func generateForCurrentMonthForItem(
+        context: ModelContext,
+        fixedItemID: String,
+        now: Date = .now
+    ) throws {
+        let bounds = DateService.monthBounds(for: now)
+        let periodKey = DateService.periodKey(from: now)
+        let items = try context.fetch(FetchDescriptor<FixedItem>())
+        guard let item = items.first(where: { $0.id == fixedItemID }) else { return }
+        guard item.isActive, item.autoCreate else { return }
+        guard item.startDate <= bounds.end else { return }
+        if let end = item.endDate, end < bounds.start { return }
+
+        let key = recurringKey(fixedItemID: fixedItemID, periodKey: periodKey)
+        let transactions = try context.fetch(FetchDescriptor<Transaction>())
+        if transactions.contains(where: { $0.recurringKey == key }) { return }
+        let skips = try context.fetch(FetchDescriptor<FixedItemSkip>())
+        if skips.contains(where: { $0.uniqueKey == key }) { return }
+
+        context.insert(
+            Transaction(
+                date: generatedDateForItem(item, monthStart: bounds.start),
+                amount: abs(item.amount),
+                kind: item.kind,
+                categoryID: item.categoryID,
+                note: "Fast post",
+                recurringKey: key,
+                fixedItemID: item.id
+            )
+        )
+        item.lastGeneratedPeriodKey = periodKey
+        try context.save()
+    }
+
+    static func fixedTotalForMonth(
+        periodKey: String,
+        transactions: [Transaction]
+    ) -> Double {
+        transactions
+            .filter { DateService.periodKey(from: $0.date) == periodKey && $0.recurringKey != nil }
+            .reduce(0) { total, tx in
+                switch tx.kind {
+                case .expense:
+                    return total + abs(tx.amount)
+                case .income:
+                    return total + abs(tx.amount)
+                case .refund, .transfer, .manualSaving:
+                    return total
+                }
+            }
+    }
+
+    static func registerDeletionSkipIfNeeded(
+        transaction: Transaction,
+        context: ModelContext
+    ) throws {
+        guard let fixedItemID = transaction.fixedItemID else { return }
+        let periodKey = DateService.periodKey(from: transaction.date)
+        let uniqueKey = recurringKey(fixedItemID: fixedItemID, periodKey: periodKey)
+        let existingSkips = try context.fetch(FetchDescriptor<FixedItemSkip>())
+        if !existingSkips.contains(where: { $0.uniqueKey == uniqueKey }) {
+            context.insert(FixedItemSkip(fixedItemID: fixedItemID, periodKey: periodKey))
+            try context.save()
+        }
+    }
+
+    private static func shouldGenerate(
+        _ item: FixedItem,
+        periodKey: String,
+        monthStart: Date,
+        monthEnd: Date,
+        now: Date
+    ) -> Bool {
+        guard item.isActive, item.autoCreate else { return false }
+
+        let periodDate = monthStart
+        let itemStartMonth = Calendar.current.date(from: Calendar.current.dateComponents([.year, .month], from: item.startDate)) ?? item.startDate
+        guard itemStartMonth <= periodDate else { return false }
+
+        if let endDate = item.endDate {
+            let endMonth = Calendar.current.date(from: Calendar.current.dateComponents([.year, .month], from: endDate)) ?? endDate
+            if endMonth < periodDate { return false }
+        }
+
+        if item.lastGeneratedPeriodKey == periodKey {
+            return false
+        }
+
+        if DateService.periodKey(from: now) == periodKey {
+            let dueDate = generatedDateForItem(item, monthStart: monthStart)
+            if dueDate < now && item.lastGeneratedPeriodKey == nil {
+                return false
+            }
+        }
+
+        return monthStart <= monthEnd
+    }
+
+    private static func generatedDateForItem(_ item: FixedItem, monthStart: Date) -> Date {
+        let day = clampedDay(item.dayOfMonth, monthStart: monthStart)
+        var components = Calendar.current.dateComponents([.year, .month], from: monthStart)
+        components.day = day
+        return Calendar.current.date(from: components) ?? monthStart
+    }
+
+    private static func clampedDay(_ dayOfMonth: Int, monthStart: Date) -> Int {
+        let dayRange = Calendar.current.range(of: .day, in: .month, for: monthStart) ?? 1..<29
+        let maxDay = dayRange.upperBound - 1
+        return max(dayRange.lowerBound, min(dayOfMonth, maxDay))
+    }
+}
+
 enum SavingsService {
     static func savedYearToDate(definition: SavingsDefinition, transactions: [Transaction], categories: [Category], now: Date = .now) -> Double {
         let cal = Calendar.current
@@ -272,6 +430,32 @@ enum BootstrapService {
             _ = ensureDefaultCategories(context: context)
             try context.save()
         }
+    }
+
+    static func ensureCurrentBudgetMonthAndRecurring(context: ModelContext, now: Date = .now) throws {
+        let currentKey = DateService.periodKey(from: now)
+        let bounds = DateService.monthBounds(for: now)
+        let months = try context.fetch(FetchDescriptor<BudgetMonth>())
+        if !months.contains(where: { $0.periodKey == currentKey }) {
+            context.insert(
+                BudgetMonth(
+                    periodKey: currentKey,
+                    year: Calendar.current.component(.year, from: now),
+                    month: Calendar.current.component(.month, from: now),
+                    startDate: bounds.start,
+                    endDate: bounds.end
+                )
+            )
+            try context.save()
+        }
+
+        try FixedItemsService.generateForMonth(
+            context: context,
+            periodKey: currentKey,
+            monthStart: bounds.start,
+            monthEnd: bounds.end,
+            now: now
+        )
     }
 
     @discardableResult

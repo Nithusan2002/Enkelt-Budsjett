@@ -16,6 +16,7 @@ final class AppRootViewModel: ObservableObject {
     func bootstrap(context: ModelContext) {
         do {
             try BootstrapService.ensurePreference(context: context)
+            try BootstrapService.ensureCurrentBudgetMonthAndRecurring(context: context)
             bootstrapErrorMessage = nil
         } catch {
             bootstrapErrorMessage = "Kunne ikke laste lokale data."

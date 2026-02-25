@@ -127,14 +127,83 @@ final class Transaction {
     var categoryID: String?
     var accountID: String?
     var note: String
+    var recurringKey: String?
+    var fixedItemID: String?
 
-    init(date: Date, amount: Double, kind: TransactionKind, categoryID: String? = nil, accountID: String? = nil, note: String = "") {
+    init(
+        date: Date,
+        amount: Double,
+        kind: TransactionKind,
+        categoryID: String? = nil,
+        accountID: String? = nil,
+        note: String = "",
+        recurringKey: String? = nil,
+        fixedItemID: String? = nil
+    ) {
         self.date = date
         self.amount = amount
         self.kind = kind
         self.categoryID = categoryID
         self.accountID = accountID
         self.note = note
+        self.recurringKey = recurringKey
+        self.fixedItemID = fixedItemID
+    }
+}
+
+@Model
+final class FixedItem {
+    @Attribute(.unique) var id: String
+    var title: String
+    var amount: Double
+    var categoryID: String
+    var kind: TransactionKind
+    var dayOfMonth: Int
+    var startDate: Date
+    var endDate: Date?
+    var isActive: Bool
+    var autoCreate: Bool
+    var lastGeneratedPeriodKey: String?
+
+    init(
+        id: String = UUID().uuidString,
+        title: String,
+        amount: Double,
+        categoryID: String,
+        kind: TransactionKind = .expense,
+        dayOfMonth: Int,
+        startDate: Date = .now,
+        endDate: Date? = nil,
+        isActive: Bool = true,
+        autoCreate: Bool = true,
+        lastGeneratedPeriodKey: String? = nil
+    ) {
+        self.id = id
+        self.title = title
+        self.amount = amount
+        self.categoryID = categoryID
+        self.kind = kind
+        self.dayOfMonth = dayOfMonth
+        self.startDate = startDate
+        self.endDate = endDate
+        self.isActive = isActive
+        self.autoCreate = autoCreate
+        self.lastGeneratedPeriodKey = lastGeneratedPeriodKey
+    }
+}
+
+@Model
+final class FixedItemSkip {
+    @Attribute(.unique) var uniqueKey: String
+    var fixedItemID: String
+    var periodKey: String
+    var createdAt: Date
+
+    init(fixedItemID: String, periodKey: String, createdAt: Date = .now) {
+        self.fixedItemID = fixedItemID
+        self.periodKey = periodKey
+        self.createdAt = createdAt
+        self.uniqueKey = "\(fixedItemID)|\(periodKey)"
     }
 }
 
