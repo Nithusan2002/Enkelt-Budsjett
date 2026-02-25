@@ -51,10 +51,11 @@ final class InvestmentCheckInWizardViewModel: ObservableObject {
     }
 
     var baselineValues: [String: Double] {
-        if let existing = InvestmentService.snapshot(for: periodKey, snapshots: snapshots) {
-            return valuesDictionary(from: existing)
-        }
         return previousValues
+    }
+
+    var isEditingExistingPeriod: Bool {
+        InvestmentService.snapshot(for: periodKey, snapshots: snapshots) != nil
     }
 
     var effectiveValues: [String: Double] {
@@ -98,13 +99,14 @@ final class InvestmentCheckInWizardViewModel: ObservableObject {
     func loadInitialState(
         buckets: [InvestmentBucket],
         snapshots: [InvestmentSnapshot],
-        selectedMonth: Date = DateService.monthBounds(for: .now).start
+        selectedMonth: Date? = nil
     ) {
+        let resolvedMonth = selectedMonth ?? Date()
         self.buckets = buckets
             .filter(\.isActive)
             .sorted { $0.sortOrder < $1.sortOrder }
         self.snapshots = InvestmentService.sortedSnapshots(snapshots)
-        self.selectedMonthDate = DateService.monthBounds(for: selectedMonth).start
+        self.selectedMonthDate = DateService.monthBounds(for: resolvedMonth).start
         self.index = -1
         prepareInitialStepStates()
     }
@@ -160,7 +162,7 @@ final class InvestmentCheckInWizardViewModel: ObservableObject {
     }
 
     func isNewType(_ bucketID: String) -> Bool {
-        previousValues[bucketID] == nil && baselineValues[bucketID] == nil
+        previousValues[bucketID] == nil
     }
 
     func previousValue(for bucketID: String) -> Double {
@@ -190,7 +192,9 @@ final class InvestmentCheckInWizardViewModel: ObservableObject {
         return nil
     }
 
-    func saveSnapshot(context: ModelContext) throws {
+    @discardableResult
+    func saveSnapshot(context: ModelContext) throws -> Bool {
+        let isNewSnapshot = !isEditingExistingPeriod
         let values = buckets.map { bucket in
             InvestmentSnapshotValue(
                 periodKey: periodKey,
@@ -204,6 +208,7 @@ final class InvestmentCheckInWizardViewModel: ObservableObject {
             capturedAt: selectedMonthDate,
             values: values
         )
+        return isNewSnapshot
     }
 
     static func parseAmount(_ text: String) -> Double? {
@@ -252,25 +257,12 @@ final class InvestmentCheckInWizardViewModel: ObservableObject {
     }
 
     private func prepareInitialStepStates() {
-        let previous = previousValues
-        let baseline = baselineValues
-
         var newStates: [String: InvestmentWizardStepState] = [:]
         for bucket in buckets {
-            let previousValue = previous[bucket.id] ?? 0
-            let baselineValue = baseline[bucket.id] ?? 0
-
-            if baseline[bucket.id] != nil && abs(baselineValue - previousValue) > 0.0001 {
-                newStates[bucket.id] = InvestmentWizardStepState(
-                    mode: .changed,
-                    inputString: Self.formatInputAmount(baselineValue)
-                )
-            } else {
-                newStates[bucket.id] = InvestmentWizardStepState(
-                    mode: .unchanged,
-                    inputString: ""
-                )
-            }
+            newStates[bucket.id] = InvestmentWizardStepState(
+                mode: .unchanged,
+                inputString: ""
+            )
         }
 
         stepStates = newStates

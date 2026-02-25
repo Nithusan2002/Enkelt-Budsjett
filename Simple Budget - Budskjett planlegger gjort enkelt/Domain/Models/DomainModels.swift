@@ -28,6 +28,12 @@ enum SavingsDefinition: String, Codable, CaseIterable {
 
 enum GraphViewRange: String, Codable, CaseIterable {
     case yearToDate
+    case oneYear
+    case twoYears
+    case threeYears
+    case fiveYears
+    case max
+    // Legacy value used in existing local stores.
     case last12Months
 }
 

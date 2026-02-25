@@ -33,12 +33,17 @@ final class InvestmentsViewModel: ObservableObject {
     @Published var showCheckIn = false
     @Published var showAddBucketSheet = false
     @Published var selectedRange: GraphViewRange = .yearToDate
+    @Published var developmentPeriod: InvestmentsDevelopmentPeriod = .yearToDate
     @Published var selectedBucketForEdit: InvestmentBucket?
     @Published var displayedTotal: Double = 0
     @Published var showTrendChip = false
     @Published var newBucketName: String = ""
     @Published var selectedBucketColorHex: String = AppTheme.customBucketPalette[0]
     @Published var addBucketError: String?
+
+    var rangeOptions: [GraphViewRange] {
+        [.yearToDate, .oneYear, .twoYears, .threeYears, .fiveYears, .max]
+    }
 
     func latestSnapshot(_ snapshots: [InvestmentSnapshot]) -> InvestmentSnapshot? {
         InvestmentService.latestSnapshot(snapshots)
@@ -57,12 +62,14 @@ final class InvestmentsViewModel: ObservableObject {
     }
 
     func history(_ snapshots: [InvestmentSnapshot]) -> [InvestmentSnapshot] {
-        snapshots.reversed()
+        InvestmentService
+            .filteredSnapshots(range: .max, snapshots: snapshots)
+            .reversed()
     }
 
     func onAppear(preference: UserPreference?, snapshots: [InvestmentSnapshot]) {
         if let preference {
-            selectedRange = preference.defaultGraphView
+            selectedRange = normalizedRange(preference.defaultGraphView)
         }
         updateDisplayedTotal(snapshots: snapshots, animate: false)
         showTrendChip = previousSnapshot(snapshots) != nil
@@ -79,14 +86,20 @@ final class InvestmentsViewModel: ObservableObject {
     }
 
     func filteredSnapshots(_ snapshots: [InvestmentSnapshot], range: GraphViewRange, now: Date = .now) -> [InvestmentSnapshot] {
-        let sorted = InvestmentService.sortedSnapshots(snapshots)
-        switch range {
-        case .yearToDate:
-            let year = Calendar.current.component(.year, from: now)
-            return sorted.filter { $0.periodKey.hasPrefix("\(year)-") }
-        case .last12Months:
-            return Array(sorted.suffix(12))
-        }
+        InvestmentService.filteredSnapshots(range: normalizedRange(range), snapshots: snapshots, now: now)
+    }
+
+    func developmentChartPoints(
+        snapshots: [InvestmentSnapshot],
+        buckets: [InvestmentBucket],
+        now: Date = .now
+    ) -> [InvestmentsDevelopmentChartPoint] {
+        InvestmentsDevelopmentChartDataBuilder.points(
+            snapshots: snapshots,
+            buckets: buckets,
+            period: developmentPeriod,
+            now: now
+        )
     }
 
     func heroData(
@@ -180,7 +193,7 @@ final class InvestmentsViewModel: ObservableObject {
     ) -> InvestmentInsightData {
         let latest = latestSnapshot(snapshots)
         let previous = previousSnapshot(snapshots)
-        let rows = bucketRows(buckets: buckets, snapshots: snapshots, range: .last12Months)
+        let rows = bucketRows(buckets: buckets, snapshots: snapshots, range: .oneYear)
         if let top = rows.max(by: { $0.changeKr < $1.changeKr }), top.changeKr > 0 {
             return InvestmentInsightData(
                 title: "Største bidrag siste måned",
@@ -205,6 +218,25 @@ final class InvestmentsViewModel: ObservableObject {
                 ? "\(formatNOK(change.kr)) (\(formatPercent(change.pct ?? 0))) siden sist."
                 : "\(formatNOK(change.kr)) siden siste oppdatering."
         )
+    }
+
+    func rangeTitle(_ range: GraphViewRange) -> String {
+        switch normalizedRange(range) {
+        case .yearToDate:
+            return "I år"
+        case .oneYear:
+            return "1 år"
+        case .twoYears:
+            return "2 år"
+        case .threeYears:
+            return "3 år"
+        case .fiveYears:
+            return "5 år"
+        case .max:
+            return "Maks"
+        case .last12Months:
+            return "1 år"
+        }
     }
 
     func bucketSparklinePoints(_ values: [Double]) -> [SparklinePoint] {
@@ -432,6 +464,10 @@ final class InvestmentsViewModel: ObservableObject {
         let collapsed = raw.replacingOccurrences(of: "_+", with: "_", options: .regularExpression)
         let trimmed = collapsed.trimmingCharacters(in: CharacterSet(charactersIn: "_"))
         return trimmed.isEmpty ? UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased() : trimmed
+    }
+
+    private func normalizedRange(_ range: GraphViewRange) -> GraphViewRange {
+        range == .last12Months ? .oneYear : range
     }
 }
 

@@ -272,12 +272,12 @@ enum InvestmentService {
         snapshots.sorted { $0.periodKey < $1.periodKey }
     }
 
-    static func latestSnapshot(_ snapshots: [InvestmentSnapshot]) -> InvestmentSnapshot? {
-        sortedSnapshots(snapshots).last
+    static func latestSnapshot(_ snapshots: [InvestmentSnapshot], now: Date = .now) -> InvestmentSnapshot? {
+        filteredSnapshots(range: .max, snapshots: snapshots, now: now).last
     }
 
-    static func previousSnapshot(_ snapshots: [InvestmentSnapshot]) -> InvestmentSnapshot? {
-        let sorted = sortedSnapshots(snapshots)
+    static func previousSnapshot(_ snapshots: [InvestmentSnapshot], now: Date = .now) -> InvestmentSnapshot? {
+        let sorted = filteredSnapshots(range: .max, snapshots: snapshots, now: now)
         guard sorted.count > 1 else { return nil }
         return sorted[sorted.count - 2]
     }
@@ -333,22 +333,43 @@ enum InvestmentService {
         try context.save()
     }
 
+    static func filteredSnapshots(
+        range: GraphViewRange,
+        snapshots: [InvestmentSnapshot],
+        now: Date = .now
+    ) -> [InvestmentSnapshot] {
+        let sorted = sortedSnapshots(snapshots)
+        let calendar = Calendar.current
+        let nowDay = calendar.startOfDay(for: now)
+
+        switch range {
+        case .yearToDate:
+            let year = calendar.component(.year, from: now)
+            return sorted.filter {
+                calendar.component(.year, from: $0.capturedAt) == year &&
+                calendar.startOfDay(for: $0.capturedAt) <= nowDay
+            }
+        case .oneYear, .last12Months:
+            return rollingWindowSnapshots(years: 1, sortedSnapshots: sorted, now: now)
+        case .twoYears:
+            return rollingWindowSnapshots(years: 2, sortedSnapshots: sorted, now: now)
+        case .threeYears:
+            return rollingWindowSnapshots(years: 3, sortedSnapshots: sorted, now: now)
+        case .fiveYears:
+            return rollingWindowSnapshots(years: 5, sortedSnapshots: sorted, now: now)
+        case .max:
+            return sorted.filter { calendar.startOfDay(for: $0.capturedAt) <= nowDay }
+        }
+    }
+
     static func chartPoints(
         range: GraphViewRange,
         snapshots: [InvestmentSnapshot],
         buckets: [InvestmentBucket],
         now: Date = .now
     ) -> [ChartPoint] {
-        let sorted = sortedSnapshots(snapshots)
-        let targetKeys: Set<String>
-        switch range {
-        case .yearToDate:
-            let year = Calendar.current.component(.year, from: now)
-            targetKeys = Set(sorted.filter { $0.periodKey.hasPrefix("\(year)-") }.map(\.periodKey))
-        case .last12Months:
-            let last12 = sorted.suffix(12)
-            targetKeys = Set(last12.map(\.periodKey))
-        }
+        let sorted = filteredSnapshots(range: range, snapshots: snapshots, now: now)
+        let targetKeys = Set(sorted.map(\.periodKey))
 
         let bucketNameByID = Dictionary(uniqueKeysWithValues: buckets.map { ($0.id, $0.name) })
         var result: [ChartPoint] = []
@@ -365,6 +386,22 @@ enum InvestmentService {
             }
         }
         return result
+    }
+
+    private static func rollingWindowSnapshots(
+        years: Int,
+        sortedSnapshots: [InvestmentSnapshot],
+        now: Date
+    ) -> [InvestmentSnapshot] {
+        let calendar = Calendar.current
+        let nowDay = calendar.startOfDay(for: now)
+        let monthStartNow = calendar.date(from: calendar.dateComponents([.year, .month], from: now)) ?? now
+        let monthsBack = max(0, years * 12 - 1)
+        let windowStart = calendar.date(byAdding: .month, value: -monthsBack, to: monthStartNow) ?? monthStartNow
+        return sortedSnapshots.filter {
+            let day = calendar.startOfDay(for: $0.capturedAt)
+            return day >= windowStart && day <= nowDay
+        }
     }
 }
 

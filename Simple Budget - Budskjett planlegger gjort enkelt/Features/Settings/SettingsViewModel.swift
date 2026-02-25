@@ -4,6 +4,25 @@ import SwiftData
 
 @MainActor
 final class SettingsViewModel: ObservableObject {
+    func shouldShowDemoTools() -> Bool {
+#if DEBUG
+        return true
+#else
+        if let receiptURL = Bundle.main.appStoreReceiptURL {
+            return receiptURL.lastPathComponent == "sandboxReceipt"
+        }
+        return false
+#endif
+    }
+
+    func seedDemoRealisticYear(context: ModelContext, year: Int? = nil) throws -> DemoSeedReport {
+        try DemoDataSeeder.seedRealisticYear(context: context, year: year)
+    }
+
+    func wipeAllDataForDemo(context: ModelContext) throws {
+        try DemoDataSeeder.wipeAllData(context: context)
+    }
+
     func preference(from preferences: [UserPreference], context: ModelContext) -> UserPreference {
         if let existing = preferences.first {
             return existing
@@ -49,29 +68,7 @@ final class SettingsViewModel: ObservableObject {
     }
 
     func deleteAllData(context: ModelContext) throws {
-        try deleteAll(BudgetPlan.self, context: context)
-        try deleteAll(BudgetMonth.self, context: context)
-        try deleteAll(Transaction.self, context: context)
-        try deleteAll(FixedItemSkip.self, context: context)
-        try deleteAll(FixedItem.self, context: context)
-        try deleteAll(Category.self, context: context)
-        try deleteAll(Account.self, context: context)
-        try deleteAll(InvestmentSnapshot.self, context: context)
-        try deleteAll(InvestmentSnapshotValue.self, context: context)
-        try deleteAll(InvestmentBucket.self, context: context)
-        try deleteAll(Goal.self, context: context)
-        try deleteAll(Challenge.self, context: context)
-        try deleteAll(UserPreference.self, context: context)
-        UserDefaults.standard.removeObject(forKey: "onboarding_local_events")
-        UserDefaults.standard.removeObject(forKey: "challenges_waitlist_optin")
-        try context.save()
-    }
-
-    private func deleteAll<T: PersistentModel>(_ type: T.Type, context: ModelContext) throws {
-        let models = try context.fetch(FetchDescriptor<T>())
-        for model in models {
-            context.delete(model)
-        }
+        try DemoDataSeeder.wipeAllData(context: context)
     }
 }
 

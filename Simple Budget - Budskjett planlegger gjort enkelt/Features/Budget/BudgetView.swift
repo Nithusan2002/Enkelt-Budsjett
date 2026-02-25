@@ -283,7 +283,9 @@ private struct CategoryListView: View {
                     }
                     .buttonStyle(.plain)
 
-                    ProgressView(value: row.spent, total: max(row.planned, 1))
+                    let progressTotal = max(row.planned, 1)
+                    let progressValue = min(max(row.spent, 0), progressTotal)
+                    ProgressView(value: progressValue, total: progressTotal)
                         .tint(row.isOverBudget ? AppTheme.warning : AppTheme.secondary)
 
                     HStack {
@@ -348,8 +350,8 @@ private struct AddTransactionSheet: View {
             Form {
                 Section("Type") {
                     HStack(spacing: 10) {
-                        typeCard(title: "Utgift", systemImage: "arrow.up.circle.fill", type: .expense)
                         typeCard(title: "Inntekt", systemImage: "arrow.down.circle.fill", type: .income)
+                        typeCard(title: "Utgift", systemImage: "arrow.up.circle.fill", type: .expense)
                     }
                 }
 

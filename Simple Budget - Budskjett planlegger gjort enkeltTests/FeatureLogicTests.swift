@@ -369,6 +369,145 @@ struct FeatureLogicTests {
         #expect(skips.count == 1)
     }
 
+    @Test
+    @MainActor
+    func demoSeedCreatesThreeYearsOfBudgetMonths() throws {
+        let container = try makeInMemoryContainer()
+        let context = container.mainContext
+        let report = try DemoDataSeeder.seedRealisticYear(context: context, year: 2026)
+
+        #expect(report.budgetMonths == 36)
+        let months = try context.fetch(FetchDescriptor<BudgetMonth>())
+        #expect(months.count == 36)
+    }
+
+    @Test
+    @MainActor
+    func demoSeedCreatesRealisticTransactionVolumeAcrossMonths() throws {
+        let container = try makeInMemoryContainer()
+        let context = container.mainContext
+        _ = try DemoDataSeeder.seedRealisticYear(context: context, year: 2026)
+
+        let transactions = try context.fetch(FetchDescriptor<Transaction>())
+        #expect(transactions.count > 900)
+
+        let grouped = Dictionary(grouping: transactions, by: { DateService.periodKey(from: $0.date) })
+        #expect(grouped.keys.count == 36)
+        #expect(grouped.values.allSatisfy { $0.count >= 20 })
+    }
+
+    @Test
+    @MainActor
+    func demoSeedCreatesSnapshotsWithAllActiveBuckets() throws {
+        let container = try makeInMemoryContainer()
+        let context = container.mainContext
+        _ = try DemoDataSeeder.seedRealisticYear(context: context, year: 2026)
+
+        let buckets = try context.fetch(FetchDescriptor<InvestmentBucket>()).filter(\.isActive)
+        let snapshots = try context.fetch(FetchDescriptor<InvestmentSnapshot>())
+        #expect(snapshots.count == 36)
+        #expect(!buckets.isEmpty)
+
+        let bucketIDs = Set(buckets.map(\.id))
+        #expect(snapshots.allSatisfy { snapshot in
+            Set(snapshot.bucketValues.map(\.bucketID)) == bucketIDs
+        })
+    }
+
+    @Test
+    @MainActor
+    func demoSeedIsIdempotentWhenRunTwice() throws {
+        let container = try makeInMemoryContainer()
+        let context = container.mainContext
+
+        let first = try DemoDataSeeder.seedRealisticYear(context: context, year: 2026)
+        let second = try DemoDataSeeder.seedRealisticYear(context: context, year: 2026)
+
+        #expect(first.budgetMonths == second.budgetMonths)
+        #expect(first.transactions == second.transactions)
+        #expect(first.snapshots == second.snapshots)
+        #expect(first.buckets == second.buckets)
+    }
+
+    @Test
+    @MainActor
+    func developmentChartBuilderFiltersYearToDateAndLast12() {
+        let bucket = InvestmentBucket(id: "funds", name: "Fond", isDefault: true, sortOrder: 1)
+        let now = Date()
+        let snapshots: [InvestmentSnapshot] = (0..<16).compactMap { offset in
+            guard let date = Calendar.current.date(byAdding: .month, value: -offset, to: now) else { return nil }
+            let key = DateService.periodKey(from: date)
+            let value = 10_000 + Double((15 - offset) * 1_000)
+            let row = InvestmentSnapshotValue(periodKey: key, bucketID: bucket.id, amount: value)
+            return InvestmentSnapshot(periodKey: key, capturedAt: date, totalValue: value, bucketValues: [row])
+        }
+        .sorted { $0.periodKey < $1.periodKey }
+
+        let ytd = InvestmentsDevelopmentChartDataBuilder.points(
+            snapshots: snapshots,
+            buckets: [bucket],
+            period: .yearToDate,
+            now: now
+        )
+        #expect(ytd.allSatisfy { Calendar.current.component(.year, from: $0.date) == Calendar.current.component(.year, from: now) })
+
+        let last12 = InvestmentsDevelopmentChartDataBuilder.points(
+            snapshots: snapshots,
+            buckets: [bucket],
+            period: .last12Months,
+            now: now
+        )
+        #expect(last12.count <= 12)
+        #expect(last12.count > 1)
+    }
+
+    @Test
+    @MainActor
+    func developmentChartBuilderFillsMissingBucketValuesWithZero() {
+        let fund = InvestmentBucket(id: "funds", name: "Fond", isDefault: true, sortOrder: 1)
+        let stock = InvestmentBucket(id: "stocks", name: "Aksjer", isDefault: true, sortOrder: 2)
+        let date = Calendar.current.date(from: DateComponents(year: 2026, month: 3, day: 1)) ?? .now
+        let key = DateService.periodKey(from: date)
+        let snapshot = InvestmentSnapshot(
+            periodKey: key,
+            capturedAt: date,
+            totalValue: 50_000,
+            bucketValues: [
+                InvestmentSnapshotValue(periodKey: key, bucketID: fund.id, amount: 50_000)
+            ]
+        )
+
+        let points = InvestmentsDevelopmentChartDataBuilder.points(
+            snapshots: [snapshot],
+            buckets: [fund, stock],
+            period: .yearToDate,
+            now: date
+        )
+
+        #expect(points.count == 1)
+        #expect(points[0].buckets.count == 2)
+        #expect(points[0].buckets.first(where: { $0.bucketID == stock.id })?.amount == 0)
+    }
+
+    @Test
+    @MainActor
+    func developmentChartDeltaSincePreviousIsCorrect() {
+        let date1 = Calendar.current.date(from: DateComponents(year: 2026, month: 1, day: 1)) ?? .now
+        let date2 = Calendar.current.date(from: DateComponents(year: 2026, month: 2, day: 1)) ?? .now
+        let date3 = Calendar.current.date(from: DateComponents(year: 2026, month: 3, day: 1)) ?? .now
+        let points = [
+            InvestmentsDevelopmentChartPoint(id: "2026-01", date: date1, periodKey: "2026-01", total: 100_000, buckets: []),
+            InvestmentsDevelopmentChartPoint(id: "2026-02", date: date2, periodKey: "2026-02", total: 103_500, buckets: []),
+            InvestmentsDevelopmentChartPoint(id: "2026-03", date: date3, periodKey: "2026-03", total: 102_000, buckets: [])
+        ]
+
+        let secondDelta = InvestmentsDevelopmentChartDataBuilder.deltaSincePrevious(for: points[1], in: points)
+        let thirdDelta = InvestmentsDevelopmentChartDataBuilder.deltaSincePrevious(for: points[2], in: points)
+
+        #expect(secondDelta == 3_500)
+        #expect(thirdDelta == -1_500)
+    }
+
     private func makeInMemoryContainer() throws -> ModelContainer {
         let schema = Schema([
             BudgetMonth.self,

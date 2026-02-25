@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "name": "student_realistic_no_v1",
+  "expenseCategories": [
+    { "id": "cat_rent", "name": "Husleie", "sortOrder": 1 },
+    { "id": "cat_food", "name": "Mat", "sortOrder": 2 },
+    { "id": "cat_transport", "name": "Transport", "sortOrder": 3 },
+    { "id": "cat_subscriptions", "name": "Abonnement", "sortOrder": 4 },
+    { "id": "cat_nightlife", "name": "Uteliv", "sortOrder": 5 },
+    { "id": "cat_shopping", "name": "Shopping", "sortOrder": 6 },
+    { "id": "cat_misc", "name": "Diverse", "sortOrder": 7 }
+  ],
+  "incomeCategories": [
+    { "id": "cat_salary", "name": "Lønn", "sortOrder": 101 },
+    { "id": "cat_stipend", "name": "Stipend", "sortOrder": 102 }
+  ],
+  "savingsCategories": [
+    { "id": "cat_saving", "name": "Sparing/Buffer", "sortOrder": 201 }
+  ],
+  "monthlyFactors": {
+    "1": 1.00,
+    "2": 0.97,
+    "3": 1.00,
+    "4": 1.02,
+    "5": 1.05,
+    "6": 1.08,
+    "7": 1.10,
+    "8": 1.06,
+    "9": 0.98,
+    "10": 1.00,
+    "11": 1.04,
+    "12": 1.22
+  },
+  "investmentBuckets": [
+    { "id": "funds", "name": "Fond", "sortOrder": 1, "colorHex": "#0EA5E9" },
+    { "id": "stocks", "name": "Aksjer", "sortOrder": 2, "colorHex": "#8B5CF6" },
+    { "id": "bsu", "name": "BSU", "sortOrder": 3, "colorHex": "#22C55E" },
+    { "id": "buffer", "name": "Buffer", "sortOrder": 4, "colorHex": "#F59E0B" },
+    { "id": "crypto", "name": "Krypto", "sortOrder": 5, "colorHex": "#EA580C" }
+  ]
+}

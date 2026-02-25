@@ -15,6 +15,11 @@ struct SettingsView: View {
     @State private var showDeleteAllConfirm = false
     @State private var showDeleteAllError = false
     @State private var showDeleteAllSuccess = false
+    @State private var showDemoLoadError = false
+    @State private var showDemoLoadSuccess = false
+    @State private var showDemoWipeConfirm = false
+    @State private var demoLoadMessage = ""
+    @State private var demoToastMessage: String?
 
     private var pref: UserPreference { viewModel.preference(from: preferences, context: modelContext) }
 
@@ -24,6 +29,9 @@ struct SettingsView: View {
             securitySection
             fixedItemsSection
             dataSection
+            if viewModel.shouldShowDemoTools() {
+                demoSection
+            }
             helpSection
         }
         .scrollContentBackground(.hidden)
@@ -75,6 +83,44 @@ struct SettingsView: View {
             Button("OK", role: .cancel) { }
         } message: {
             Text("Appen er nullstilt lokalt.")
+        }
+        .alert("Lastet demo", isPresented: $showDemoLoadSuccess) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(demoLoadMessage)
+        }
+        .alert("Kunne ikke laste demo", isPresented: $showDemoLoadError) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("Prøv igjen litt senere.")
+        }
+        .alert("Tøm alle demo-data?", isPresented: $showDemoWipeConfirm) {
+            Button("Avbryt", role: .cancel) { }
+            Button("Tøm data", role: .destructive) {
+                do {
+                    try viewModel.wipeAllDataForDemo(context: modelContext)
+                    demoLoadMessage = "Alle lokale data er tømt."
+                    showDemoLoadSuccess = true
+                    showToast("Alle data tømt ✓")
+                } catch {
+                    showDemoLoadError = true
+                }
+            }
+        } message: {
+            Text("Dette sletter alt lokalt på enheten.")
+        }
+        .safeAreaInset(edge: .bottom) {
+            if let demoToastMessage {
+                Text(demoToastMessage)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(AppTheme.textPrimary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(AppTheme.surfaceElevated, in: Capsule())
+                    .overlay(Capsule().stroke(AppTheme.divider, lineWidth: 1))
+                    .padding(.bottom, 6)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
     }
 
@@ -183,6 +229,40 @@ struct SettingsView: View {
                 AboutAppView()
             } label: {
                 settingsRow(title: "Om appen", value: appVersionText())
+            }
+        }
+    }
+
+    private var demoSection: some View {
+        Section("Demo") {
+            Button("Last inn demo (3 år realistisk)") {
+                do {
+                    let report = try viewModel.seedDemoRealisticYear(context: modelContext, year: nil)
+                    demoLoadMessage = "Demo (3 år) lastet ✓\n\nMåneder: \(report.budgetMonths)\nTransaksjoner: \(report.transactions)\nSnapshots: \(report.snapshots)"
+                    showDemoLoadSuccess = true
+                    showToast("Demo (3 år) lastet ✓")
+                } catch {
+                    showDemoLoadError = true
+                }
+            }
+            .buttonStyle(.plain)
+
+            Button(role: .destructive) {
+                showDemoWipeConfirm = true
+            } label: {
+                Text("Tøm alle data")
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func showToast(_ message: String) {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            demoToastMessage = message
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                demoToastMessage = nil
             }
         }
     }

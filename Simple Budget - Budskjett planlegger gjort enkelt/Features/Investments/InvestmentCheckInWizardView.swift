@@ -8,6 +8,7 @@ struct InvestmentCheckInWizardView: View {
     let buckets: [InvestmentBucket]
     let snapshots: [InvestmentSnapshot]
     var onRequestNewType: (() -> Void)?
+    var onSaved: ((Bool, String) -> Void)?
 
     @StateObject private var viewModel = InvestmentCheckInWizardViewModel()
     @State private var errorMessage: String?
@@ -24,6 +25,7 @@ struct InvestmentCheckInWizardView: View {
                             set: { viewModel.setSelectedMonth($0) }
                         ),
                         periodText: formattedMonth(viewModel.selectedMonthDate),
+                        isEditingExistingPeriod: viewModel.isEditingExistingPeriod,
                         onStart: { viewModel.start() },
                         onCancel: { dismiss() }
                     )
@@ -109,7 +111,8 @@ struct InvestmentCheckInWizardView: View {
 
     private func save() {
         do {
-            try viewModel.saveSnapshot(context: modelContext)
+            let wasNewSnapshot = try viewModel.saveSnapshot(context: modelContext)
+            onSaved?(wasNewSnapshot, viewModel.periodKey)
             dismiss()
         } catch {
             errorMessage = "Lagring feilet. Prøv igjen."
@@ -127,6 +130,7 @@ struct InvestmentCheckInWizardView: View {
 private struct WizardIntroView: View {
     @Binding var selectedMonthDate: Date
     let periodText: String
+    let isEditingExistingPeriod: Bool
     let onStart: () -> Void
     let onCancel: () -> Void
 
@@ -142,6 +146,7 @@ private struct WizardIntroView: View {
                 DatePicker(
                     "Måned",
                     selection: $selectedMonthDate,
+                    in: ...Date(),
                     displayedComponents: [.date]
                 )
                 .datePickerStyle(.compact)
@@ -151,6 +156,12 @@ private struct WizardIntroView: View {
                 Text(periodText)
                     .font(.headline.weight(.semibold))
                     .foregroundStyle(AppTheme.textPrimary)
+
+                if isEditingExistingPeriod {
+                    Text("Du oppdaterer eksisterende innsjekk for denne måneden.")
+                        .font(.footnote)
+                        .foregroundStyle(AppTheme.textSecondary)
+                }
             }
             .padding()
             .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))

@@ -56,14 +56,10 @@ struct OverviewView: View {
     }
 
     private var developmentSnapshots: [InvestmentSnapshot] {
-        let sorted = InvestmentService.sortedSnapshots(snapshots)
-        switch viewModel.selectedRange {
-        case .yearToDate:
-            let year = Calendar.current.component(.year, from: .now)
-            return sorted.filter { $0.periodKey.hasPrefix("\(year)-") }
-        case .last12Months:
-            return Array(sorted.suffix(12))
-        }
+        InvestmentService.filteredSnapshots(
+            range: viewModel.selectedRange,
+            snapshots: snapshots
+        )
     }
 
     var body: some View {
@@ -155,7 +151,7 @@ struct OverviewView: View {
                 Spacer()
                 Picker("Periode", selection: $viewModel.selectedRange) {
                     Text("I år").tag(GraphViewRange.yearToDate)
-                    Text("Siste 12 mnd").tag(GraphViewRange.last12Months)
+                    Text("1 år").tag(GraphViewRange.oneYear)
                 }
                 .pickerStyle(.segmented)
                 .frame(width: 220)

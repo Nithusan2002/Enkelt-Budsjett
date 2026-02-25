@@ -16,7 +16,7 @@ final class OverviewViewModel: ObservableObject {
 
     func onAppear(preference: UserPreference?) {
         if let preference {
-            selectedRange = preference.defaultGraphView
+            selectedRange = preference.defaultGraphView == .last12Months ? .oneYear : preference.defaultGraphView
         }
     }
 

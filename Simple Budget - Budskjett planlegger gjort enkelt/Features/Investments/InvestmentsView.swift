@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import Charts
+import UIKit
 
 struct InvestmentsView: View {
     @EnvironmentObject private var navigationState: AppNavigationState
@@ -11,7 +12,7 @@ struct InvestmentsView: View {
 
     @StateObject private var viewModel = InvestmentsViewModel()
     @State private var showFullHistory = false
-    @State private var selectedDevelopmentDate: Date?
+    @State private var checkInToastMessage: String?
 
     private enum SectionAnchor: String {
         case development
@@ -29,7 +30,6 @@ struct InvestmentsView: View {
     private var activeBuckets: [InvestmentBucket] {
         buckets.filter(\.isActive)
     }
-
     private var snapshotToken: String {
         snapshots
             .map { "\($0.periodKey)-\($0.totalValue)" }
@@ -71,6 +71,13 @@ struct InvestmentsView: View {
                     onRequestNewType: {
                         viewModel.resetAddBucketState()
                         viewModel.showAddBucketSheet = true
+                    },
+                    onSaved: { wasNewSnapshot, periodKey in
+                        showCheckInToast(
+                            wasNewSnapshot
+                                ? "Innsjekk lagret for \(periodKey) ✓"
+                                : "Innsjekk oppdatert for \(periodKey) ✓"
+                        )
                     }
                 )
             }
@@ -106,12 +113,28 @@ struct InvestmentsView: View {
             .onChange(of: snapshotToken) { _, _ in
                 viewModel.refreshData(snapshots: snapshots)
             }
+            .onChange(of: viewModel.developmentPeriod) { _, period in
+                viewModel.selectedRange = period == .yearToDate ? .yearToDate : .oneYear
+            }
             .onChange(of: navigationState.investmentsFocus) { _, focus in
                 guard let focus else { return }
                 withAnimation(.easeInOut(duration: 0.25)) {
                     proxy.scrollTo(focus.rawValue, anchor: .top)
                 }
                 navigationState.investmentsFocus = nil
+            }
+            .safeAreaInset(edge: .bottom) {
+                if let checkInToastMessage {
+                    Text(checkInToastMessage)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(AppTheme.textPrimary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .background(AppTheme.surfaceElevated, in: Capsule())
+                        .overlay(Capsule().stroke(AppTheme.divider, lineWidth: 1))
+                        .padding(.bottom, 6)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
             }
         }
     }
@@ -156,7 +179,7 @@ struct InvestmentsView: View {
                 }
 
                 if !snapshots.isEmpty {
-                    sparkline(series: viewModel.totalSparkline(snapshots: snapshots, range: .last12Months), color: AppTheme.primary)
+                    sparkline(series: viewModel.totalSparkline(snapshots: snapshots, range: .oneYear), color: AppTheme.primary)
                         .frame(height: 56)
                         .padding(.horizontal, 2)
                         .padding(.vertical, 6)
@@ -183,103 +206,10 @@ struct InvestmentsView: View {
 
     private var developmentSection: some View {
         Section("Utvikling") {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Text("Utvikling")
-                        .appCardTitleStyle()
-                    Spacer()
-                    Picker("Periode", selection: $viewModel.selectedRange.animation(.easeInOut(duration: 0.35))) {
-                        Text("I år").tag(GraphViewRange.yearToDate)
-                        Text("Siste 12 mnd").tag(GraphViewRange.last12Months)
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(width: 220)
-                }
-
-                if filteredSnapshots.count < 2 {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Legg inn én måned til for å se utvikling.")
-                            .appSecondaryStyle()
-                        Button("Oppdater verdier") {
-                            openCheckIn()
-                        }
-                        .buttonStyle(.bordered)
-                        .tint(AppTheme.primary)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 8)
-                } else {
-                    Chart(filteredSnapshots, id: \.periodKey) { snapshot in
-                        AreaMark(
-                            x: .value("Dato", snapshot.capturedAt),
-                            y: .value("Total", snapshot.totalValue)
-                        )
-                        .foregroundStyle(AppTheme.secondary.opacity(0.25))
-
-                        LineMark(
-                            x: .value("Dato", snapshot.capturedAt),
-                            y: .value("Total", snapshot.totalValue)
-                        )
-                        .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
-                        .foregroundStyle(AppTheme.secondary)
-
-                        if let selectedDevelopmentDate,
-                           let selectedSnapshot = nearestSnapshot(to: selectedDevelopmentDate, in: filteredSnapshots),
-                           selectedSnapshot.periodKey == snapshot.periodKey {
-                            RuleMark(x: .value("Valgt dato", selectedSnapshot.capturedAt))
-                                .foregroundStyle(AppTheme.textSecondary.opacity(0.5))
-                                .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                                .annotation(position: .topLeading) {
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(formatDate(selectedSnapshot.capturedAt))
-                                            .font(.caption2.weight(.semibold))
-                                        Text(formatNOK(selectedSnapshot.totalValue))
-                                            .font(.caption.weight(.semibold))
-                                    }
-                                    .padding(8)
-                                    .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 8))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .stroke(AppTheme.divider, lineWidth: 1)
-                                    )
-                                }
-                        }
-                    }
-                    .frame(height: 170)
-                    .chartXAxis(.hidden)
-                    .chartOverlay { proxy in
-                        GeometryReader { geometry in
-                            Rectangle()
-                                .fill(Color.clear)
-                                .contentShape(Rectangle())
-                                .gesture(
-                                    DragGesture(minimumDistance: 0)
-                                        .onChanged { value in
-                                            let origin = geometry[proxy.plotAreaFrame].origin
-                                            let relativeX = value.location.x - origin.x
-                                            if let date: Date = proxy.value(atX: relativeX) {
-                                                selectedDevelopmentDate = date
-                                            }
-                                        }
-                                        .onEnded { _ in
-                                            selectedDevelopmentDate = nil
-                                        }
-                                )
-                        }
-                    }
-                    .animation(.easeInOut(duration: 0.5), value: viewModel.selectedRange)
-                    .accessibilityLabel("Utviklingsgraf for investeringer")
-                    .accessibilityValue(developmentChartAccessibilitySummary(filteredSnapshots))
-                }
-
-                Text("Basert på totalsummene du legger inn.")
-                    .appSecondaryStyle()
-            }
-            .padding(14)
-            .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
-            .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(AppTheme.divider, lineWidth: 1)
+            InvestmentsDevelopmentChartView(
+                points: viewModel.developmentChartPoints(snapshots: snapshots, buckets: buckets),
+                period: $viewModel.developmentPeriod,
+                onUpdateValues: openCheckIn
             )
             .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
             .listRowBackground(Color.clear)
@@ -459,6 +389,17 @@ struct InvestmentsView: View {
         }
     }
 
+    private func showCheckInToast(_ message: String) {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            checkInToastMessage = message
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                checkInToastMessage = nil
+            }
+        }
+    }
+
     private func trendChip(changeKr: Double, changePct: Double?) -> some View {
         let isPositive = changeKr >= 0
         let arrow = isPositive ? "▲" : "▼"
@@ -572,14 +513,6 @@ struct InvestmentsView: View {
         return AppTheme.portfolioColor(for: fallbackName)
     }
 
-    private func developmentChartAccessibilitySummary(_ snapshots: [InvestmentSnapshot]) -> String {
-        guard let first = snapshots.first, let last = snapshots.last else {
-            return "Ingen utviklingsdata ennå."
-        }
-        let change = last.totalValue - first.totalValue
-        return "Fra \(formatNOK(first.totalValue)) til \(formatNOK(last.totalValue)), endring \(formatNOK(change))."
-    }
-
     private func distributionAccessibilitySummary(_ data: [(bucketID: String, bucketName: String, amount: Double, percent: Double)]) -> String {
         guard !data.isEmpty else { return "Ingen fordeling ennå." }
         return data
@@ -587,12 +520,6 @@ struct InvestmentsView: View {
             .prefix(3)
             .map { "\($0.bucketName) \(formatPercent($0.percent))" }
             .joined(separator: ", ")
-    }
-
-    private func nearestSnapshot(to date: Date, in snapshots: [InvestmentSnapshot]) -> InvestmentSnapshot? {
-        snapshots.min(by: {
-            abs($0.capturedAt.timeIntervalSince(date)) < abs($1.capturedAt.timeIntervalSince(date))
-        })
     }
 
     private func openCheckIn() {
@@ -687,21 +614,25 @@ private struct BucketDetailView: View {
     let snapshots: [InvestmentSnapshot]
 
     @State private var showQuickUpdate = false
-    @State private var selectedRange: GraphViewRange = .yearToDate
+    @State private var selectedRange: GraphViewRange = .threeYears
     @State private var showAllHistory = false
     @State private var selectedPointDate: Date?
+    @State private var selectedPointPeriodKey: String?
 
     private var sorted: [InvestmentSnapshot] { InvestmentService.sortedSnapshots(snapshots) }
+    private var sortedUpToNow: [InvestmentSnapshot] {
+        InvestmentService.filteredSnapshots(range: .max, snapshots: sorted)
+    }
     private var bucketColor: Color { AppTheme.portfolioColor(for: bucket) }
 
     private func bucketAmount(in snapshot: InvestmentSnapshot) -> Double {
         snapshot.bucketValues.first(where: { $0.bucketID == bucket.id })?.amount ?? 0
     }
 
-    private var latestSnapshot: InvestmentSnapshot? { sorted.last }
+    private var latestSnapshot: InvestmentSnapshot? { sortedUpToNow.last }
     private var previousSnapshot: InvestmentSnapshot? {
-        guard sorted.count > 1 else { return nil }
-        return sorted[sorted.count - 2]
+        guard sortedUpToNow.count > 1 else { return nil }
+        return sortedUpToNow[sortedUpToNow.count - 2]
     }
 
     private var latestValue: Double {
@@ -725,17 +656,11 @@ private struct BucketDetailView: View {
     }
 
     private var filtered: [InvestmentSnapshot] {
-        switch selectedRange {
-        case .yearToDate:
-            let year = Calendar.current.component(.year, from: .now)
-            return sorted.filter { Calendar.current.component(.year, from: $0.capturedAt) == year }
-        case .last12Months:
-            return Array(sorted.suffix(12))
-        }
+        InvestmentService.filteredSnapshots(range: normalizedRange(selectedRange), snapshots: sorted)
     }
 
     private var visibleHistory: [InvestmentSnapshot] {
-        let reversed = sorted.reversed()
+        let reversed = sortedUpToNow.reversed()
         return showAllHistory ? Array(reversed) : Array(reversed.prefix(6))
     }
 
@@ -796,12 +721,31 @@ private struct BucketDetailView: View {
                         Text("Utvikling")
                             .appCardTitleStyle()
                         Spacer()
-                        Picker("Periode", selection: $selectedRange) {
-                            Text("I år").tag(GraphViewRange.yearToDate)
-                            Text("Siste 12 mnd").tag(GraphViewRange.last12Months)
+                        Menu {
+                            ForEach(rangeOptions, id: \.rawValue) { range in
+                                Button {
+                                    selectedRange = range
+                                } label: {
+                                    if normalizedRange(selectedRange) == range {
+                                        Label(rangeTitle(range), systemImage: "checkmark")
+                                    } else {
+                                        Text(rangeTitle(range))
+                                    }
+                                }
+                            }
+                        } label: {
+                            HStack(spacing: 6) {
+                                Text(rangeTitle(normalizedRange(selectedRange)))
+                                    .font(.subheadline.weight(.semibold))
+                                Image(systemName: "chevron.down")
+                                    .font(.caption.weight(.semibold))
+                            }
+                            .foregroundStyle(AppTheme.textPrimary)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 7)
+                            .background(AppTheme.surfaceElevated, in: Capsule())
+                            .overlay(Capsule().stroke(AppTheme.divider, lineWidth: 1))
                         }
-                        .pickerStyle(.segmented)
-                        .frame(width: 220)
                     }
 
                     if filtered.count < 2 {
@@ -830,10 +774,79 @@ private struct BucketDetailView: View {
                             )
                             .symbolSize(35)
                             .foregroundStyle(bucketColor)
+
+                            if snapshot.periodKey == filtered.last?.periodKey {
+                                PointMark(
+                                    x: .value("Siste dato", snapshot.capturedAt),
+                                    y: .value("Siste beløp", amount)
+                                )
+                                .symbolSize(64)
+                                .foregroundStyle(AppTheme.primary)
+                                .annotation(position: .topTrailing) {
+                                    Text("Nå")
+                                        .font(.caption2.weight(.semibold))
+                                        .foregroundStyle(AppTheme.primary)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 3)
+                                        .background(AppTheme.primary.opacity(0.12), in: Capsule())
+                                }
+                            }
                         }
                         .frame(height: 210)
-                        .chartXAxis(.hidden)
-                        .chartXSelection(value: $selectedPointDate)
+                        .chartXScale(domain: chartDateDomain(for: filtered))
+                        .chartXAxis {
+                            AxisMarks(values: xAxisDates(for: filtered, range: selectedRange)) { value in
+                                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                                    .foregroundStyle(AppTheme.divider.opacity(0.35))
+                                AxisValueLabel {
+                                    if let date = value.as(Date.self) {
+                                        Text(monthLabel(date))
+                                    }
+                                }
+                                .foregroundStyle(AppTheme.textSecondary)
+                            }
+                        }
+                        .chartYAxis {
+                            AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { value in
+                                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.6))
+                                    .foregroundStyle(AppTheme.divider.opacity(0.45))
+                                AxisValueLabel {
+                                    if let amount = value.as(Double.self) {
+                                        Text(compactNOK(amount))
+                                    }
+                                }
+                                .foregroundStyle(AppTheme.textSecondary)
+                            }
+                        }
+                        .chartOverlay { proxy in
+                            GeometryReader { geometry in
+                                Rectangle()
+                                    .fill(Color.clear)
+                                    .contentShape(Rectangle())
+                                    .gesture(
+                                        DragGesture(minimumDistance: 0)
+                                            .onChanged { value in
+                                                guard let plotFrame = proxy.plotFrame else { return }
+                                                let origin = geometry[plotFrame].origin
+                                                let relativeX = value.location.x - origin.x
+                                                if let date: Date = proxy.value(atX: relativeX),
+                                                   let nearest = filtered.min(by: {
+                                                       abs($0.capturedAt.timeIntervalSince(date)) < abs($1.capturedAt.timeIntervalSince(date))
+                                                   }) {
+                                                    if selectedPointPeriodKey != nearest.periodKey {
+                                                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                                    }
+                                                    selectedPointPeriodKey = nearest.periodKey
+                                                    selectedPointDate = nearest.capturedAt
+                                                }
+                                            }
+                                            .onEnded { _ in
+                                                selectedPointDate = nil
+                                                selectedPointPeriodKey = nil
+                                            }
+                                    )
+                            }
+                        }
                         .animation(.easeInOut(duration: 0.35), value: selectedRange)
 
                         if let selectedSnapshot {
@@ -865,7 +878,7 @@ private struct BucketDetailView: View {
                         }
                     }
 
-                    if sorted.isEmpty {
+                    if sortedUpToNow.isEmpty {
                         Text("Ingen historikk ennå.")
                             .appSecondaryStyle()
                     } else {
@@ -900,11 +913,97 @@ private struct BucketDetailView: View {
         }
         .background(AppTheme.background)
         .sheet(isPresented: $showQuickUpdate) {
-            BucketQuickUpdateSheet(bucket: bucket, latestSnapshot: sorted.last)
+            BucketQuickUpdateSheet(bucket: bucket, latestSnapshot: sortedUpToNow.last)
         }
         .onDisappear {
             try? modelContext.save()
         }
+    }
+
+    private var rangeOptions: [GraphViewRange] {
+        [.yearToDate, .oneYear, .twoYears, .threeYears, .fiveYears, .max]
+    }
+
+    private func normalizedRange(_ range: GraphViewRange) -> GraphViewRange {
+        range == .last12Months ? .oneYear : range
+    }
+
+    private func rangeTitle(_ range: GraphViewRange) -> String {
+        switch normalizedRange(range) {
+        case .yearToDate:
+            return "I år"
+        case .oneYear:
+            return "1 år"
+        case .twoYears:
+            return "2 år"
+        case .threeYears:
+            return "3 år"
+        case .fiveYears:
+            return "5 år"
+        case .max:
+            return "Maks"
+        case .last12Months:
+            return "1 år"
+        }
+    }
+
+    private func chartDateDomain(for snapshots: [InvestmentSnapshot]) -> ClosedRange<Date> {
+        guard let first = snapshots.first?.capturedAt,
+              let last = snapshots.last?.capturedAt else {
+            let now = Date()
+            return now ... now
+        }
+        return first ... last
+    }
+
+    private func xAxisDates(for snapshots: [InvestmentSnapshot], range: GraphViewRange) -> [Date] {
+        let dates = snapshots.map(\.capturedAt)
+        guard !dates.isEmpty else { return [] }
+
+        let targetCount: Int
+        switch normalizedRange(range) {
+        case .yearToDate:
+            targetCount = 4
+        case .oneYear:
+            targetCount = 6
+        case .twoYears:
+            targetCount = 6
+        case .threeYears:
+            targetCount = 7
+        case .fiveYears:
+            targetCount = 7
+        case .max:
+            targetCount = 8
+        case .last12Months:
+            targetCount = 6
+        }
+
+        if dates.count <= targetCount { return dates }
+        let step = max(1, dates.count / targetCount)
+        var selected = stride(from: 0, to: dates.count, by: step).map { dates[$0] }
+        if selected.last != dates.last, let last = dates.last {
+            selected.append(last)
+        }
+        return selected
+    }
+
+    private func monthLabel(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "nb_NO")
+        formatter.dateFormat = "MMM yy"
+        return formatter.string(from: date).capitalized
+    }
+
+    private func compactNOK(_ value: Double) -> String {
+        let absValue = abs(value)
+        let sign = value < 0 ? "-" : ""
+        if absValue >= 1_000_000 {
+            return "\(sign)\((absValue / 1_000_000).formatted(.number.precision(.fractionLength(1))))m"
+        }
+        if absValue >= 1_000 {
+            return "\(sign)\((absValue / 1_000).formatted(.number.precision(.fractionLength(0))))k"
+        }
+        return "\(sign)\(Int(absValue.rounded()))"
     }
 }
 
