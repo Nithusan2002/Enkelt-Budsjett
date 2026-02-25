@@ -184,7 +184,7 @@ final class BudgetViewModel: ObservableObject {
         }
 
         if summary.planned <= 0 {
-            if let top = rows.max(by: { $0.spent < $1.spent }) {
+            if let top = rows.filter({ $0.spent > 0 }).max(by: { $0.spent < $1.spent }) {
                 return BudgetInsight(
                     title: "Sporing er i gang",
                     detail: "Størst forbruk nå: \(top.title)."

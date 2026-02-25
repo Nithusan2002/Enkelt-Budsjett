@@ -518,19 +518,29 @@ private struct AddTransactionSheet: View {
                                     }
                                 }
                                 .buttonStyle(.bordered)
+                                .controlSize(.large)
+                                .frame(maxWidth: .infinity)
 
                                 Button("Ferdig") {
                                     dismiss()
                                 }
                                 .buttonStyle(.borderedProminent)
                                 .tint(AppTheme.primary)
+                                .controlSize(.large)
+                                .frame(maxWidth: .infinity)
                             }
                         }
                     }
                     .padding(.horizontal, 16)
-                    .padding(.top, 8)
-                    .padding(.bottom, 10)
-                    .background(AppTheme.surface.opacity(0.98))
+                    .padding(.top, 10)
+                    .padding(.bottom, 12)
+                    .frame(maxWidth: .infinity)
+                    .background(.ultraThinMaterial)
+                    .overlay(alignment: .top) {
+                        Rectangle()
+                            .fill(AppTheme.divider)
+                            .frame(height: 1)
+                    }
                 }
             }
             .onAppear {

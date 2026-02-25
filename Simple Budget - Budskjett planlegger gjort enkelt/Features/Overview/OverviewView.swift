@@ -28,10 +28,6 @@ struct OverviewView: View {
         viewModel.savedYTD(definition: .incomeMinusExpense, transactions: transactions, categories: categories)
     }
 
-    private var chartData: [ChartPoint] {
-        viewModel.chartData(snapshots: snapshots, buckets: buckets)
-    }
-
     private var firstInputDone: Bool {
         if !snapshots.isEmpty { return true }
         if !transactions.isEmpty { return true }
@@ -94,7 +90,6 @@ struct OverviewView: View {
                 goalModule
                 statusModule
                 portfolioModule
-                developmentModule
                 budgetStatusModule
                 scopeModule
             }
@@ -296,53 +291,6 @@ struct OverviewView: View {
         .accessibilityHint("Åpner investeringer")
     }
 
-    private var developmentModule: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("Utvikling")
-                    .appCardTitleStyle()
-                Spacer()
-                Picker("Periode", selection: $viewModel.selectedRange) {
-                    Text("I år").tag(GraphViewRange.yearToDate)
-                    Text("Siste 12 mnd").tag(GraphViewRange.last12Months)
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 210)
-            }
-
-            if snapshots.count < 2 || chartData.isEmpty {
-                Text("Legg inn én måned til for å se utvikling.")
-                    .appBodyStyle()
-                    .foregroundStyle(AppTheme.textSecondary)
-            } else {
-                Chart(chartData) { point in
-                    AreaMark(
-                        x: .value("Periode", point.periodKey),
-                        y: .value("Beløp", point.amount),
-                        stacking: .standard
-                    )
-                    .foregroundStyle(bucketColor(for: point.bucketID))
-                }
-                .frame(height: 200)
-                .chartXAxis(.hidden)
-                .accessibilityLabel("Utviklingsgraf")
-                .accessibilityValue(developmentAccessibilitySummary(chartData))
-            }
-
-            HStack {
-                Spacer()
-                Button("Se mer") {
-                    navigationState.selectedTab = .investments
-                }
-                .appSecondaryStyle()
-                .buttonStyle(.plain)
-            }
-        }
-        .padding()
-        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
-    }
-
     private var budgetStatusModule: some View {
         Button {
             navigationState.selectedTab = .budget
@@ -413,15 +361,4 @@ struct OverviewView: View {
         return parts.joined(separator: ", ")
     }
 
-    private func developmentAccessibilitySummary(_ points: [ChartPoint]) -> String {
-        let grouped = Dictionary(grouping: points, by: \.periodKey)
-            .mapValues { rows in rows.reduce(0) { $0 + $1.amount } }
-        let keys = grouped.keys.sorted()
-        guard let firstKey = keys.first, let lastKey = keys.last,
-              let first = grouped[firstKey], let last = grouped[lastKey] else {
-            return "Ingen utviklingsdata."
-        }
-        let change = last - first
-        return "Fra \(formatNOK(first)) til \(formatNOK(last)), endring \(formatNOK(change))."
-    }
 }

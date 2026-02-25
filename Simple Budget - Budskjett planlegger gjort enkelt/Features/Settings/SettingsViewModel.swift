@@ -184,6 +184,7 @@ private struct InvestmentSnapshotDTO: Codable {
     let capturedAt: Date
     let totalValue: Double
     let bucketValues: [InvestmentSnapshotValueDTO]
+    @MainActor
     init(_ model: InvestmentSnapshot) {
         periodKey = model.periodKey
         capturedAt = model.capturedAt
@@ -196,6 +197,7 @@ private struct InvestmentSnapshotValueDTO: Codable {
     let periodKey: String
     let bucketID: String
     let amount: Double
+    @MainActor
     init(_ model: InvestmentSnapshotValue) {
         periodKey = model.periodKey
         bucketID = model.bucketID
