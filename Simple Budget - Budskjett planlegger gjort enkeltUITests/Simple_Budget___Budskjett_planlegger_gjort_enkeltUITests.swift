@@ -1,34 +1,42 @@
 import XCTest
 
 final class Simple_Budget___Budskjett_planlegger_gjort_enkeltUITests: XCTestCase {
+    private var app: XCUIApplication!
 
     override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
-
-        // In UI tests it is usually best to stop immediately when a failure occurs.
         continueAfterFailure = false
-
-        // In UI tests it’s important to set the initial state - such as interface orientation - required for your tests before they run. The setUp method is a good place to do this.
+        app = XCUIApplication()
+        app.launchArguments += ["UITEST_IN_MEMORY_STORE", "UITEST_DISABLE_FACEID"]
     }
 
     override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
+        app = nil
     }
 
     @MainActor
-    func testExample() throws {
-        // UI tests must launch the application that they test.
-        let app = XCUIApplication()
+    func testMainTabsAreVisible() throws {
         app.launch()
 
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
+        XCTAssertTrue(app.tabBars.buttons["Budsjett"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.tabBars.buttons["Investeringer"].exists)
+        XCTAssertTrue(app.tabBars.buttons["Oversikt"].exists)
+        XCTAssertTrue(app.tabBars.buttons["Innstillinger"].exists)
     }
 
     @MainActor
-    func testLaunchPerformance() throws {
-        // This measures how long it takes to launch your application.
-        measure(metrics: [XCTApplicationLaunchMetric()]) {
-            XCUIApplication().launch()
-        }
+    func testSettingsShowsDataAndDeleteConfirmation() throws {
+        app.launch()
+
+        app.tabBars.buttons["Innstillinger"].tap()
+
+        XCTAssertTrue(app.staticTexts["Trygg lagring"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Data"].exists)
+
+        let deleteButton = app.buttons["Slett all data"]
+        XCTAssertTrue(deleteButton.exists)
+        deleteButton.tap()
+
+        XCTAssertTrue(app.alerts["Slett alle data?"].waitForExistence(timeout: 3))
+        app.alerts["Slett alle data?"].buttons["Avbryt"].tap()
     }
 }

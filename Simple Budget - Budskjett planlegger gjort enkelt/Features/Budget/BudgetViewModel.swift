@@ -98,17 +98,12 @@ final class BudgetViewModel: ObservableObject {
         let planned = groupRows.compactMap(\.planned).reduce(0, +)
         let trackedActual = groupRows.filter(\.hasLimit).reduce(0) { $0 + $1.spent }
         let expenseTotal = periodTransactions.reduce(0) { $0 + BudgetService.expenseImpact($1) }
-        let income = periodTransactions.reduce(0) { $0 + BudgetService.incomeImpact($1) }
-        let net = income - expenseTotal
-        let remaining = planned > 0 ? (planned - trackedActual) : 0
-
-        return BudgetSummaryData(
+        return makeSummary(
             planned: planned,
             trackedActual: trackedActual,
             expenseTotal: expenseTotal,
-            income: income,
-            net: net,
-            remaining: remaining
+            periodTransactions: periodTransactions,
+            fallbackRemainingToNet: false
         )
     }
 
@@ -120,14 +115,30 @@ final class BudgetViewModel: ObservableObject {
     ) -> BudgetSummaryData {
         let planned = BudgetService.plannedTotal(for: periodKey, plans: plans, categories: categories)
         let actual = BudgetService.actualExpenseTotal(for: periodKey, transactions: transactions)
-        let income = BudgetService.actualIncomeTotal(for: periodKey, transactions: transactions)
-        let net = income - actual
-        let remaining = planned > 0 ? (planned - actual) : net
-
-        return BudgetSummaryData(
+        let monthTransactions = monthTransactions(periodKey: periodKey, transactions: transactions)
+        return makeSummary(
             planned: planned,
             trackedActual: actual,
             expenseTotal: actual,
+            periodTransactions: monthTransactions,
+            fallbackRemainingToNet: true
+        )
+    }
+
+    private func makeSummary(
+        planned: Double,
+        trackedActual: Double,
+        expenseTotal: Double,
+        periodTransactions: [Transaction],
+        fallbackRemainingToNet: Bool
+    ) -> BudgetSummaryData {
+        let income = periodTransactions.reduce(0) { $0 + BudgetService.incomeImpact($1) }
+        let net = income - expenseTotal
+        let remaining = planned > 0 ? (planned - trackedActual) : (fallbackRemainingToNet ? net : 0)
+        return BudgetSummaryData(
+            planned: planned,
+            trackedActual: trackedActual,
+            expenseTotal: expenseTotal,
             income: income,
             net: net,
             remaining: remaining

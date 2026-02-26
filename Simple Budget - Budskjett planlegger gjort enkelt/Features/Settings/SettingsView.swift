@@ -211,12 +211,10 @@ struct SettingsView: View {
                 settingsRow(title: "Mål", value: "", showsChevron: true)
             }
 
-            HStack {
-                Text("Kategorier")
-                    .appBodyStyle()
-                Spacer()
-                Text("Kommer snart")
-                    .appSecondaryStyle()
+            NavigationLink {
+                CategoryManagementView()
+            } label: {
+                settingsRow(title: "Kategorier", value: "", showsChevron: true)
             }
         }
     }
@@ -242,13 +240,6 @@ struct SettingsView: View {
             }
             .buttonStyle(.plain)
 
-            HStack {
-                Text("Importer data")
-                    .appBodyStyle()
-                Spacer()
-                Text("Kommer snart")
-                    .appSecondaryStyle()
-            }
             // TODO(settings): Implementer importflyt (filvalg + validering + merge/replace) etter MVP.
 
             Text("Eksport oppretter en JSON-kopi av alle lokale data.")
