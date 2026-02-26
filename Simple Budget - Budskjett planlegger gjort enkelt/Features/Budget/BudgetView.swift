@@ -33,7 +33,7 @@ struct BudgetView: View {
     private var incomeRows: [BudgetIncomeRow] {
         let incomeByCategory = Dictionary(grouping: monthTransactions.filter { $0.kind == .income }) { $0.categoryID ?? "" }
             .mapValues { tx in tx.reduce(0) { $0 + abs($1.amount) } }
-        categories
+        return categories
             .filter { $0.type == .income && $0.isActive }
             .map { category in
                 let amount = incomeByCategory[category.id] ?? 0

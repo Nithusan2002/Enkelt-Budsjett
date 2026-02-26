@@ -14,6 +14,8 @@ struct BudgetSummaryData {
     let income: Double
     let net: Double
     let remaining: Double
+
+    var actual: Double { trackedActual }
 }
 
 struct BudgetGroupRow: Identifiable {
@@ -104,6 +106,28 @@ final class BudgetViewModel: ObservableObject {
             planned: planned,
             trackedActual: trackedActual,
             expenseTotal: expenseTotal,
+            income: income,
+            net: net,
+            remaining: remaining
+        )
+    }
+
+    func summary(
+        periodKey: String,
+        plans: [BudgetPlan],
+        categories: [Category],
+        transactions: [Transaction]
+    ) -> BudgetSummaryData {
+        let planned = BudgetService.plannedTotal(for: periodKey, plans: plans, categories: categories)
+        let actual = BudgetService.actualExpenseTotal(for: periodKey, transactions: transactions)
+        let income = BudgetService.actualIncomeTotal(for: periodKey, transactions: transactions)
+        let net = income - actual
+        let remaining = planned > 0 ? (planned - actual) : net
+
+        return BudgetSummaryData(
+            planned: planned,
+            trackedActual: actual,
+            expenseTotal: actual,
             income: income,
             net: net,
             remaining: remaining

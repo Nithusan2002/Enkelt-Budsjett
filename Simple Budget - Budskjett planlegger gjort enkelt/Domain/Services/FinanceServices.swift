@@ -52,6 +52,15 @@ enum DateService {
 }
 
 enum BudgetService {
+    static func expenseImpact(_ transaction: Transaction) -> Double {
+        budgetImpact(transaction)
+    }
+
+    static func incomeImpact(_ transaction: Transaction) -> Double {
+        guard transaction.kind == .income else { return 0 }
+        return abs(transaction.amount)
+    }
+
     static func budgetImpact(_ transaction: Transaction) -> Double {
         switch transaction.kind {
         case .expense:
