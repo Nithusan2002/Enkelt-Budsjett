@@ -23,35 +23,42 @@ struct AppRootView: View {
         if ProcessInfo.processInfo.arguments.contains("UITEST_DISABLE_FACEID") {
             return false
         }
+        guard preference?.onboardingCompleted ?? false else {
+            return false
+        }
         return preference?.faceIDLockEnabled ?? false
     }
 
     var body: some View {
         ZStack {
             Group {
-                if preference != nil {
-                    TabView(selection: $navigationState.selectedTab) {
-                        NavigationStack { BudgetView() }
-                            .tabItem { Label("Budsjett", systemImage: "list.bullet.rectangle") }
-                            .tag(AppTab.budget)
+                if let preference {
+                    if !preference.onboardingCompleted {
+                        OnboardingView(preference: preference)
+                    } else {
+                        TabView(selection: $navigationState.selectedTab) {
+                            NavigationStack { BudgetView() }
+                                .tabItem { Label("Budsjett", systemImage: "list.bullet.rectangle") }
+                                .tag(AppTab.budget)
 
-                        NavigationStack { InvestmentsView() }
-                            .tabItem { Label("Investeringer", systemImage: "chart.line.uptrend.xyaxis") }
-                            .tag(AppTab.investments)
+                            NavigationStack { InvestmentsView() }
+                                .tabItem { Label("Investeringer", systemImage: "chart.line.uptrend.xyaxis") }
+                                .tag(AppTab.investments)
 
-                        NavigationStack { OverviewView() }
-                            .tabItem { Label("Oversikt", systemImage: "chart.pie.fill") }
-                            .tag(AppTab.overview)
+                            NavigationStack { OverviewView() }
+                                .tabItem { Label("Oversikt", systemImage: "chart.pie.fill") }
+                                .tag(AppTab.overview)
 
-                        NavigationStack { TipsTriksView() }
-                            .tabItem { Label("Tips & Triks", systemImage: "lightbulb") }
-                            .tag(AppTab.tips)
+                            NavigationStack { TipsTriksView() }
+                                .tabItem { Label("Tips & Triks", systemImage: "lightbulb") }
+                                .tag(AppTab.tips)
 
-                        NavigationStack { SettingsView() }
-                            .tabItem { Label("Innstillinger", systemImage: "gear") }
-                            .tag(AppTab.settings)
+                            NavigationStack { SettingsView() }
+                                .tabItem { Label("Innstillinger", systemImage: "gear") }
+                                .tag(AppTab.settings)
+                        }
+                        .environmentObject(navigationState)
                     }
-                    .environmentObject(navigationState)
                 } else {
                     VStack(spacing: 12) {
                         ProgressView("Klargjør appen...")
