@@ -25,14 +25,15 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            remindersSection
-            securitySection
-            fixedItemsSection
+            trustSection
+            appSettingsSection
+            budgetAndInvestmentsSection
             dataSection
             if viewModel.shouldShowDemoTools() {
                 demoSection
             }
-            helpSection
+            destructiveSection
+            aboutSection
         }
         .scrollContentBackground(.hidden)
         .background(AppTheme.background)
@@ -124,8 +125,44 @@ struct SettingsView: View {
         }
     }
 
-    private var remindersSection: some View {
-        Section("Påminnelser") {
+    private var trustSection: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Trygg lagring")
+                    .appCardTitleStyle()
+                Text("Data lagres kun på denne enheten. Ingen bankkobling i denne versjonen.")
+                    .appSecondaryStyle()
+            }
+            .padding(.vertical, 6)
+        }
+    }
+
+    private var appSettingsSection: some View {
+        Section("Appinnstillinger") {
+            HStack {
+                Text("Valuta")
+                    .appBodyStyle()
+                Spacer()
+                Text("NOK")
+                    .appSecondaryStyle()
+            }
+
+            HStack {
+                Text("Visning")
+                    .appBodyStyle()
+                Spacer()
+                Text("Følg systemet")
+                    .appSecondaryStyle()
+            }
+
+            HStack {
+                Text("Språk")
+                    .appBodyStyle()
+                Spacer()
+                Text("Norsk")
+                    .appSecondaryStyle()
+            }
+
             VStack(alignment: .leading, spacing: 6) {
                 Toggle("Månedlig insjekk", isOn: binding(\.checkInReminderEnabled))
                     .appBodyStyle()
@@ -137,26 +174,48 @@ struct SettingsView: View {
                 Button {
                     showDayPicker = true
                 } label: {
-                    settingsRow(title: "Dag i måneden", value: "\(pref.checkInReminderDay).")
+                    settingsRow(title: "Dag i måneden", value: "\(pref.checkInReminderDay).", showsChevron: true)
                 }
                 .buttonStyle(.plain)
 
                 Button {
                     showTimePicker = true
                 } label: {
-                    settingsRow(title: "Klokkeslett", value: reminderTimeText())
+                    settingsRow(title: "Klokkeslett", value: reminderTimeText(), showsChevron: true)
                 }
                 .buttonStyle(.plain)
             }
+
+            Toggle("Face ID-lås", isOn: binding(\.faceIDLockEnabled))
+                .appBodyStyle()
         }
     }
 
-    private var securitySection: some View {
-        Section("Sikkerhet") {
-            VStack(alignment: .leading, spacing: 6) {
-                Toggle("Face ID-lås", isOn: binding(\.faceIDLockEnabled))
+    private var budgetAndInvestmentsSection: some View {
+        Section("Budsjett og investeringer") {
+            NavigationLink {
+                FixedItemsView()
+            } label: {
+                settingsRow(title: "Faste poster", value: "", showsChevron: true)
+            }
+
+            NavigationLink {
+                InvestmentsView()
+            } label: {
+                settingsRow(title: "Investeringsbøtter", value: "", showsChevron: true)
+            }
+
+            NavigationLink {
+                GoalEditorView(goal: nil)
+            } label: {
+                settingsRow(title: "Mål", value: "", showsChevron: true)
+            }
+
+            HStack {
+                Text("Kategorier")
                     .appBodyStyle()
-                Text("Låser appen når du åpner den.")
+                Spacer()
+                Text("Kommer snart")
                     .appSecondaryStyle()
             }
         }
@@ -165,10 +224,10 @@ struct SettingsView: View {
     private var dataSection: some View {
         Section("Data") {
             HStack {
-                Text("Backup-status")
+                Text("Lagring")
                     .appBodyStyle()
                 Spacer()
-                Text("Lokal lagring")
+                Text("Kun lokalt")
                     .appSecondaryStyle()
             }
 
@@ -179,62 +238,56 @@ struct SettingsView: View {
                     showExportError = true
                 }
             } label: {
-                settingsRow(title: "Eksporter data", value: "")
+                settingsRow(title: "Eksporter data", value: "", showsChevron: true)
             }
             .buttonStyle(.plain)
 
-            Text("Eksporterer en JSON-kopi av alle lokale data.")
-                .appSecondaryStyle()
-
-            Button(role: .destructive) {
-                showDeleteAllConfirm = true
-            } label: {
-                settingsRow(title: "Slett alle data", value: "")
+            HStack {
+                Text("Importer data")
+                    .appBodyStyle()
+                Spacer()
+                Text("Kommer snart")
+                    .appSecondaryStyle()
             }
-            .buttonStyle(.plain)
 
-            Text("Brukes hvis du vil nullstille appen helt.")
+            Text("Eksport oppretter en JSON-kopi av alle lokale data.")
                 .appSecondaryStyle()
         }
     }
 
-    private var fixedItemsSection: some View {
-        Section("Budsjett") {
-            NavigationLink {
-                FixedItemsView()
-            } label: {
-                settingsRow(title: "Faste poster", value: "")
-            }
-        }
-    }
-
-    private var helpSection: some View {
-        Section("Hjelp") {
+    private var aboutSection: some View {
+        Section("Om appen") {
             Button {
                 if let url = URL(string: "mailto:hei@simplebudget.app") {
                     openURL(url)
                 }
             } label: {
-                settingsRow(title: "Gi tilbakemelding", value: "")
+                settingsRow(title: "Kontakt", value: "", showsChevron: true)
             }
             .buttonStyle(.plain)
 
             NavigationLink {
                 PrivacyInfoView()
             } label: {
-                settingsRow(title: "Personvern", value: "")
+                settingsRow(title: "Personvern", value: "", showsChevron: true)
+            }
+
+            NavigationLink {
+                TermsInfoView()
+            } label: {
+                settingsRow(title: "Vilkår", value: "", showsChevron: true)
             }
 
             NavigationLink {
                 AboutAppView()
             } label: {
-                settingsRow(title: "Om appen", value: appVersionText())
+                settingsRow(title: "Versjon", value: appVersionText(), showsChevron: true)
             }
         }
     }
 
     private var demoSection: some View {
-        Section("Demo") {
+        Section("Demo-verktøy") {
             Button("Last inn demo (3 år realistisk)") {
                 do {
                     let report = try viewModel.seedDemoRealisticYear(context: modelContext, year: nil)
@@ -253,6 +306,22 @@ struct SettingsView: View {
                 Text("Tøm alle data")
             }
             .buttonStyle(.plain)
+            Text("Kun for testing i debug/TestFlight.")
+                .appSecondaryStyle()
+        }
+    }
+
+    private var destructiveSection: some View {
+        Section("Farlige handlinger") {
+            Button(role: .destructive) {
+                showDeleteAllConfirm = true
+            } label: {
+                settingsRow(title: "Slett all data", value: "", showsChevron: false)
+            }
+            .buttonStyle(.plain)
+
+            Text("Dette kan ikke angres.")
+                .appSecondaryStyle()
         }
     }
 
@@ -267,7 +336,7 @@ struct SettingsView: View {
         }
     }
 
-    private func settingsRow(title: String, value: String) -> some View {
+    private func settingsRow(title: String, value: String, showsChevron: Bool) -> some View {
         HStack {
             Text(title)
                 .appBodyStyle()
@@ -276,9 +345,11 @@ struct SettingsView: View {
                 Text(value)
                     .appSecondaryStyle()
             }
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(AppTheme.textSecondary)
+            if showsChevron {
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(AppTheme.textSecondary)
+            }
         }
         .contentShape(Rectangle())
     }
@@ -394,6 +465,17 @@ private struct PrivacyInfoView: View {
             Text("Du kan også slette alle lokale data fra Innstillinger > Data.")
         }
         .navigationTitle("Personvern")
+    }
+}
+
+private struct TermsInfoView: View {
+    var body: some View {
+        List {
+            Text("Enkelt Budsjett leveres uten garantier i MVP-fasen.")
+            Text("Du er ansvarlig for egne data og sikker lagring av eksportfiler.")
+            Text("Appen tilbyr planlegging og oversikt, ikke økonomisk rådgivning.")
+        }
+        .navigationTitle("Vilkår")
     }
 }
 
