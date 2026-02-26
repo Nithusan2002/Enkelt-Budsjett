@@ -249,6 +249,7 @@ struct SettingsView: View {
                 Text("Kommer snart")
                     .appSecondaryStyle()
             }
+            // TODO(settings): Implementer importflyt (filvalg + validering + merge/replace) etter MVP.
 
             Text("Eksport oppretter en JSON-kopi av alle lokale data.")
                 .appSecondaryStyle()
