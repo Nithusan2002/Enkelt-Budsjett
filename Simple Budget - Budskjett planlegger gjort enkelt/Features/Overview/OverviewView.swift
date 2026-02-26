@@ -66,7 +66,7 @@ struct OverviewView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 wealthHeroModule
-                developmentModule
+                quickStatsModule
                 portfolioModule
                 goalModule
                 if hasSavedData {
@@ -132,25 +132,27 @@ struct OverviewView: View {
                     .foregroundStyle(heroChange.kr >= 0 ? AppTheme.positive : AppTheme.negative)
             }
 
-            if shouldShowPrimaryCTA {
-                Button(latestSnapshot == nil ? "Oppdater formue" : "Oppdater formue nå") {
-                    showCheckIn = true
+            HStack(spacing: 10) {
+                if shouldShowPrimaryCTA {
+                    Button(latestSnapshot == nil ? "Ny innsjekk" : "Oppdater formue nå") {
+                        showCheckIn = true
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(AppTheme.primary)
+                    .appCTAStyle()
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(AppTheme.primary)
-                .appCTAStyle()
-            }
-        }
-        .padding()
-        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Total formue")
-        .accessibilityValue(formatNOK(displayedWealth))
-    }
 
-    private var developmentModule: some View {
-        VStack(alignment: .leading, spacing: 12) {
+                Button("Åpne investeringer") {
+                    openInvestments(focus: .development)
+                }
+                .buttonStyle(.bordered)
+                .tint(AppTheme.primary)
+            }
+
+            Divider()
+                .overlay(AppTheme.divider)
+                .padding(.vertical, 4)
+
             HStack {
                 Text("Utvikling")
                     .appCardTitleStyle()
@@ -169,33 +171,122 @@ struct OverviewView: View {
                     .foregroundStyle(AppTheme.textSecondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                Chart(developmentSnapshots, id: \.periodKey) { snapshot in
-                    LineMark(
-                        x: .value("Dato", snapshot.capturedAt),
-                        y: .value("Total", snapshot.totalValue)
-                    )
-                    .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
-                    .foregroundStyle(AppTheme.secondary)
+                let first = developmentSnapshots.first
+                let last = developmentSnapshots.last
+                let delta = (last?.totalValue ?? 0) - (first?.totalValue ?? 0)
+                let isPositive = delta >= 0
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Chart(developmentSnapshots, id: \.periodKey) { snapshot in
+                        AreaMark(
+                            x: .value("Dato", snapshot.capturedAt),
+                            y: .value("Total", snapshot.totalValue)
+                        )
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [
+                                    AppTheme.secondary.opacity(0.28),
+                                    AppTheme.secondary.opacity(0.04)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+
+                        LineMark(
+                            x: .value("Dato", snapshot.capturedAt),
+                            y: .value("Total", snapshot.totalValue)
+                        )
+                        .lineStyle(StrokeStyle(lineWidth: 2.7, lineCap: .round, lineJoin: .round))
+                        .foregroundStyle(AppTheme.secondary)
+
+                        if snapshot.periodKey == last?.periodKey {
+                            PointMark(
+                                x: .value("Siste dato", snapshot.capturedAt),
+                                y: .value("Siste total", snapshot.totalValue)
+                            )
+                            .symbolSize(42)
+                            .foregroundStyle(AppTheme.primary)
+                        }
+                    }
+                    .chartXAxis(.hidden)
+                    .chartYAxis(.hidden)
+                    .frame(height: 104)
+                    .padding(.horizontal, 4)
+
+                    HStack {
+                        if let first {
+                            Text(formatMonthYearShort(first.capturedAt))
+                                .appSecondaryStyle()
+                        }
+                        Spacer()
+                        Text("\(isPositive ? "+" : "−")\(formatNOK(abs(delta)))")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(isPositive ? AppTheme.positive : AppTheme.negative)
+                            .monospacedDigit()
+                        Spacer()
+                        if let last {
+                            Text(formatMonthYearShort(last.capturedAt))
+                                .appSecondaryStyle()
+                        }
+                    }
                 }
-                .chartXAxis(.hidden)
-                .chartYAxis(.hidden)
-                .frame(height: 68)
+                .padding(10)
+                .background(AppTheme.background, in: RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.divider, lineWidth: 1))
                 .accessibilityLabel("Utvikling")
                 .accessibilityValue(developmentAccessibilitySummary())
             }
-
-            Button {
-                openInvestments(focus: .development)
-            } label: {
-                Text("Se mer i Investeringer")
-                    .appSecondaryStyle()
-            }
-            .buttonStyle(.plain)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Total formue")
+        .accessibilityValue(formatNOK(displayedWealth))
+    }
+
+    private var quickStatsModule: some View {
+        HStack(spacing: 10) {
+            Button {
+                navigationState.selectedTab = .budget
+            } label: {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Spart hittil i år")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(AppTheme.textSecondary)
+                    Text(formatNOK(savedYTD))
+                        .font(.title3.weight(.semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(savedYTD >= 0 ? AppTheme.positive : AppTheme.negative)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(12)
+                .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.divider, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                viewModel.showGoalEditor = true
+            } label: {
+                let summary = viewModel.goalSummary(activeGoal: activeGoal, currentWealth: currentWealth)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Målprogresjon")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(AppTheme.textSecondary)
+                    Text(activeGoal == nil ? "Ikke satt" : "\(Int((summary.progress * 100).rounded())) %")
+                        .font(.title3.weight(.semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(AppTheme.textPrimary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(12)
+                .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.divider, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+        }
     }
 
     private var portfolioModule: some View {
@@ -207,7 +298,7 @@ struct OverviewView: View {
                     Text("Porteføljefordeling")
                         .appCardTitleStyle()
                     Spacer()
-                    Text("Se mer")
+                    Text("Åpne")
                         .appSecondaryStyle()
                 }
 
@@ -226,12 +317,18 @@ struct OverviewView: View {
                         .accessibilityLabel("Porteføljefordeling")
                         .accessibilityValue(portfolioAccessibilitySummary(latestSnapshot))
 
-                        let topTwo = positiveValues.sorted { $0.amount > $1.amount }.prefix(2)
+                        let topThree = positiveValues.sorted { $0.amount > $1.amount }.prefix(3)
                         VStack(alignment: .leading, spacing: 4) {
-                            ForEach(Array(topTwo), id: \.bucketID) { bucketValue in
+                            ForEach(Array(topThree), id: \.bucketID) { bucketValue in
                                 let share = latestSnapshot.totalValue > 0 ? bucketValue.amount / latestSnapshot.totalValue : 0
-                                Text("\(bucketName(for: bucketValue.bucketID)): \(formatPercent(share))")
-                                    .appSecondaryStyle()
+                                HStack {
+                                    Text("\(bucketName(for: bucketValue.bucketID))")
+                                        .appSecondaryStyle()
+                                    Spacer()
+                                    Text("\(formatPercent(share)) · \(formatNOK(bucketValue.amount))")
+                                        .appSecondaryStyle()
+                                        .monospacedDigit()
+                                }
                             }
                         }
                     } else if let only = positiveValues.first {
@@ -295,6 +392,10 @@ struct OverviewView: View {
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.75)
                         }
+
+                        Text(goalTrajectoryText(summary: summary))
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(AppTheme.textSecondary)
 
                         let progress = clampedProgress(value: summary.progress, total: 1)
                         ProgressView(value: progress.value, total: progress.total)
@@ -381,6 +482,16 @@ struct OverviewView: View {
         }
         let change = last.totalValue - first.totalValue
         return "Fra \(formatNOK(first.totalValue)) til \(formatNOK(last.totalValue)), endring \(formatNOK(change))."
+    }
+
+    private func goalTrajectoryText(summary: GoalSummary) -> String {
+        if summary.progress >= 1 {
+            return "På mål allerede."
+        }
+        if summary.monthsRemaining <= 0 {
+            return "Fristen er passert. Oppdater mål for ny plan."
+        }
+        return "For å nå målet innen \(formatMonthYearShort(summary.targetDate)): ca. \(formatNOK(summary.perMonth)) per måned."
     }
 
     private func portfolioAccessibilitySummary(_ snapshot: InvestmentSnapshot) -> String {

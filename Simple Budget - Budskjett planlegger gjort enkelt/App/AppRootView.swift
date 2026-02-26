@@ -6,6 +6,7 @@ enum AppTab {
     case overview
     case budget
     case investments
+    case tips
     case settings
 }
 
@@ -41,6 +42,10 @@ struct AppRootView: View {
                         NavigationStack { OverviewView() }
                             .tabItem { Label("Oversikt", systemImage: "chart.pie.fill") }
                             .tag(AppTab.overview)
+
+                        NavigationStack { TipsTriksView() }
+                            .tabItem { Label("Tips & Triks", systemImage: "lightbulb") }
+                            .tag(AppTab.tips)
 
                         NavigationStack { SettingsView() }
                             .tabItem { Label("Innstillinger", systemImage: "gear") }
