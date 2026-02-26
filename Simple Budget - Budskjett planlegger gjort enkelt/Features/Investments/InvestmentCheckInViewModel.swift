@@ -12,6 +12,15 @@ struct InvestmentWizardStepState {
     var inputString: String = ""
 }
 
+struct InvestmentWizardChangeRow: Identifiable {
+    let id: String
+    let bucketName: String
+    let previousValue: Double
+    let newValue: Double
+
+    var delta: Double { newValue - previousValue }
+}
+
 @MainActor
 final class InvestmentCheckInWizardViewModel: ObservableObject {
     @Published var selectedMonthDate: Date = DateService.monthBounds(for: .now).start
@@ -96,6 +105,24 @@ final class InvestmentCheckInWizardViewModel: ObservableObject {
         buckets.allSatisfy { validationMessage(for: $0.id) == nil }
     }
 
+    var changedRows: [InvestmentWizardChangeRow] {
+        buckets.compactMap { bucket in
+            let previous = previousValue(for: bucket.id)
+            let current = effectiveValue(for: bucket.id)
+            guard abs(current - previous) > 0.0001 else { return nil }
+            return InvestmentWizardChangeRow(
+                id: bucket.id,
+                bucketName: bucket.name,
+                previousValue: previous,
+                newValue: current
+            )
+        }
+    }
+
+    var changedBucketCount: Int {
+        changedRows.count
+    }
+
     func loadInitialState(
         buckets: [InvestmentBucket],
         snapshots: [InvestmentSnapshot],
@@ -152,6 +179,9 @@ final class InvestmentCheckInWizardViewModel: ObservableObject {
     func setMode(_ mode: InvestmentWizardInputMode, for bucketID: String) {
         var state = stepStates[bucketID] ?? InvestmentWizardStepState()
         state.mode = mode
+        if mode == .changed && state.inputString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            state.inputString = Self.formatInputAmount(previousValue(for: bucketID))
+        }
         stepStates[bucketID] = state
     }
 
@@ -167,6 +197,17 @@ final class InvestmentCheckInWizardViewModel: ObservableObject {
 
     func previousValue(for bucketID: String) -> Double {
         previousValues[bucketID] ?? 0
+    }
+
+    func copyPreviousToChanged() {
+        var newStates: [String: InvestmentWizardStepState] = stepStates
+        for bucket in buckets {
+            newStates[bucket.id] = InvestmentWizardStepState(
+                mode: .changed,
+                inputString: Self.formatInputAmount(previousValue(for: bucket.id))
+            )
+        }
+        stepStates = newStates
     }
 
     func effectiveValue(for bucketID: String) -> Double {
@@ -261,7 +302,7 @@ final class InvestmentCheckInWizardViewModel: ObservableObject {
         for bucket in buckets {
             newStates[bucket.id] = InvestmentWizardStepState(
                 mode: .unchanged,
-                inputString: ""
+                inputString: Self.formatInputAmount(previousValue(for: bucket.id))
             )
         }
 

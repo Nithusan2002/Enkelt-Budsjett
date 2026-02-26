@@ -26,6 +26,8 @@ struct InvestmentCheckInWizardView: View {
                         ),
                         periodText: formattedMonth(viewModel.selectedMonthDate),
                         isEditingExistingPeriod: viewModel.isEditingExistingPeriod,
+                        hasPreviousData: !viewModel.previousValues.isEmpty,
+                        onPrefill: { viewModel.copyPreviousToChanged() },
                         onStart: { viewModel.start() },
                         onCancel: { dismiss() }
                     )
@@ -35,7 +37,8 @@ struct InvestmentCheckInWizardView: View {
                         newTotal: viewModel.newTotal,
                         delta: viewModel.delta,
                         deltaPercent: viewModel.changePct,
-                        changedCount: changedBucketsCount,
+                        changedCount: viewModel.changedBucketCount,
+                        changedRows: viewModel.changedRows,
                         onBack: { viewModel.goBack() },
                         onSave: save
                     )
@@ -45,6 +48,7 @@ struct InvestmentCheckInWizardView: View {
                         bucketName: bucket.name,
                         isNewType: viewModel.isNewType(bucket.id),
                         previousValue: viewModel.previousValue(for: bucket.id),
+                        currentValue: viewModel.effectiveValue(for: bucket.id),
                         mode: Binding(
                             get: { viewModel.stepStates[bucket.id]?.mode ?? .unchanged },
                             set: { viewModel.setMode($0, for: bucket.id) }
@@ -80,13 +84,6 @@ struct InvestmentCheckInWizardView: View {
             .onAppear {
                 viewModel.loadInitialState(buckets: buckets, snapshots: snapshots)
             }
-        }
-    }
-
-    private var changedBucketsCount: Int {
-        viewModel.buckets.reduce(0) { partial, bucket in
-            let mode = viewModel.stepStates[bucket.id]?.mode ?? .unchanged
-            return partial + (mode == .changed ? 1 : 0)
         }
     }
 
@@ -131,6 +128,8 @@ private struct WizardIntroView: View {
     @Binding var selectedMonthDate: Date
     let periodText: String
     let isEditingExistingPeriod: Bool
+    let hasPreviousData: Bool
+    let onPrefill: () -> Void
     let onStart: () -> Void
     let onCancel: () -> Void
 
@@ -175,6 +174,13 @@ private struct WizardIntroView: View {
                 }
                 .buttonStyle(.bordered)
 
+                if hasPreviousData {
+                    Button("Kopier forrige måned") {
+                        onPrefill()
+                    }
+                    .buttonStyle(.bordered)
+                }
+
                 Button("Start") {
                     onStart()
                 }
@@ -192,6 +198,7 @@ private struct WizardBucketStepView: View {
     let bucketName: String
     let isNewType: Bool
     let previousValue: Double
+    let currentValue: Double
     @Binding var mode: InvestmentWizardInputMode
     @Binding var inputText: String
     let errorMessage: String?
@@ -221,6 +228,18 @@ private struct WizardBucketStepView: View {
             Text("Forrige: \(formatNOK(previousValue))")
                 .appBodyStyle()
                 .foregroundStyle(AppTheme.textSecondary)
+
+            if abs(currentValue - previousValue) > 0.0001 {
+                HStack(spacing: 6) {
+                    Image(systemName: currentValue >= previousValue ? "arrow.up.right" : "arrow.down.right")
+                    Text("\(currentValue >= previousValue ? "+" : "-")\(formatNOK(abs(currentValue - previousValue))) fra forrige")
+                }
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(currentValue >= previousValue ? AppTheme.positive : AppTheme.negative)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background((currentValue >= previousValue ? AppTheme.positive : AppTheme.negative).opacity(0.12), in: Capsule())
+            }
 
             HStack(spacing: 10) {
                 modeButton(title: "Uendret", modeValue: .unchanged)
@@ -295,6 +314,7 @@ private struct WizardSummaryView: View {
     let delta: Double
     let deltaPercent: Double?
     let changedCount: Int
+    let changedRows: [InvestmentWizardChangeRow]
     let onBack: () -> Void
     let onSave: () -> Void
 
@@ -311,6 +331,25 @@ private struct WizardSummaryView: View {
                 Text("Ingen endringer – total forblir \(formatNOK(newTotal)).")
                     .appBodyStyle()
                     .foregroundStyle(AppTheme.textSecondary)
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Endret i \(changedCount) typer")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(AppTheme.textSecondary)
+                    ForEach(changedRows) { row in
+                        HStack {
+                            Text(row.bucketName)
+                                .font(.footnote.weight(.semibold))
+                            Spacer()
+                            Text("\(formatNOK(row.previousValue)) → \(formatNOK(row.newValue))")
+                                .font(.footnote)
+                                .monospacedDigit()
+                        }
+                    }
+                }
+                .padding(10)
+                .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.divider, lineWidth: 1))
             }
 
             Spacer()

@@ -24,9 +24,6 @@ struct AppRootView: View {
         }
         return preference?.faceIDLockEnabled ?? false
     }
-    private var storeMode: AppStoreMode {
-        Simple_Budget___Budskjett_planlegger_gjort_enkeltApp.activeStoreMode
-    }
 
     var body: some View {
         ZStack {
@@ -71,13 +68,6 @@ struct AppRootView: View {
                 lockOverlay
                     .transition(.opacity)
                     .zIndex(5)
-            }
-        }
-        .safeAreaInset(edge: .top) {
-            if storeMode != .primary {
-                StoreHealthBanner(mode: storeMode)
-                    .padding(.horizontal)
-                    .padding(.top, 6)
             }
         }
         .tint(AppTheme.primary)
@@ -157,51 +147,5 @@ struct AppRootView: View {
             .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
             .padding(24)
         }
-    }
-}
-
-private struct StoreHealthBanner: View {
-    let mode: AppStoreMode
-
-    private var title: String {
-        switch mode {
-        case .recovery:
-            return "Recovery-modus"
-        case .memoryOnly:
-            return "Midlertidig datamodus"
-        case .primary:
-            return ""
-        }
-    }
-
-    private var detail: String {
-        switch mode {
-        case .recovery:
-            return "Primær datalagring feilet. Appen kjører med recovery-lager. Eksporter data i Innstillinger."
-        case .memoryOnly:
-            return "Appen kjører uten varig lagring. Data kan forsvinne ved omstart."
-        case .primary:
-            return ""
-        }
-    }
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(Color.white)
-                .padding(.top, 2)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(Color.white)
-                Text(detail)
-                    .font(.footnote)
-                    .foregroundStyle(Color.white.opacity(0.95))
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(10)
-        .background(AppTheme.negative, in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.2), lineWidth: 1))
     }
 }

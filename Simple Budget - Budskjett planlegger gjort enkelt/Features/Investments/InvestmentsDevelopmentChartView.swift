@@ -188,9 +188,14 @@ struct InvestmentsDevelopmentChartView: View {
     let points: [InvestmentsDevelopmentChartPoint]
     @Binding var period: InvestmentsDevelopmentPeriod
     let onUpdateValues: () -> Void
+    var embedded: Bool = false
+    var showStatusRow: Bool = true
 
     @State private var selectedDate: Date?
     @State private var selectedPointID: String?
+    @State private var interactionStart: Date?
+    @State private var isScrubbing = false
+    @State private var lastHapticAt: Date = .distantPast
 
     private var selectedPoint: InvestmentsDevelopmentChartPoint? {
         guard let selectedDate else { return nil }
@@ -240,19 +245,42 @@ struct InvestmentsDevelopmentChartView: View {
         colorScheme == .dark ? AppTheme.textPrimary.opacity(0.55) : AppTheme.textPrimary.opacity(0.42)
     }
 
+    private var periodDelta: Double {
+        guard let first = points.first, let last = points.last else { return 0 }
+        return last.total - first.total
+    }
+
+    private var periodDeltaText: String {
+        let sign = periodDelta >= 0 ? "+" : "-"
+        return "\(sign)\(formatNOK(abs(periodDelta)))"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            header
+            if showStatusRow {
+                statusRow
+            }
             controls
             content
             Text("Basert på totalsummene du legger inn.")
                 .appSecondaryStyle()
         }
-        .padding(14)
-        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
+        .padding(embedded ? 0 : 14)
+        .background {
+            if !embedded {
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(AppTheme.surface)
+            }
+        }
         .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(AppTheme.divider, lineWidth: 1)
+            Group {
+                if embedded {
+                    EmptyView()
+                } else {
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(AppTheme.divider, lineWidth: 1)
+                }
+            }
         )
         .accessibilityLabel("Utviklingsgraf")
         .accessibilityValue(
@@ -263,18 +291,28 @@ struct InvestmentsDevelopmentChartView: View {
         )
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Utvikling")
-                .appCardTitleStyle()
+    private var statusRow: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 4) {
+                if points.count > 1 {
+                    Text("Siden sist (\(period.title.lowercased()))")
+                        .appSecondaryStyle()
+                    Text(periodDeltaText)
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(periodDelta >= 0 ? AppTheme.positive : AppTheme.negative)
+                        .monospacedDigit()
+                } else if points.count == 1 {
+                    Text("Én innsjekk registrert")
+                        .appSecondaryStyle()
+                } else {
+                    Text("Ingen data ennå")
+                        .appSecondaryStyle()
+                }
+            }
+            Spacer()
             if let last = points.last {
-                Text(formatNOK(last.total))
-                    .font(.system(size: 34, weight: .bold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            } else {
-                Text("Ingen data")
-                    .font(.title3.weight(.semibold))
+                Text("Sist \(monthTitle(last.date))")
+                    .font(.footnote.weight(.semibold))
                     .foregroundStyle(AppTheme.textSecondary)
             }
         }
@@ -294,7 +332,7 @@ struct InvestmentsDevelopmentChartView: View {
         if points.isEmpty {
             emptyState(
                 title: "Legg inn første insjekk",
-                body: "Oppdater verdier for å starte utviklingsgrafen."
+                body: "Ny innsjekk starter utviklingsgrafen."
             )
         } else if points.count == 1 {
             singlePointState(points[0])
@@ -329,9 +367,14 @@ struct InvestmentsDevelopmentChartView: View {
                 RuleMark(x: .value("Valgt", selectedPoint.date))
                     .foregroundStyle(AppTheme.textSecondary.opacity(0.6))
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                    .annotation(position: .topLeading) {
-                        tooltip(for: selectedPoint)
-                    }
+
+                PointMark(
+                    x: .value("Valgt", selectedPoint.date),
+                    y: .value("Total", selectedPoint.total)
+                )
+                .symbolSize(isScrubbing ? 150 : 110)
+                .foregroundStyle(AppTheme.primary)
+                .opacity(isScrubbing ? 1 : 0.8)
             }
         }
         .frame(height: 260)
@@ -362,6 +405,13 @@ struct InvestmentsDevelopmentChartView: View {
                 .foregroundStyle(AppTheme.textSecondary)
             }
         }
+        .overlay(alignment: .topLeading) {
+            if let selectedPoint {
+                tooltip(for: selectedPoint)
+                    .padding(10)
+                    .transition(.opacity.combined(with: .scale(scale: 0.97)))
+            }
+        }
         .chartOverlay { proxy in
             GeometryReader { geometry in
                 Rectangle()
@@ -370,31 +420,44 @@ struct InvestmentsDevelopmentChartView: View {
                     .gesture(
                         DragGesture(minimumDistance: 0)
                             .onChanged { value in
-                                guard let plotFrame = proxy.plotFrame else { return }
-                                let origin = geometry[plotFrame].origin
-                                let relativeX = value.location.x - origin.x
-                                guard let date: Date = proxy.value(atX: relativeX),
-                                      let nearest = InvestmentsDevelopmentChartDataBuilder.nearestPoint(to: date, points: points) else { return }
-                                if selectedPointID != nearest.id {
-                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                if interactionStart == nil {
+                                    interactionStart = Date()
+                                    return
                                 }
-                                selectedPointID = nearest.id
-                                selectedDate = nearest.date
+
+                                guard let interactionStart else { return }
+                                let holdDuration = Date().timeIntervalSince(interactionStart)
+                                guard holdDuration >= 0.12 else { return }
+
+                                if !isScrubbing {
+                                    withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
+                                        isScrubbing = true
+                                    }
+                                    let mediumHaptic = UIImpactFeedbackGenerator(style: .medium)
+                                    mediumHaptic.impactOccurred()
+                                }
+
+                                updateSelection(at: value.location, proxy: proxy, geometry: geometry)
                             }
                             .onEnded { _ in
-                                selectedPointID = nil
-                                selectedDate = nil
+                                interactionStart = nil
+                                withAnimation(.spring(response: 0.24, dampingFraction: 0.92)) {
+                                    isScrubbing = false
+                                    selectedPointID = nil
+                                    selectedDate = nil
+                                }
                             }
                     )
             }
         }
         .animation(.easeInOut(duration: 0.25), value: period)
+        .animation(.spring(response: 0.26, dampingFraction: 0.9), value: selectedPointID)
     }
 
     private func tooltip(for point: InvestmentsDevelopmentChartPoint) -> some View {
         let delta = InvestmentsDevelopmentChartDataBuilder.deltaSincePrevious(for: point, in: points)
         let topBuckets = InvestmentsDevelopmentChartDataBuilder.topBuckets(for: point)
-        let rows = topBuckets.count <= 5 ? topBuckets : Array(topBuckets.prefix(3))
+        let rows = Array(topBuckets.prefix(3))
         return VStack(alignment: .leading, spacing: 4) {
             Text(monthTitle(point.date))
                 .font(.caption.weight(.semibold))
@@ -419,6 +482,7 @@ struct InvestmentsDevelopmentChartView: View {
             .background((delta >= 0 ? AppTheme.positive : AppTheme.negative).opacity(0.14), in: Capsule())
         }
         .padding(8)
+        .frame(maxWidth: 220, alignment: .leading)
         .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 10))
         .overlay(
             RoundedRectangle(cornerRadius: 10)
@@ -432,7 +496,7 @@ struct InvestmentsDevelopmentChartView: View {
                 .appCardTitleStyle()
             Text(body)
                 .appSecondaryStyle()
-            Button("Oppdater verdier") {
+            Button("Ny innsjekk") {
                 onUpdateValues()
             }
             .buttonStyle(.borderedProminent)
@@ -467,7 +531,7 @@ struct InvestmentsDevelopmentChartView: View {
                 }
             }
 
-            Button("Oppdater verdier") {
+            Button("Ny innsjekk") {
                 onUpdateValues()
             }
             .buttonStyle(.bordered)
@@ -507,5 +571,31 @@ struct InvestmentsDevelopmentChartView: View {
         formatter.numberStyle = .decimal
         formatter.maximumFractionDigits = 0
         return formatter.string(from: NSNumber(value: value)) ?? "0"
+    }
+
+    private func updateSelection(
+        at location: CGPoint,
+        proxy: ChartProxy,
+        geometry: GeometryProxy
+    ) {
+        guard let plotFrame = proxy.plotFrame else { return }
+        let frame = geometry[plotFrame]
+        let clampedX = min(max(location.x, frame.minX), frame.maxX)
+        let relativeX = clampedX - frame.origin.x
+
+        guard let date: Date = proxy.value(atX: relativeX),
+              let nearest = InvestmentsDevelopmentChartDataBuilder.nearestPoint(to: date, points: points) else { return }
+
+        if selectedPointID != nearest.id {
+            let now = Date()
+            if now.timeIntervalSince(lastHapticAt) > 0.06 {
+                let lightHaptic = UIImpactFeedbackGenerator(style: .light)
+                lightHaptic.impactOccurred()
+                lastHapticAt = now
+            }
+        }
+
+        selectedPointID = nearest.id
+        selectedDate = nearest.date
     }
 }
