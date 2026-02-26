@@ -1038,6 +1038,7 @@ private struct GroupRowView: View {
 private struct SetGroupLimitsSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.openURL) private var openURL
 
     let periodKey: String
     let groupPlans: [BudgetGroupPlan]
@@ -1118,13 +1119,9 @@ private struct SetGroupLimitsSheet: View {
                         }
                     }
 
-                    Button("Fyll forslag") {
-                        for group in BudgetGroup.allCases {
-                            let fixedTotal = fixedByGroup[group.rawValue] ?? 0
-                            guard fixedTotal > 0 else { continue }
-                            let suggestion = roundToNearestTen(fixedTotal * 1.15)
-                            values[group] = formatInputAmount(suggestion)
-                        }
+                    Button("Beregn med SIFO (OsloMet)") {
+                        guard let url = URL(string: "https://www.oslomet.no/om/sifo/referansebudsjettet") else { return }
+                        openURL(url)
                     }
                 }
             }
@@ -1184,9 +1181,6 @@ private struct SetGroupLimitsSheet: View {
         return parseInputAmount(raw)
     }
 
-    private func roundToNearestTen(_ value: Double) -> Double {
-        (value / 10).rounded() * 10
-    }
 }
 
 private struct BudgetGroupDetailView: View {
