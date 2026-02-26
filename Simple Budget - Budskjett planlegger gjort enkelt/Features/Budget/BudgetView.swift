@@ -964,7 +964,7 @@ private struct GroupRowView: View {
     }
 
     private var progressTotal: Double {
-        max(planned ?? 1, 1)
+        clampedProgress(value: row.spent, total: planned ?? 1).total
     }
 
     private var variableSpent: Double {
@@ -992,7 +992,8 @@ private struct GroupRowView: View {
             }
 
             if planned != nil {
-                ProgressView(value: progressValue, total: progressTotal)
+                let progress = clampedProgress(value: progressValue, total: progressTotal)
+                ProgressView(value: progress.value, total: progress.total)
                     .tint(row.isOverBudget ? AppTheme.warning : AppTheme.secondary)
             }
 

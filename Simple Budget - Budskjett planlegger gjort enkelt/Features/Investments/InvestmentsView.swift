@@ -707,7 +707,8 @@ private struct BucketDetailView: View {
                         .appSecondaryStyle()
                     Text("Andel: \(formatPercent(shareOfPortfolio)) av porteføljen")
                         .appSecondaryStyle()
-                    ProgressView(value: shareOfPortfolio, total: 1)
+                    let progress = clampedProgress(value: shareOfPortfolio, total: 1)
+                    ProgressView(value: progress.value, total: progress.total)
                         .tint(bucketColor)
                     Button {
                         showQuickUpdate = true

@@ -24,6 +24,12 @@ func formatPercent(_ value: Double) -> String {
     value.formatted(.percent.precision(.fractionLength(1)))
 }
 
+func clampedProgress(value: Double, total: Double) -> (value: Double, total: Double) {
+    let safeTotal = max(total, 1)
+    let safeValue = min(max(value, 0), safeTotal)
+    return (safeValue, safeTotal)
+}
+
 func formatDate(_ date: Date) -> String {
     let formatter = DateFormatter()
     formatter.locale = Locale(identifier: "nb_NO")

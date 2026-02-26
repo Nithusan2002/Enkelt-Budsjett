@@ -215,13 +215,11 @@ struct InvestmentsDevelopmentChartView: View {
     }
 
     private var stackedColorDomain: [String] {
-        let sorted = latest.buckets.sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
-        return sorted.map(\.name)
+        latest.buckets.map(\.name)
     }
 
     private var stackedColorRange: [Color] {
-        let sorted = latest.buckets.sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
-        return sorted.map(\.color)
+        latest.buckets.map(\.color)
     }
 
     private var latest: InvestmentsDevelopmentChartPoint {
@@ -242,16 +240,11 @@ struct InvestmentsDevelopmentChartView: View {
         colorScheme == .dark ? AppTheme.textPrimary.opacity(0.55) : AppTheme.textPrimary.opacity(0.42)
     }
 
-    private var legendChipBackground: Color {
-        colorScheme == .dark ? AppTheme.surfaceElevated : AppTheme.background
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             header
             controls
             content
-            legend
             Text("Basert på totalsummene du legger inn.")
                 .appSecondaryStyle()
         }
@@ -343,7 +336,7 @@ struct InvestmentsDevelopmentChartView: View {
         }
         .frame(height: 260)
         .chartForegroundStyleScale(domain: stackedColorDomain, range: stackedColorRange)
-        .chartLegend(.hidden)
+        .chartLegend(position: .bottom, spacing: 8)
         .chartXScale(domain: chartDateDomain())
         .chartXAxis {
             AxisMarks(values: InvestmentsDevelopmentChartDataBuilder.xAxisDates(points: points, period: period)) { value in
@@ -431,28 +424,6 @@ struct InvestmentsDevelopmentChartView: View {
             RoundedRectangle(cornerRadius: 10)
                 .stroke(AppTheme.divider, lineWidth: 1)
         )
-    }
-
-    private var legend: some View {
-        let buckets = points.last?.buckets.filter { $0.amount > 0 } ?? []
-        return ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
-                ForEach(buckets) { bucket in
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(bucket.color)
-                            .frame(width: 8, height: 8)
-                        Text(bucket.name)
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(AppTheme.textSecondary)
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(legendChipBackground, in: Capsule())
-                    .overlay(Capsule().stroke(AppTheme.divider, lineWidth: 1))
-                }
-            }
-        }
     }
 
     private func emptyState(title: String, body: String) -> some View {
