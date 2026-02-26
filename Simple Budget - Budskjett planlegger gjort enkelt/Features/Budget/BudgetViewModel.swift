@@ -85,10 +85,18 @@ final class BudgetViewModel: ObservableObject {
         groupRows: [BudgetGroupRow],
         transactions: [Transaction]
     ) -> BudgetSummaryData {
+        let monthTransactions = monthTransactions(periodKey: periodKey, transactions: transactions)
+        return summary(groupRows: groupRows, periodTransactions: monthTransactions)
+    }
+
+    func summary(
+        groupRows: [BudgetGroupRow],
+        periodTransactions: [Transaction]
+    ) -> BudgetSummaryData {
         let planned = groupRows.compactMap(\.planned).reduce(0, +)
         let trackedActual = groupRows.filter(\.hasLimit).reduce(0) { $0 + $1.spent }
-        let expenseTotal = BudgetService.actualExpenseTotal(for: periodKey, transactions: transactions)
-        let income = BudgetService.actualIncomeTotal(for: periodKey, transactions: transactions)
+        let expenseTotal = periodTransactions.reduce(0) { $0 + BudgetService.expenseImpact($1) }
+        let income = periodTransactions.reduce(0) { $0 + BudgetService.incomeImpact($1) }
         let net = income - expenseTotal
         let remaining = planned > 0 ? (planned - trackedActual) : 0
 
@@ -108,9 +116,24 @@ final class BudgetViewModel: ObservableObject {
         groupPlans: [BudgetGroupPlan],
         transactions: [Transaction]
     ) -> [BudgetGroupRow] {
+        let monthTransactions = monthTransactions(periodKey: periodKey, transactions: transactions)
+        return groupRows(
+            periodKey: periodKey,
+            categories: categories,
+            groupPlans: groupPlans,
+            periodTransactions: monthTransactions
+        )
+    }
+
+    func groupRows(
+        periodKey: String,
+        categories: [Category],
+        groupPlans: [BudgetGroupPlan],
+        periodTransactions: [Transaction]
+    ) -> [BudgetGroupRow] {
         let categoryByID = Dictionary(uniqueKeysWithValues: categories.map { ($0.id, $0) })
 
-        let actualByGroup = Dictionary(grouping: transactions.filter { DateService.periodKey(from: $0.date) == periodKey }) { tx in
+        let actualByGroup = Dictionary(grouping: periodTransactions) { tx in
             guard let categoryID = tx.categoryID, let category = categoryByID[categoryID] else {
                 return BudgetGroup.annet.rawValue
             }
@@ -160,15 +183,27 @@ final class BudgetViewModel: ObservableObject {
         categories: [Category],
         transactions: [Transaction]
     ) -> [String: Double] {
+        let monthTransactions = monthTransactions(periodKey: periodKey, transactions: transactions)
+        return fixedSpentByGroup(categories: categories, periodTransactions: monthTransactions)
+    }
+
+    func fixedSpentByGroup(
+        categories: [Category],
+        periodTransactions: [Transaction]
+    ) -> [String: Double] {
         let categoryByID = Dictionary(uniqueKeysWithValues: categories.map { ($0.id, $0) })
         var totals: [String: Double] = [:]
-        for tx in transactions where DateService.periodKey(from: tx.date) == periodKey && tx.recurringKey != nil {
+        for tx in periodTransactions where tx.recurringKey != nil {
             guard let categoryID = tx.categoryID,
                   let category = categoryByID[categoryID] else { continue }
             let impact = max(BudgetService.budgetImpact(tx), 0)
             totals[category.groupKey, default: 0] += impact
         }
         return totals
+    }
+
+    func monthTransactions(periodKey: String, transactions: [Transaction]) -> [Transaction] {
+        transactions.filter { DateService.periodKey(from: $0.date) == periodKey }
     }
 
     func upsertGroupPlans(

@@ -13,32 +13,30 @@ struct BudgetView: View {
     @State private var showMonthPicker = false
 
     private var periodKey: String { viewModel.periodKey() }
+    private var monthTransactions: [Transaction] {
+        viewModel.monthTransactions(periodKey: periodKey, transactions: transactions)
+    }
     private var groupRows: [BudgetGroupRow] {
         viewModel.groupRows(
             periodKey: periodKey,
             categories: categories,
             groupPlans: groupPlans,
-            transactions: transactions
+            periodTransactions: monthTransactions
         )
     }
     private var fixedByGroup: [String: Double] {
         viewModel.fixedSpentByGroup(
-            periodKey: periodKey,
             categories: categories,
-            transactions: transactions
+            periodTransactions: monthTransactions
         )
     }
     private var incomeRows: [BudgetIncomeRow] {
+        let incomeByCategory = Dictionary(grouping: monthTransactions.filter { $0.kind == .income }) { $0.categoryID ?? "" }
+            .mapValues { tx in tx.reduce(0) { $0 + abs($1.amount) } }
         categories
             .filter { $0.type == .income && $0.isActive }
             .map { category in
-                let amount = transactions
-                    .filter {
-                        DateService.periodKey(from: $0.date) == periodKey &&
-                        $0.kind == .income &&
-                        $0.categoryID == category.id
-                    }
-                    .reduce(0) { $0 + abs($1.amount) }
+                let amount = incomeByCategory[category.id] ?? 0
                 return BudgetIncomeRow(id: category.id, title: category.name, amount: amount)
             }
             .filter { $0.amount > 0 }
@@ -51,7 +49,7 @@ struct BudgetView: View {
                 .map(\.id)
         )
 
-        let grouped = Dictionary(grouping: transactions) { tx in
+        let grouped = Dictionary(grouping: monthTransactions) { tx in
             tx.categoryID ?? ""
         }
 
@@ -60,7 +58,6 @@ struct BudgetView: View {
             .map { category in
                 let amount = (grouped[category.id] ?? [])
                     .filter { tx in
-                        DateService.periodKey(from: tx.date) == periodKey &&
                         (tx.kind == .manualSaving || (tx.categoryID != nil && savingsCategoryIDs.contains(tx.categoryID!)))
                     }
                     .reduce(0) { $0 + abs($1.amount) }
@@ -70,11 +67,7 @@ struct BudgetView: View {
             .sorted { $0.amount > $1.amount }
     }
     private var summary: BudgetSummaryData {
-        viewModel.summary(
-            periodKey: periodKey,
-            groupRows: groupRows,
-            transactions: transactions
-        )
+        viewModel.summary(groupRows: groupRows, periodTransactions: monthTransactions)
     }
     private var hasPlannedBudget: Bool {
         summary.planned > 0
@@ -208,10 +201,7 @@ struct BudgetView: View {
     }
 
     private func monthLabel(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "nb_NO")
-        formatter.dateFormat = "MMM yyyy"
-        let raw = formatter.string(from: date).replacingOccurrences(of: ".", with: "")
+        let raw = formatMonthYearShort(date).replacingOccurrences(of: ".", with: "")
         guard let first = raw.first else { return raw }
         return String(first).uppercased() + String(raw.dropFirst())
     }
@@ -425,10 +415,7 @@ private struct BudgetHeroCardView: View {
     }
 
     private func monthName() -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "nb_NO")
-        formatter.dateFormat = "MMMM"
-        return formatter.string(from: monthDate)
+        formatMonthName(monthDate)
     }
 }
 

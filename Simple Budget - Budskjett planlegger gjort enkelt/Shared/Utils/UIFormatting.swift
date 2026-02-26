@@ -1,6 +1,29 @@
 import Foundation
 import SwiftUI
 
+enum AppDateFormatters {
+    static let fullDate: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "nb_NO")
+        formatter.dateFormat = "dd-MM-yyyy"
+        return formatter
+    }()
+
+    static let monthYearShort: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "nb_NO")
+        formatter.dateFormat = "MMM yyyy"
+        return formatter
+    }()
+
+    static let monthName: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "nb_NO")
+        formatter.dateFormat = "MMMM"
+        return formatter
+    }()
+}
+
 struct AppInputFieldStyle: TextFieldStyle {
     func _body(configuration: TextField<Self._Label>) -> some View {
         configuration
@@ -31,10 +54,15 @@ func clampedProgress(value: Double, total: Double) -> (value: Double, total: Dou
 }
 
 func formatDate(_ date: Date) -> String {
-    let formatter = DateFormatter()
-    formatter.locale = Locale(identifier: "nb_NO")
-    formatter.dateFormat = "dd-MM-yyyy"
-    return formatter.string(from: date)
+    AppDateFormatters.fullDate.string(from: date)
+}
+
+func formatMonthYearShort(_ date: Date) -> String {
+    AppDateFormatters.monthYearShort.string(from: date)
+}
+
+func formatMonthName(_ date: Date) -> String {
+    AppDateFormatters.monthName.string(from: date)
 }
 
 func formatPeriodKeyAsDate(_ periodKey: String) -> String {
