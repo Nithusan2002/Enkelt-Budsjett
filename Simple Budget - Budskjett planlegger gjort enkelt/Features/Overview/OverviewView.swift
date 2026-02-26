@@ -296,7 +296,8 @@ struct OverviewView: View {
                                 .minimumScaleFactor(0.75)
                         }
 
-                        ProgressView(value: summary.progress, total: 1)
+                        let progress = clampedProgress(value: summary.progress, total: 1)
+                        ProgressView(value: progress.value, total: progress.total)
                             .tint(AppTheme.primary)
 
                         Text("\(formatNOK(currentWealth)) / \(formatNOK(summary.targetAmount))")

@@ -378,7 +378,8 @@ private struct BudgetHeroCardView: View {
                 Text("Brukt \(formatNOK(trackedActual)) av \(formatNOK(planned))")
                     .appSecondaryStyle()
 
-                ProgressView(value: usedPercent, total: 1)
+                let progress = clampedProgress(value: usedPercent, total: 1)
+                ProgressView(value: progress.value, total: progress.total)
                     .tint(remaining < 0 ? AppTheme.warning : AppTheme.secondary)
 
                 if overBudgetCount > 0 {
