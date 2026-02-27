@@ -331,7 +331,7 @@ struct InvestmentsDevelopmentChartView: View {
     private var content: some View {
         if points.isEmpty {
             emptyState(
-                title: "Legg inn første insjekk",
+                title: "Legg inn første innsjekk",
                 body: "Ny innsjekk starter utviklingsgrafen."
             )
         } else if points.count == 1 {

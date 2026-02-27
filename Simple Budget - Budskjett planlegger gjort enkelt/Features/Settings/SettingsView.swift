@@ -7,10 +7,13 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.openURL) private var openURL
     @Query private var preferences: [UserPreference]
+    @Query(sort: \InvestmentBucket.sortOrder) private var investmentBuckets: [InvestmentBucket]
+    @AppStorage("app_appearance_mode") private var appAppearanceModeRawValue = AppAppearancePreference.followSystem.rawValue
     @StateObject private var viewModel = SettingsViewModel()
 
-    @State private var showDayPicker = false
-    @State private var showTimePicker = false
+    @State private var showReminderSheet = false
+    @State private var showGoalSheet = false
+    @State private var showBucketTypesSheet = false
     @State private var shareItem: ShareURL?
     @State private var showExportError = false
     @State private var showDeleteAllConfirm = false
@@ -32,6 +35,10 @@ struct SettingsView: View {
     private var pref: UserPreference { viewModel.preference(from: preferences, context: modelContext) }
 
     var body: some View {
+        configuredForm
+    }
+
+    private var baseForm: some View {
         Form {
             trustSection
             appSettingsSection
@@ -43,34 +50,65 @@ struct SettingsView: View {
             destructiveSection
             aboutSection
         }
-        .scrollContentBackground(.hidden)
-        .background(AppTheme.background)
-        .navigationTitle("Innstillinger")
-        .sheet(isPresented: $showDayPicker) {
-            ReminderDayPickerSheet(selectedDay: pref.checkInReminderDay) { day in
-                pref.checkInReminderDay = day
-                persistSettingsChanges(syncReminder: true)
+    }
+
+    private var configuredForm: some View {
+        formWithAlerts
+            .safeAreaInset(edge: .bottom) {
+                if let demoToastMessage {
+                    Text(demoToastMessage)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(AppTheme.textPrimary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .background(AppTheme.surfaceElevated, in: Capsule())
+                        .overlay(Capsule().stroke(AppTheme.divider, lineWidth: 1))
+                        .padding(.bottom, 6)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
             }
-        }
-        .sheet(isPresented: $showTimePicker) {
-            ReminderTimePickerSheet(
-                selectedHour: pref.checkInReminderHour,
-                selectedMinute: pref.checkInReminderMinute
-            ) { hour, minute in
-                pref.checkInReminderHour = hour
-                pref.checkInReminderMinute = minute
-                persistSettingsChanges(syncReminder: true)
+    }
+
+    private var formWithSheets: some View {
+        baseForm
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background)
+            .navigationTitle("Innstillinger")
+            .sheet(isPresented: $showReminderSheet) {
+            ReminderSettingsSheet(
+                enabled: pref.checkInReminderEnabled,
+                day: pref.checkInReminderDay,
+                hour: pref.checkInReminderHour,
+                minute: pref.checkInReminderMinute
+            ) { enabled, day, hour, minute in
+                applyReminderSettings(enabled: enabled, day: day, hour: hour, minute: minute)
             }
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
         }
-        .sheet(item: $shareItem) { item in
+            .sheet(isPresented: $showGoalSheet) {
+            GoalEditorView(goal: nil)
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+            }
+            .sheet(isPresented: $showBucketTypesSheet) {
+            BucketTypesSettingsSheet()
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+            }
+            .sheet(item: $shareItem) { item in
             ShareSheet(activityItems: [item.url])
-        }
-        .alert("Kunne ikke eksportere data", isPresented: $showExportError) {
+            }
+    }
+
+    private var formWithAlerts: some View {
+        formWithSheets
+            .alert("Kunne ikke eksportere data", isPresented: $showExportError) {
             Button("OK", role: .cancel) { }
-        } message: {
+            } message: {
             Text("Prøv igjen litt senere.")
-        }
-        .confirmationDialog("Importer data", isPresented: $showImportModeDialog, titleVisibility: .visible) {
+            }
+            .confirmationDialog("Importer data", isPresented: $showImportModeDialog, titleVisibility: .visible) {
             Button("Slå sammen med eksisterende data") {
                 pendingImportMode = .merge
                 showImportPicker = true
@@ -80,27 +118,27 @@ struct SettingsView: View {
                 showImportPicker = true
             }
             Button("Avbryt", role: .cancel) { }
-        } message: {
+            } message: {
             Text("Velg hvordan importen skal håndtere data som allerede finnes.")
-        }
-        .fileImporter(
-            isPresented: $showImportPicker,
-            allowedContentTypes: [UTType.json],
-            allowsMultipleSelection: false
-        ) { result in
-            handleImport(result)
-        }
-        .alert("Kunne ikke importere data", isPresented: $showImportError) {
+            }
+            .fileImporter(
+                isPresented: $showImportPicker,
+                allowedContentTypes: [UTType.json],
+                allowsMultipleSelection: false
+            ) { result in
+                handleImport(result)
+            }
+            .alert("Kunne ikke importere data", isPresented: $showImportError) {
             Button("OK", role: .cancel) { }
-        } message: {
+            } message: {
             Text(importMessage.isEmpty ? "Kontroller filen og prøv igjen." : importMessage)
-        }
-        .alert("Import fullført", isPresented: $showImportSuccess) {
+            }
+            .alert("Import fullført", isPresented: $showImportSuccess) {
             Button("OK", role: .cancel) { }
-        } message: {
+            } message: {
             Text(importMessage)
-        }
-        .alert("Slett alle data?", isPresented: $showDeleteAllConfirm) {
+            }
+            .alert("Slett alle data?", isPresented: $showDeleteAllConfirm) {
             Button("Avbryt", role: .cancel) { }
             Button("Slett alt", role: .destructive) {
                 do {
@@ -110,43 +148,43 @@ struct SettingsView: View {
                     showDeleteAllError = true
                 }
             }
-        } message: {
+            } message: {
             Text("Dette sletter budsjett, investeringer, mål og innstillinger lokalt på enheten.")
-        }
-        .alert("Kunne ikke slette data", isPresented: $showDeleteAllError) {
+            }
+            .alert("Kunne ikke slette data", isPresented: $showDeleteAllError) {
             Button("OK", role: .cancel) { }
-        } message: {
+            } message: {
             Text("Prøv igjen litt senere.")
-        }
-        .alert(
-            "Kunne ikke lagre innstilling",
-            isPresented: Binding(
-                get: { settingsErrorMessage != nil },
-                set: { if !$0 { settingsErrorMessage = nil } }
-            )
-        ) {
+            }
+            .alert(
+                "Kunne ikke lagre innstilling",
+                isPresented: Binding(
+                    get: { settingsErrorMessage != nil },
+                    set: { if !$0 { settingsErrorMessage = nil } }
+                )
+            ) {
             Button("OK", role: .cancel) {
                 settingsErrorMessage = nil
             }
-        } message: {
+            } message: {
             Text(settingsErrorMessage ?? "")
-        }
-        .alert("Alle data er slettet", isPresented: $showDeleteAllSuccess) {
+            }
+            .alert("Alle data er slettet", isPresented: $showDeleteAllSuccess) {
             Button("OK", role: .cancel) { }
-        } message: {
+            } message: {
             Text("Appen er nullstilt lokalt.")
-        }
-        .alert("Lastet demo", isPresented: $showDemoLoadSuccess) {
+            }
+            .alert("Lastet demo", isPresented: $showDemoLoadSuccess) {
             Button("OK", role: .cancel) { }
-        } message: {
+            } message: {
             Text(demoLoadMessage)
-        }
-        .alert("Kunne ikke laste demo", isPresented: $showDemoLoadError) {
+            }
+            .alert("Kunne ikke laste demo", isPresented: $showDemoLoadError) {
             Button("OK", role: .cancel) { }
-        } message: {
+            } message: {
             Text("Prøv igjen litt senere.")
-        }
-        .alert("Tøm alle demo-data?", isPresented: $showDemoWipeConfirm) {
+            }
+            .alert("Tøm alle demo-data?", isPresented: $showDemoWipeConfirm) {
             Button("Avbryt", role: .cancel) { }
             Button("Tøm data", role: .destructive) {
                 do {
@@ -158,22 +196,9 @@ struct SettingsView: View {
                     showDemoLoadError = true
                 }
             }
-        } message: {
+            } message: {
             Text("Dette sletter alt lokalt på enheten.")
-        }
-        .safeAreaInset(edge: .bottom) {
-            if let demoToastMessage {
-                Text(demoToastMessage)
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(AppTheme.textPrimary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(AppTheme.surfaceElevated, in: Capsule())
-                    .overlay(Capsule().stroke(AppTheme.divider, lineWidth: 1))
-                    .padding(.bottom, 6)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
-        }
     }
 
     private var trustSection: some View {
@@ -202,8 +227,14 @@ struct SettingsView: View {
                 Text("Visning")
                     .appBodyStyle()
                 Spacer()
-                Text("Følg systemet")
-                    .appSecondaryStyle()
+                Picker("Visning", selection: appearanceModeBinding) {
+                    ForEach(AppAppearancePreference.allCases, id: \.rawValue) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .tint(AppTheme.textPrimary)
             }
 
             HStack {
@@ -214,28 +245,15 @@ struct SettingsView: View {
                     .appSecondaryStyle()
             }
 
-            VStack(alignment: .leading, spacing: 6) {
-                Toggle("Månedlig insjekk", isOn: reminderEnabledBinding)
-                    .appBodyStyle()
-                Text("Få et lite dytt for å oppdatere totalsummene dine.")
-                    .appSecondaryStyle()
+            Button {
+                showReminderSheet = true
+            } label: {
+                settingsRow(title: "Månedlig innsjekk", value: reminderSummaryText(), showsChevron: true)
             }
+            .buttonStyle(.plain)
 
-            if pref.checkInReminderEnabled {
-                Button {
-                    showDayPicker = true
-                } label: {
-                    settingsRow(title: "Dag i måneden", value: "\(pref.checkInReminderDay).", showsChevron: true)
-                }
-                .buttonStyle(.plain)
-
-                Button {
-                    showTimePicker = true
-                } label: {
-                    settingsRow(title: "Klokkeslett", value: reminderTimeText(), showsChevron: true)
-                }
-                .buttonStyle(.plain)
-            }
+            Text("Få et lite dytt for å oppdatere totalsummene dine.")
+                .appSecondaryStyle()
 
             Toggle("Face ID-lås", isOn: binding(\.faceIDLockEnabled))
                 .appBodyStyle()
@@ -247,25 +265,27 @@ struct SettingsView: View {
             NavigationLink {
                 FixedItemsView()
             } label: {
-                settingsRow(title: "Faste poster", value: "", showsChevron: true)
+                settingsRow(title: "Faste poster", value: "", showsChevron: false)
             }
 
-            NavigationLink {
-                InvestmentsView()
+            Button {
+                showBucketTypesSheet = true
             } label: {
-                settingsRow(title: "Investeringsbøtter", value: "", showsChevron: true)
+                settingsRow(title: "Beholdningstyper", value: bucketSummaryText(), showsChevron: true)
             }
+            .buttonStyle(.plain)
 
-            NavigationLink {
-                GoalEditorView(goal: nil)
+            Button {
+                showGoalSheet = true
             } label: {
                 settingsRow(title: "Mål", value: "", showsChevron: true)
             }
+            .buttonStyle(.plain)
 
             NavigationLink {
                 CategoryManagementView()
             } label: {
-                settingsRow(title: "Kategorier", value: "", showsChevron: true)
+                settingsRow(title: "Kategorier", value: "", showsChevron: false)
             }
         }
     }
@@ -330,19 +350,19 @@ struct SettingsView: View {
             NavigationLink {
                 PrivacyInfoView()
             } label: {
-                settingsRow(title: "Personvern", value: "", showsChevron: true)
+                settingsRow(title: "Personvern", value: "", showsChevron: false)
             }
 
             NavigationLink {
                 TermsInfoView()
             } label: {
-                settingsRow(title: "Vilkår", value: "", showsChevron: true)
+                settingsRow(title: "Vilkår", value: "", showsChevron: false)
             }
 
             NavigationLink {
                 AboutAppView()
             } label: {
-                settingsRow(title: "Versjon", value: appVersionText(), showsChevron: true)
+                settingsRow(title: "Versjon", value: appVersionText(), showsChevron: false)
             }
         }
     }
@@ -415,16 +435,6 @@ struct SettingsView: View {
         }
     }
 
-    private var reminderEnabledBinding: Binding<Bool> {
-        Binding(
-            get: { pref.checkInReminderEnabled },
-            set: { newValue in
-                pref.checkInReminderEnabled = newValue
-                persistSettingsChanges(syncReminder: true)
-            }
-        )
-    }
-
     private func handleImport(_ result: Result<[URL], Error>) {
         guard case .success(let urls) = result else {
             if case .failure(let error) = result {
@@ -467,6 +477,13 @@ struct SettingsView: View {
         "Snapshots: \(report.snapshots)"
     }
 
+    private var appearanceModeBinding: Binding<AppAppearancePreference> {
+        Binding(
+            get: { AppAppearancePreference(rawValue: appAppearanceModeRawValue) ?? .followSystem },
+            set: { appAppearanceModeRawValue = $0.rawValue }
+        )
+    }
+
     private func settingsRow(title: String, value: String, showsChevron: Bool) -> some View {
         HStack {
             Text(title)
@@ -487,6 +504,25 @@ struct SettingsView: View {
 
     private func reminderTimeText() -> String {
         String(format: "%02d:%02d", pref.checkInReminderHour, pref.checkInReminderMinute)
+    }
+
+    private func reminderSummaryText() -> String {
+        guard pref.checkInReminderEnabled else { return "Av" }
+        return "På · \(pref.checkInReminderDay). kl \(reminderTimeText())"
+    }
+
+    private func bucketSummaryText() -> String {
+        let activeCount = investmentBuckets.filter { $0.isActive }.count
+        if activeCount == 1 { return "1 aktiv" }
+        return "\(activeCount) aktive"
+    }
+
+    private func applyReminderSettings(enabled: Bool, day: Int, hour: Int, minute: Int) {
+        pref.checkInReminderEnabled = enabled
+        pref.checkInReminderDay = max(1, min(28, day))
+        pref.checkInReminderHour = max(0, min(23, hour))
+        pref.checkInReminderMinute = max(0, min(59, minute))
+        persistSettingsChanges(syncReminder: true)
     }
 
     private func appVersionText() -> String {
@@ -533,28 +569,65 @@ private struct ShareSheet: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
-private struct ReminderDayPickerSheet: View {
+private struct ReminderSettingsSheet: View {
     @Environment(\.dismiss) private var dismiss
 
-    @State var selectedDay: Int
-    let onSave: (Int) -> Void
+    @State private var enabled: Bool
+    @State private var selectedDay: Int
+    @State private var time: Date
+
+    let onSave: (Bool, Int, Int, Int) -> Void
+
+    init(
+        enabled: Bool,
+        day: Int,
+        hour: Int,
+        minute: Int,
+        onSave: @escaping (Bool, Int, Int, Int) -> Void
+    ) {
+        self._enabled = State(initialValue: enabled)
+        self._selectedDay = State(initialValue: max(1, min(28, day)))
+
+        var components = DateComponents()
+        components.hour = max(0, min(23, hour))
+        components.minute = max(0, min(59, minute))
+        self._time = State(initialValue: Calendar.current.date(from: components) ?? .now)
+        self.onSave = onSave
+    }
 
     var body: some View {
         NavigationStack {
-            Form {
-                Picker("Dag i måneden", selection: $selectedDay) {
-                    ForEach(1...28, id: \.self) { day in
-                        Text("\(day).")
-                            .tag(day)
+            VStack(alignment: .leading, spacing: 14) {
+                Toggle("Månedlig innsjekk", isOn: $enabled)
+                    .appBodyStyle()
+
+                if enabled {
+                    Stepper("Dag i måneden: \(selectedDay)", value: $selectedDay, in: 1...28)
+                    DatePicker("Klokkeslett", selection: $time, displayedComponents: [.hourAndMinute])
+                        .datePickerStyle(.compact)
+
+                    Text("iOS kan be om varslingstillatelse hvis den ikke allerede er gitt.")
+                        .appSecondaryStyle()
+                } else {
+                    Text("Påminnelser er av. Du kan fortsatt oppdatere manuelt når som helst.")
+                        .appSecondaryStyle()
+                }
+
+                Spacer(minLength: 0)
+            }
+            .padding()
+            .navigationTitle("Månedlig innsjekk")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Avbryt") {
+                        dismiss()
                     }
                 }
-                .pickerStyle(.wheel)
-            }
-            .navigationTitle("Dag i måneden")
-            .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Lagre") {
-                        onSave(selectedDay)
+                        let hour = Calendar.current.component(.hour, from: time)
+                        let minute = Calendar.current.component(.minute, from: time)
+                        onSave(enabled, selectedDay, hour, minute)
                         dismiss()
                     }
                 }
@@ -563,36 +636,158 @@ private struct ReminderDayPickerSheet: View {
     }
 }
 
-private struct ReminderTimePickerSheet: View {
+private struct BucketTypesSettingsSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \InvestmentBucket.sortOrder) private var buckets: [InvestmentBucket]
+    @StateObject private var viewModel = InvestmentsViewModel()
+    @State private var editMode: EditMode = .inactive
 
-    @State private var time: Date
-    let onSave: (Int, Int) -> Void
+    private var activeBuckets: [InvestmentBucket] {
+        buckets.filter(\.isActive).sorted { $0.sortOrder < $1.sortOrder }
+    }
 
-    init(selectedHour: Int, selectedMinute: Int, onSave: @escaping (Int, Int) -> Void) {
-        var components = DateComponents()
-        components.hour = selectedHour
-        components.minute = selectedMinute
-        self._time = State(initialValue: Calendar.current.date(from: components) ?? .now)
-        self.onSave = onSave
+    private var hiddenBuckets: [InvestmentBucket] {
+        buckets.filter { !$0.isActive }.sorted { $0.sortOrder < $1.sortOrder }
     }
 
     var body: some View {
         NavigationStack {
-            Form {
-                DatePicker("Klokkeslett", selection: $time, displayedComponents: [.hourAndMinute])
-                    .datePickerStyle(.wheel)
+            List {
+                Section("Aktive typer") {
+                    if activeBuckets.isEmpty {
+                        Text("Ingen aktive beholdningstyper.")
+                            .appSecondaryStyle()
+                    } else {
+                        ForEach(activeBuckets) { bucket in
+                            HStack(spacing: 12) {
+                                Circle()
+                                    .fill(AppTheme.portfolioColor(for: bucket))
+                                    .frame(width: 10, height: 10)
+
+                                Text(bucket.name)
+                                    .appBodyStyle()
+
+                                Spacer()
+
+                                if editMode == .inactive && activeBuckets.count > 1 {
+                                    Button("Skjul") {
+                                        viewModel.hideBucket(bucket, context: modelContext)
+                                    }
+                                    .font(.footnote.weight(.semibold))
+                                    .buttonStyle(.bordered)
+                                    .tint(AppTheme.textSecondary)
+                                }
+                            }
+                        }
+                        .onMove { source, destination in
+                            viewModel.moveActiveBuckets(
+                                from: source,
+                                to: destination,
+                                allBuckets: buckets,
+                                context: modelContext
+                            )
+                        }
+                    }
+                }
+
+                Section("Skjulte typer") {
+                    if hiddenBuckets.isEmpty {
+                        Text("Ingen skjulte beholdningstyper.")
+                            .appSecondaryStyle()
+                    } else {
+                        ForEach(hiddenBuckets) { bucket in
+                            HStack(spacing: 12) {
+                                Circle()
+                                    .fill(AppTheme.portfolioColor(for: bucket).opacity(0.4))
+                                    .frame(width: 10, height: 10)
+
+                                Text(bucket.name)
+                                    .appSecondaryStyle()
+
+                                Spacer()
+
+                                Button("Vis") {
+                                    viewModel.restoreBucket(bucket, context: modelContext, existingBuckets: buckets)
+                                }
+                                .font(.footnote.weight(.semibold))
+                                .buttonStyle(.bordered)
+                                .tint(AppTheme.primary)
+                            }
+                        }
+                    }
+                }
+
+                Section("Ny beholdningstype") {
+                    TextField("Navn på type", text: $viewModel.newBucketName)
+                        .textFieldStyle(.appInput)
+
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 10) {
+                            ForEach(AppTheme.customBucketPalette, id: \.self) { hex in
+                                let selected = viewModel.selectedBucketColorHex == hex
+                                Button {
+                                    viewModel.selectedBucketColorHex = hex
+                                } label: {
+                                    Circle()
+                                        .fill(Color(hex: hex))
+                                        .frame(width: 26, height: 26)
+                                        .overlay {
+                                            Circle()
+                                                .stroke(selected ? AppTheme.textPrimary : AppTheme.divider, lineWidth: selected ? 2 : 1)
+                                        }
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+
+                    Button("Legg til type") {
+                        _ = viewModel.addBucket(context: modelContext, existingBuckets: buckets)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(AppTheme.primary)
+                    .disabled(viewModel.newBucketName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                    if let addError = viewModel.addBucketError {
+                        Text(addError)
+                            .font(.footnote)
+                            .foregroundStyle(AppTheme.negative)
+                    }
+                }
             }
-            .navigationTitle("Klokkeslett")
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background)
+            .navigationTitle("Beholdningstyper")
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Lagre") {
-                        let hour = Calendar.current.component(.hour, from: time)
-                        let minute = Calendar.current.component(.minute, from: time)
-                        onSave(hour, minute)
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Lukk") {
                         dismiss()
                     }
                 }
+                ToolbarItem(placement: .topBarTrailing) {
+                    if activeBuckets.count > 1 {
+                        EditButton()
+                    }
+                }
+            }
+            .environment(\.editMode, $editMode)
+            .onAppear {
+                viewModel.ensureDefaultBuckets(context: modelContext, existingBuckets: buckets)
+            }
+            .alert(
+                "Kunne ikke lagre",
+                isPresented: Binding(
+                    get: { viewModel.persistenceErrorMessage != nil },
+                    set: { if !$0 { viewModel.clearPersistenceError() } }
+                )
+            ) {
+                Button("OK", role: .cancel) {
+                    viewModel.clearPersistenceError()
+                }
+            } message: {
+                Text(viewModel.persistenceErrorMessage ?? "")
             }
         }
     }

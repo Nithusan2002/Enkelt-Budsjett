@@ -9,6 +9,7 @@ enum OnboardingStep: Int, CaseIterable {
     case budget
     case goal
     case habits
+    case summary
 }
 
 enum BudgetStarterPackage: String, CaseIterable {
@@ -64,17 +65,29 @@ final class OnboardingViewModel: ObservableObject {
     var orderedSteps: [OnboardingStep] {
         switch focus {
         case .budget:
-            return [.welcome, .focus, .budget, .firstWealth, .goal, .habits]
+            return [.welcome, .focus, .budget, .firstWealth, .goal, .habits, .summary]
         case .investments:
-            return [.welcome, .focus, .firstWealth, .budget, .goal, .habits]
+            return [.welcome, .focus, .firstWealth, .budget, .goal, .habits, .summary]
         case .both:
-            return [.welcome, .focus, .firstWealth, .budget, .goal, .habits]
+            return [.welcome, .focus, .firstWealth, .budget, .goal, .habits, .summary]
         }
     }
 
+    var currentStepIndex: Int {
+        (orderedSteps.firstIndex(of: currentStep) ?? 0) + 1
+    }
+
+    var totalSteps: Int {
+        orderedSteps.count
+    }
+
+    var progressFraction: Double {
+        guard totalSteps > 0 else { return 0 }
+        return Double(currentStepIndex) / Double(totalSteps)
+    }
+
     var progressText: String {
-        guard let idx = orderedSteps.firstIndex(of: currentStep) else { return "1 av 6" }
-        return "\(idx + 1) av 6"
+        "Steg \(currentStepIndex) av \(totalSteps)"
     }
 
     func next(preference: UserPreference, context: ModelContext) {
@@ -112,8 +125,13 @@ final class OnboardingViewModel: ObservableObject {
             return
         }
         if currentStep == .habits {
-            finish(preference: preference, context: context, forceReminderOff: true)
-            logEvent("onboarding_completed_without_reminder")
+            reminderEnabled = false
+            next(preference: preference, context: context)
+            logEvent("onboarding_habits_continue_without_reminder")
+            return
+        }
+        if currentStep == .summary {
+            finish(preference: preference, context: context)
             return
         }
         next(preference: preference, context: context)
@@ -212,6 +230,41 @@ final class OnboardingViewModel: ObservableObject {
             .replacingOccurrences(of: " ", with: "")
             .replacingOccurrences(of: ",", with: ".")
         return Double(normalized)
+    }
+
+    func autoDistributeBuckets() {
+        guard let total = parseDouble(firstWealthTotalText), total > 0 else { return }
+        let distribution: [(name: String, weight: Double)] = [
+            ("Fond", 0.45),
+            ("Aksjer", 0.27),
+            ("BSU", 0.13),
+            ("Buffer", 0.08),
+            ("Krypto", 0.07)
+        ]
+
+        var assignedValues = distribution.map { Int((total * $0.weight).rounded()) }
+        let diff = Int(total.rounded()) - assignedValues.reduce(0, +)
+        if !assignedValues.isEmpty {
+            assignedValues[0] += diff
+        }
+
+        for (index, entry) in distribution.enumerated() {
+            snapshotText[entry.name] = formatWholeNumber(max(0, assignedValues[index]))
+        }
+        showBucketBreakdown = true
+    }
+
+    private func formatWholeNumber(_ value: Int) -> String {
+        let digits = String(value)
+        var result = ""
+        let reversed = Array(digits.reversed())
+        for (index, char) in reversed.enumerated() {
+            if index > 0 && index % 3 == 0 {
+                result.append(" ")
+            }
+            result.append(char)
+        }
+        return String(result.reversed())
     }
 
     private func logEvent(_ event: String) {

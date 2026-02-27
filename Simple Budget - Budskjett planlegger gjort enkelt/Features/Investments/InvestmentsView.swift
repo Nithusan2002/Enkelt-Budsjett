@@ -486,7 +486,7 @@ struct InvestmentsView: View {
             : "-\(formatNOK(abs(changeKr)))"
         let pctText = changePct.map { " (\(formatPercent($0)))" } ?? ""
 
-        return Text("\(arrow) \(valueText)\(pctText) siden forrige insjekk")
+        return Text("\(arrow) \(valueText)\(pctText) siden forrige innsjekk")
             .font(.footnote.weight(.semibold))
             .foregroundStyle(isPositive ? AppTheme.positive : AppTheme.negative)
             .padding(.horizontal, 10)
@@ -682,7 +682,7 @@ private struct AddInvestmentBucketSheet: View {
                             }
                         }
                     }
-                    Text("Ny type vises i Beholdning, graf og neste insjekk.")
+                    Text("Ny type vises i Beholdning, graf og neste innsjekk.")
                         .appSecondaryStyle()
                     if let errorMessage {
                         Text(errorMessage)
@@ -777,12 +777,12 @@ private struct BucketDetailView: View {
     }
 
     private var changeText: String {
-        if abs(changeSinceLast) < 0.01 { return "Ingen endring siden forrige insjekk" }
+        if abs(changeSinceLast) < 0.01 { return "Ingen endring siden forrige innsjekk" }
         let sign = changeSinceLast >= 0 ? "+" : "-"
         if let pct = changePctSinceLast {
-            return "\(sign)\(formatNOK(abs(changeSinceLast))) (\(formatPercent(pct))) siden forrige insjekk"
+            return "\(sign)\(formatNOK(abs(changeSinceLast))) (\(formatPercent(pct))) siden forrige innsjekk"
         }
-        return "\(sign)\(formatNOK(abs(changeSinceLast))) siden forrige insjekk"
+        return "\(sign)\(formatNOK(abs(changeSinceLast))) siden forrige innsjekk"
     }
 
     var body: some View {
@@ -962,7 +962,7 @@ private struct BucketDetailView: View {
                         }
                     }
 
-                    Text("Basert på totalsummen du legger inn ved insjekk.")
+                    Text("Basert på totalsummen du legger inn ved innsjekk.")
                         .appSecondaryStyle()
                 }
                 .padding()

@@ -4,6 +4,7 @@ import Charts
 
 struct OverviewView: View {
     @EnvironmentObject private var navigationState: AppNavigationState
+    @AppStorage("overview_amounts_hidden") private var areAmountsHidden = false
 
     @Query(sort: \Goal.createdAt, order: .reverse) private var goals: [Goal]
     @Query(sort: \InvestmentSnapshot.periodKey) private var snapshots: [InvestmentSnapshot]
@@ -105,10 +106,25 @@ struct OverviewView: View {
 
     private var wealthHeroModule: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Total formue")
-                .appSecondaryStyle()
+            HStack(spacing: 8) {
+                Text("Total formue")
+                    .appSecondaryStyle()
+                Button {
+                    areAmountsHidden.toggle()
+                } label: {
+                    Image(systemName: areAmountsHidden ? "eye.slash" : "eye")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(AppTheme.textSecondary)
+                        .padding(6)
+                        .background(AppTheme.background.opacity(0.6), in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(areAmountsHidden ? "Vis beløp" : "Skjul beløp")
+                .accessibilityHint("Bytter mellom synlige og skjulte beløp.")
+                Spacer()
+            }
 
-            Text(formatNOK(displayedWealth))
+            Text(displayedAmount(displayedWealth))
                 .appBigNumberStyle()
                 .foregroundStyle(AppTheme.textPrimary)
                 .contentTransition(.numericText(value: displayedWealth))
@@ -220,7 +236,7 @@ struct OverviewView: View {
                                 .appSecondaryStyle()
                         }
                         Spacer()
-                        Text("\(isPositive ? "+" : "−")\(formatNOK(abs(delta)))")
+                        Text(displayedSignedAmount(delta, keepSignWhenHidden: true))
                             .font(.footnote.weight(.semibold))
                             .foregroundStyle(isPositive ? AppTheme.positive : AppTheme.negative)
                             .monospacedDigit()
@@ -243,7 +259,7 @@ struct OverviewView: View {
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Total formue")
-        .accessibilityValue(formatNOK(displayedWealth))
+        .accessibilityValue(areAmountsHidden ? "Beløp skjult" : formatNOK(displayedWealth))
     }
 
     private var quickStatsModule: some View {
@@ -255,7 +271,7 @@ struct OverviewView: View {
                     Text("Spart hittil i år")
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(AppTheme.textSecondary)
-                    Text(formatNOK(savedYTD))
+                    Text(displayedAmount(savedYTD))
                         .font(.title3.weight(.semibold))
                         .monospacedDigit()
                         .foregroundStyle(savedYTD >= 0 ? AppTheme.positive : AppTheme.negative)
@@ -325,14 +341,14 @@ struct OverviewView: View {
                                     Text("\(bucketName(for: bucketValue.bucketID))")
                                         .appSecondaryStyle()
                                     Spacer()
-                                    Text("\(formatPercent(share)) · \(formatNOK(bucketValue.amount))")
+                                    Text(areAmountsHidden ? formatPercent(share) : "\(formatPercent(share)) · \(formatNOK(bucketValue.amount))")
                                         .appSecondaryStyle()
                                         .monospacedDigit()
                                 }
                             }
                         }
                     } else if let only = positiveValues.first {
-                        Text("\(bucketName(for: only.bucketID)): 100% (\(formatNOK(only.amount)))")
+                        Text(areAmountsHidden ? "\(bucketName(for: only.bucketID)): 100%" : "\(bucketName(for: only.bucketID)): 100% (\(formatNOK(only.amount)))")
                             .appBodyStyle()
                             .foregroundStyle(AppTheme.textPrimary)
                     } else {
@@ -387,7 +403,7 @@ struct OverviewView: View {
                                 .padding(.vertical, 6)
                                 .background(AppTheme.primary.opacity(0.12), in: Capsule())
                             Spacer()
-                            Text("Ca. \(formatNOK(summary.perMonth)) per måned")
+                            Text(areAmountsHidden ? "Ca. beløp skjult per måned" : "Ca. \(formatNOK(summary.perMonth)) per måned")
                                 .appSecondaryStyle()
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.75)
@@ -401,7 +417,7 @@ struct OverviewView: View {
                         ProgressView(value: progress.value, total: progress.total)
                             .tint(AppTheme.primary)
 
-                        Text("\(formatNOK(currentWealth)) / \(formatNOK(summary.targetAmount))")
+                        Text(areAmountsHidden ? "Beløp skjult / beløp skjult" : "\(formatNOK(currentWealth)) / \(formatNOK(summary.targetAmount))")
                             .appBodyStyle()
                             .foregroundStyle(AppTheme.textPrimary)
                     }
@@ -416,7 +432,9 @@ struct OverviewView: View {
     }
 
     private var savedModule: some View {
-        let statusLine = viewModel.positiveStatusLine(savedAmount: savedYTD, period: "hittil i år", tone: .warm)
+        let statusLine = areAmountsHidden
+            ? "Sparing hittil i år er skjult."
+            : viewModel.positiveStatusLine(savedAmount: savedYTD, period: "hittil i år", tone: .warm)
         return Button {
             navigationState.selectedTab = .budget
         } label: {
@@ -461,7 +479,7 @@ struct OverviewView: View {
         components.day = day
         let candidate = calendar.date(from: components) ?? now
         let next = candidate >= now ? candidate : calendar.date(byAdding: .month, value: 1, to: candidate) ?? candidate
-        return "Neste insjekk: \(formatDayMonth(next))"
+        return "Neste innsjekk: \(formatDayMonth(next))"
     }
 
     private func formatDayMonth(_ date: Date) -> String {
@@ -472,11 +490,17 @@ struct OverviewView: View {
     }
 
     private func changeSincePreviousText() -> String {
+        if areAmountsHidden {
+            return "Siden forrige innsjekk: beløp skjult"
+        }
         let sign = heroChange.kr >= 0 ? "+" : "−"
-        return "Siden forrige insjekk: \(sign)\(formatNOK(abs(heroChange.kr)))"
+        return "Siden forrige innsjekk: \(sign)\(formatNOK(abs(heroChange.kr)))"
     }
 
     private func developmentAccessibilitySummary() -> String {
+        if areAmountsHidden {
+            return "Utvikling finnes, men beløp er skjult."
+        }
         guard let first = developmentSnapshots.first, let last = developmentSnapshots.last else {
             return "Ingen utviklingsdata ennå."
         }
@@ -490,6 +514,9 @@ struct OverviewView: View {
         }
         if summary.monthsRemaining <= 0 {
             return "Fristen er passert. Oppdater mål for ny plan."
+        }
+        if areAmountsHidden {
+            return "For å nå målet innen \(formatMonthYearShort(summary.targetDate)): månedlig beløp er skjult."
         }
         return "For å nå målet innen \(formatMonthYearShort(summary.targetDate)): ca. \(formatNOK(summary.perMonth)) per måned."
     }
@@ -510,5 +537,21 @@ struct OverviewView: View {
     private func openInvestments(focus: InvestmentsSectionFocus) {
         navigationState.investmentsFocus = focus
         navigationState.selectedTab = .investments
+    }
+
+    private func displayedAmount(_ value: Double) -> String {
+        areAmountsHidden ? "•••• kr" : formatNOK(value)
+    }
+
+    private func displayedSignedAmount(_ value: Double, keepSignWhenHidden: Bool) -> String {
+        if areAmountsHidden {
+            if keepSignWhenHidden {
+                let sign = value >= 0 ? "+" : "−"
+                return "\(sign)•••• kr"
+            }
+            return "•••• kr"
+        }
+        let sign = value >= 0 ? "+" : "−"
+        return "\(sign)\(formatNOK(abs(value)))"
     }
 }

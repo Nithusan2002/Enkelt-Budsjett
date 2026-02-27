@@ -13,17 +13,18 @@ struct OnboardingView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 16) {
+            VStack(spacing: 12) {
                 topBar
 
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 14) {
                         stepContent
+                        footerButtons
+                            .padding(.top, 6)
                     }
                     .padding(.horizontal)
+                    .padding(.bottom, 16)
                 }
-
-                footerButtons
             }
             .padding(.vertical)
             .background(AppTheme.background)
@@ -48,16 +49,20 @@ struct OnboardingView: View {
     }
 
     private var topBar: some View {
-        HStack {
-            Text(viewModel.progressText)
-                .appSecondaryStyle()
-            Spacer()
-            if let trailing = trailingSkipTitle {
-                Button(trailing) {
-                    viewModel.skipCurrent(preference: preference, context: modelContext)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(viewModel.progressText)
+                    .appSecondaryStyle()
+                Spacer()
+                if let trailing = trailingSkipTitle {
+                    Button(trailing) {
+                        viewModel.skipCurrent(preference: preference, context: modelContext)
+                    }
+                    .appSecondaryStyle()
                 }
-                .appSecondaryStyle()
             }
+            ProgressView(value: viewModel.progressFraction)
+                .tint(AppTheme.primary)
         }
         .padding(.horizontal)
     }
@@ -86,6 +91,8 @@ struct OnboardingView: View {
             goalStep
         case .habits:
             habitsStep
+        case .summary:
+            summaryStep
         }
     }
 
@@ -95,35 +102,6 @@ struct OnboardingView: View {
                 .appCardTitleStyle()
             Text("Se hvordan budsjett og formue henger sammen. Tall kan legges inn senere.")
                 .appBodyStyle()
-
-            Text("Velg tone")
-                .appCardTitleStyle()
-
-            ForEach(AppToneStyle.allCases, id: \.rawValue) { tone in
-                Button {
-                    viewModel.tone = tone
-                } label: {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(viewModel.titleForTone(tone))
-                                .appBodyStyle()
-                            Text(viewModel.subtitleForTone(tone))
-                                .appSecondaryStyle()
-                        }
-                        Spacer()
-                        if viewModel.tone == tone {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(AppTheme.primary)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(12)
-                    .background(viewModel.tone == tone ? AppTheme.primary.opacity(0.12) : AppTheme.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.divider, lineWidth: 1))
-                }
-                .buttonStyle(.plain)
-            }
 
             Button("Se demo (10 sek)") {
                 viewModel.showDemo = true
@@ -144,6 +122,7 @@ struct OnboardingView: View {
             ForEach(OnboardingFocus.allCases, id: \.rawValue) { focus in
                 Button {
                     viewModel.focus = focus
+                    autoAdvance(from: .focus)
                 } label: {
                     HStack {
                         Text(viewModel.titleForFocus(focus))
@@ -180,23 +159,48 @@ struct OnboardingView: View {
                 text: $viewModel.firstWealthTotalText
             )
 
-            Button(viewModel.showBucketBreakdown ? "Skjul fordeling" : "Fordel i bøtter") {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    viewModel.showBucketBreakdown.toggle()
+            VStack(alignment: .leading, spacing: 10) {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        viewModel.showBucketBreakdown.toggle()
+                    }
+                } label: {
+                    HStack {
+                        Text("Fordel i bøtter")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(AppTheme.textPrimary)
+                        Spacer()
+                        Image(systemName: "chevron.down")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(AppTheme.textSecondary)
+                            .rotationEffect(.degrees(viewModel.showBucketBreakdown ? 180 : 0))
+                    }
+                    .padding(.vertical, 2)
+                }
+                .buttonStyle(.plain)
+
+                if viewModel.showBucketBreakdown {
+                    Button("Fordel automatisk") {
+                        viewModel.autoDistributeBuckets()
+                    }
+                    .font(.footnote.weight(.semibold))
+                    .buttonStyle(.bordered)
+                    .tint(AppTheme.primary)
+                    .disabled(viewModel.firstWealthTotalText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                    snapshotField("Fond")
+                    snapshotField("Aksjer")
+                    snapshotField("BSU")
+                    snapshotField("Buffer")
+                    snapshotField("Krypto")
+                    Text("Grovt tall holder. Du kan finjustere senere.")
+                        .appSecondaryStyle()
                 }
             }
-            .font(.footnote.weight(.semibold))
-
-            if viewModel.showBucketBreakdown {
-                snapshotField("Fond")
-                snapshotField("Aksjer")
-                snapshotField("BSU")
-                snapshotField("Buffer")
-                snapshotField("Krypto")
-            }
-
-            Text("Grovt tall holder. Du kan finjustere senere.")
-                .appSecondaryStyle()
+            .padding(12)
+            .background(AppTheme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.divider, lineWidth: 1))
         }
     }
 
@@ -210,6 +214,7 @@ struct OnboardingView: View {
             ForEach(BudgetStarterPackage.allCases, id: \.rawValue) { package in
                 Button {
                     viewModel.budgetPackage = package
+                    autoAdvance(from: .budget)
                 } label: {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
@@ -272,8 +277,19 @@ struct OnboardingView: View {
             Text("Et lite dytt hver måned holder oversikten levende.")
                 .appBodyStyle()
 
-            Toggle("Månedlig insjekk", isOn: $viewModel.reminderEnabled)
+            Toggle("Månedlig innsjekk", isOn: $viewModel.reminderEnabled)
             if viewModel.reminderEnabled {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "bell.badge.fill")
+                        .foregroundStyle(AppTheme.primary)
+                    Text("Når du fortsetter, kommer iOS-spørsmål om varslingstillatelse for månedlig innsjekk.")
+                        .appSecondaryStyle()
+                }
+                .padding(10)
+                .background(AppTheme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(AppTheme.divider, lineWidth: 1))
+
                 Stepper("Dag i måneden: \(viewModel.reminderDay)", value: $viewModel.reminderDay, in: 1...28)
                 DatePicker("Klokkeslett", selection: $viewModel.reminderTime, displayedComponents: .hourAndMinute)
             }
@@ -284,15 +300,53 @@ struct OnboardingView: View {
         }
     }
 
+    private var summaryStep: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Dette blir satt opp")
+                .appCardTitleStyle()
+            Text("Sjekk at alt ser riktig ut før du fullfører.")
+                .appBodyStyle()
+
+            VStack(alignment: .leading, spacing: 10) {
+                summaryRow("Startfokus", value: viewModel.titleForFocus(viewModel.focus))
+                summaryRow("Første formue", value: firstWealthSummary)
+                summaryRow("Budsjettpakke", value: viewModel.title(for: viewModel.budgetPackage))
+                if !viewModel.monthlyBudgetText.isEmpty {
+                    summaryRow("Månedsbudsjett", value: "kr \(viewModel.monthlyBudgetText)")
+                }
+                summaryRow("Mål", value: goalSummary)
+                summaryRow("Månedlig innsjekk", value: reminderSummary)
+                summaryRow("Face ID-lås", value: viewModel.faceIDEnabled ? "På" : "Av")
+            }
+            .padding(12)
+            .background(AppTheme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.divider, lineWidth: 1))
+        }
+    }
+
     private var footerButtons: some View {
         VStack(spacing: 8) {
-            Button(primaryButtonTitle) {
-                handlePrimaryAction()
+            if isAutoAdvanceStep {
+                Text("Valg går videre automatisk. Du kan også trykke Neste.")
+                    .font(.footnote)
+                    .foregroundStyle(AppTheme.textSecondary)
+
+                Button("Neste") {
+                    handlePrimaryAction()
+                }
+                .font(.footnote.weight(.semibold))
+                .buttonStyle(.bordered)
+                .tint(AppTheme.primary)
+            } else {
+                Button(primaryButtonTitle) {
+                    handlePrimaryAction()
+                }
+                .frame(maxWidth: .infinity)
+                .appCTAStyle()
+                .buttonStyle(.borderedProminent)
+                .tint(AppTheme.primary)
             }
-            .frame(maxWidth: .infinity)
-            .appCTAStyle()
-            .buttonStyle(.borderedProminent)
-            .padding(.horizontal)
 
             if let secondary = secondaryButtonTitle {
                 Button(secondary) {
@@ -310,7 +364,8 @@ struct OnboardingView: View {
         case .firstWealth: return "Fortsett"
         case .budget: return "Lagre og fortsett"
         case .goal: return "Lagre og fortsett"
-        case .habits: return "Gå til Oversikt"
+        case .habits: return "Fortsett"
+        case .summary: return "Gå til Oversikt"
         }
     }
 
@@ -319,13 +374,13 @@ struct OnboardingView: View {
         case .welcome: return "Hopp over onboarding"
         case .firstWealth: return "Legg inn senere"
         case .goal: return "Ikke nå"
-        case .habits: return "Fullfør uten påminnelse"
-        case .focus, .budget: return nil
+        case .habits: return "Fortsett uten påminnelse"
+        case .focus, .budget, .summary: return nil
         }
     }
 
     private func handlePrimaryAction() {
-        if viewModel.currentStep == .habits {
+        if viewModel.currentStep == .summary {
             viewModel.finish(preference: preference, context: modelContext)
         } else {
             viewModel.next(preference: preference, context: modelContext)
@@ -334,6 +389,64 @@ struct OnboardingView: View {
 
     private func handleSecondaryAction() {
         viewModel.skipCurrent(preference: preference, context: modelContext)
+    }
+
+    private var isAutoAdvanceStep: Bool {
+        viewModel.currentStep == .focus || viewModel.currentStep == .budget
+    }
+
+    private func autoAdvance(from step: OnboardingStep) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            guard viewModel.currentStep == step else { return }
+            viewModel.next(preference: preference, context: modelContext)
+        }
+    }
+
+    private var firstWealthSummary: String {
+        let hasBucketValues = viewModel.snapshotText.values.contains { !$0.isEmpty }
+        if hasBucketValues {
+            return "Fordelt i bøtter"
+        }
+        if viewModel.firstWealthTotalText.isEmpty {
+            return "Legges inn senere"
+        }
+        return "kr \(viewModel.firstWealthTotalText)"
+    }
+
+    private var goalSummary: String {
+        guard !viewModel.goalAmountText.isEmpty else { return "Ikke satt nå" }
+        return "kr \(viewModel.goalAmountText) innen \(goalDateLabel)"
+    }
+
+    private var reminderSummary: String {
+        guard viewModel.reminderEnabled else { return "Av" }
+        return "På, dag \(viewModel.reminderDay) kl \(timeLabel(from: viewModel.reminderTime))"
+    }
+
+    private var goalDateLabel: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "nb_NO")
+        formatter.dateFormat = "d MMM yyyy"
+        return formatter.string(from: viewModel.goalDate)
+    }
+
+    private func timeLabel(from date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "nb_NO")
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: date)
+    }
+
+    private func summaryRow(_ label: String, value: String) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(label)
+                .appSecondaryStyle()
+            Spacer(minLength: 8)
+            Text(value)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(AppTheme.textPrimary)
+                .multilineTextAlignment(.trailing)
+        }
     }
 
     private func quickGoalChip(_ value: String) -> some View {
@@ -404,59 +517,62 @@ struct OnboardingView: View {
 }
 
 private struct DemoPreviewSheet: View {
+    @State private var selectedPage = 0
+
+    private let slides: [DemoSlide] = [
+        DemoSlide(title: "Enkelt budsjett", text: "Budsjett gjort enkelt", detail: "Slik ser dashboardet ut i praksis.", imageName: "BrandStory"),
+        DemoSlide(title: "Total formue", text: "NOK 124 000", detail: "+NOK 2 300 siden forrige innsjekk", imageName: nil),
+        DemoSlide(title: "Målprogresjon", text: "42 % nådd", detail: "24 måneder igjen", imageName: nil),
+        DemoSlide(title: "Utvikling", text: "I år: +NOK 12 400", detail: "Fond 58 % av porteføljen", imageName: nil)
+    ]
+
     var body: some View {
         NavigationStack {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 16) {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Image("BrandStory")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 260)
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
-                        Text("Slik ser dashboardet ut i praksis.")
-                            .appSecondaryStyle()
-                    }
-                    .frame(width: 280, alignment: .topLeading)
-
-                    previewCard(
-                        title: "Total formue",
-                        text: "NOK 124 000",
-                        detail: "+NOK 2 300 siden forrige insjekk"
-                    )
-                    previewCard(
-                        title: "Målprogresjon",
-                        text: "42 % nådd",
-                        detail: "24 måneder igjen"
-                    )
-                    previewCard(
-                        title: "Utvikling",
-                        text: "I år: +NOK 12 400",
-                        detail: "Fond 58 % av porteføljen"
-                    )
+            TabView(selection: $selectedPage) {
+                ForEach(Array(slides.enumerated()), id: \.offset) { index, slide in
+                    previewCard(slide: slide)
+                        .padding(.horizontal)
+                        .padding(.top, 10)
+                        .tag(index)
                 }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
             }
+            .tabViewStyle(.page(indexDisplayMode: .always))
             .navigationTitle("Demo-preview")
         }
     }
 
-    private func previewCard(title: String, text: String, detail: String) -> some View {
+    private func previewCard(slide: DemoSlide) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title)
+            if let imageName = slide.imageName {
+                Image(imageName)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+
+            Text(slide.title)
                 .appCardTitleStyle()
-            Text(text)
+            Text(slide.text)
                 .font(.title3.weight(.semibold))
                 .monospacedDigit()
-            Text(detail)
+            Text(slide.detail)
                 .appSecondaryStyle()
+            Spacer(minLength: 0)
         }
-        .frame(width: 280, height: 170, alignment: .topLeading)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .frame(minHeight: 260, alignment: .topLeading)
         .padding()
         .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
     }
+}
+
+private struct DemoSlide {
+    let title: String
+    let text: String
+    let detail: String
+    let imageName: String?
 }
 
 #Preview {

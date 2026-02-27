@@ -39,7 +39,7 @@ struct FeatureLogicTests {
         #expect(order[1] == .focus)
         #expect(order[2] == .budget)
         #expect(order[3] == .firstWealth)
-        #expect(order.last == .habits)
+        #expect(order.last == .summary)
     }
 
     @Test

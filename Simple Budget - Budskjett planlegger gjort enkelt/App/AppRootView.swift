@@ -10,16 +10,48 @@ enum AppTab {
     case settings
 }
 
+enum AppAppearancePreference: String, CaseIterable {
+    case followSystem
+    case light
+    case dark
+
+    var title: String {
+        switch self {
+        case .followSystem:
+            return "Følg system"
+        case .light:
+            return "Lys"
+        case .dark:
+            return "Mørk"
+        }
+    }
+
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .followSystem:
+            return nil
+        case .light:
+            return .light
+        case .dark:
+            return .dark
+        }
+    }
+}
+
 struct AppRootView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
     @Query private var preferences: [UserPreference]
+    @AppStorage("app_appearance_mode") private var appAppearanceModeRawValue = AppAppearancePreference.followSystem.rawValue
     @StateObject private var viewModel = AppRootViewModel()
     @StateObject private var navigationState = AppNavigationState()
     @State private var bootstrapAttempted = false
 
     private var preference: UserPreference? { preferences.first }
     private var activeStoreMode: AppStoreMode { Simple_Budget___Budskjett_planlegger_gjort_enkeltApp.activeStoreMode }
+    private var preferredColorScheme: ColorScheme? {
+        (AppAppearancePreference(rawValue: appAppearanceModeRawValue) ?? .followSystem).colorScheme
+    }
     private var shouldShowStoreModeBanner: Bool {
         guard preference?.onboardingCompleted ?? false else { return false }
         return activeStoreMode != .primary
@@ -100,6 +132,7 @@ struct AppRootView: View {
         .tint(AppTheme.primary)
         .background(AppTheme.background.ignoresSafeArea())
         .foregroundStyle(AppTheme.textPrimary)
+        .preferredColorScheme(preferredColorScheme)
         .task {
             guard !bootstrapAttempted else { return }
             applyBarAppearance()
@@ -115,6 +148,9 @@ struct AppRootView: View {
         }
         .onChange(of: scenePhase) { _, newValue in
             viewModel.handleScenePhaseChange(newValue)
+        }
+        .onChange(of: preferredColorScheme) { _, _ in
+            applyBarAppearance()
         }
     }
 

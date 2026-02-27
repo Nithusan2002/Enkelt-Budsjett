@@ -91,7 +91,7 @@ struct InvestmentCheckInWizardView: View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Opprett en beholdningstype først")
                 .appCardTitleStyle()
-            Text("Du trenger minst én aktiv beholdning for å gjøre insjekk.")
+            Text("Du trenger minst én aktiv beholdning for å gjøre innsjekk.")
                 .appBodyStyle()
                 .foregroundStyle(AppTheme.textSecondary)
             Button("Ny type") {
@@ -140,7 +140,7 @@ private struct WizardIntroView: View {
                 .foregroundStyle(AppTheme.textSecondary)
 
             VStack(alignment: .leading, spacing: 10) {
-                Text("Denne insjekken gjelder for")
+                Text("Denne innsjekken gjelder for")
                     .appSecondaryStyle()
                 DatePicker(
                     "Måned",
@@ -325,7 +325,7 @@ private struct WizardSummaryView: View {
 
             row("Forrige total", value: formatNOK(previousTotal))
             row("Ny total", value: formatNOK(newTotal))
-            row("Endring siden forrige insjekk", value: deltaText)
+            row("Endring siden forrige innsjekk", value: deltaText)
 
             if changedCount == 0 {
                 Text("Ingen endringer – total forblir \(formatNOK(newTotal)).")
