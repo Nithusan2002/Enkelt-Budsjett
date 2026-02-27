@@ -101,14 +101,6 @@ struct BudgetView: View {
                     isOverBudgetFilterActive: viewModel.selectedFilter == .overLimit,
                     onToggleOverBudget: {
                         viewModel.selectedFilter = viewModel.selectedFilter == .overLimit ? .all : .overLimit
-                    },
-                    onAddExpense: {
-                        addTransactionInitialType = .expense
-                        viewModel.showAddTransaction = true
-                    },
-                    onAddIncome: {
-                        addTransactionInitialType = .income
-                        viewModel.showAddTransaction = true
                     }
                 )
 
@@ -400,8 +392,6 @@ private struct BudgetHeroCardView: View {
     let overBudgetCount: Int
     let isOverBudgetFilterActive: Bool
     let onToggleOverBudget: () -> Void
-    let onAddExpense: () -> Void
-    let onAddIncome: () -> Void
 
     private var spentSoFar: Double {
         hasPlannedBudget ? trackedActual : expenseTotal
@@ -469,24 +459,6 @@ private struct BudgetHeroCardView: View {
                     title: "Forventet ved månedsslutt",
                     value: formatNOK(projectedMonthEnd)
                 )
-            }
-
-            HStack(spacing: 8) {
-                Button {
-                    onAddExpense()
-                } label: {
-                    Label("Legg til utgift", systemImage: "minus.circle.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(AppTheme.primary)
-                .appCTAStyle()
-
-                Button("Legg til inntekt") {
-                    onAddIncome()
-                }
-                .buttonStyle(.bordered)
-                .tint(AppTheme.primary)
             }
 
             if overBudgetCount > 0 {
@@ -680,6 +652,7 @@ private struct AddTransactionSheet: View {
     @State private var attemptedSave = false
     @State private var showSavedBanner = false
     @State private var showPostSaveActions = false
+    @State private var showCategoryPicker = false
     @FocusState private var amountFocused: Bool
 
     @AppStorage("budget.last_category.expense") private var lastExpenseCategoryID: String = ""
@@ -723,14 +696,36 @@ private struct AddTransactionSheet: View {
                             Text("Ingen kategorier for valgt type.")
                                 .appSecondaryStyle()
                         } else {
-                            Picker("Kategori", selection: $selectedCategoryID) {
-                                Text("Velg kategori").tag(Optional<String>.none)
-                                ForEach(availableCategories) { category in
-                                    Label(category.name, systemImage: symbolForCategory(category.name))
-                                        .tag(Optional(category.id))
+                            Button {
+                                showCategoryPicker = true
+                            } label: {
+                                HStack(spacing: 10) {
+                                    if let selected = selectedCategory {
+                                        Image(systemName: symbolForCategory(selected.name))
+                                            .font(.subheadline.weight(.semibold))
+                                            .foregroundStyle(AppTheme.primary)
+                                        Text(selected.name)
+                                            .appBodyStyle()
+                                    } else {
+                                        Text("Velg kategori")
+                                            .appBodyStyle()
+                                            .foregroundStyle(AppTheme.textSecondary)
+                                    }
+                                    Spacer()
+                                    Image(systemName: "chevron.up.chevron.down")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(AppTheme.textSecondary)
                                 }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 10)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 12))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(AppTheme.divider, lineWidth: 1)
+                                )
                             }
-                            .pickerStyle(.menu)
+                            .buttonStyle(.plain)
                         }
 
                         VStack(alignment: .leading, spacing: 10) {
@@ -836,6 +831,15 @@ private struct AddTransactionSheet: View {
                 }
                 preselectCategoryForCurrentType()
             }
+            .sheet(isPresented: $showCategoryPicker) {
+                CategoryPickerSheet(
+                    categories: availableCategories,
+                    selectedCategoryID: $selectedCategoryID,
+                    symbolForCategory: symbolForCategory
+                )
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+            }
             .onChange(of: amountText) { _, newValue in
                 let formatted = formatAmountInputLive(newValue)
                 if formatted != newValue {
@@ -847,6 +851,11 @@ private struct AddTransactionSheet: View {
 
     private var parsedAmount: Double {
         parseInputAmount(amountText) ?? 0
+    }
+
+    private var selectedCategory: Category? {
+        guard let selectedCategoryID else { return nil }
+        return availableCategories.first(where: { $0.id == selectedCategoryID })
     }
 
     private func preselectCategoryForCurrentType() {
@@ -987,6 +996,99 @@ private struct AddTransactionSheet: View {
         if key.contains("spar") { return "banknote.fill" }
         if key.contains("inntekt") || key.contains("lonn") { return "arrow.down.circle.fill" }
         return "tag.fill"
+    }
+}
+
+private struct CategoryPickerSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    let categories: [Category]
+    @Binding var selectedCategoryID: String?
+    let symbolForCategory: (String) -> String
+
+    private let columns = [GridItem(.adaptive(minimum: 128), spacing: 10)]
+    @State private var searchText: String = ""
+
+    private var filteredCategories: [Category] {
+        let query = searchText
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .folding(options: .diacriticInsensitive, locale: .current)
+            .lowercased()
+        guard !query.isEmpty else { return categories }
+        return categories.filter { category in
+            category.name
+                .folding(options: .diacriticInsensitive, locale: .current)
+                .lowercased()
+                .contains(query)
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                TextField("Søk kategori", text: $searchText)
+                    .textFieldStyle(.appInput)
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+
+                LazyVGrid(columns: columns, spacing: 10) {
+                    ForEach(filteredCategories) { category in
+                        let isSelected = selectedCategoryID == category.id
+                        Button {
+                            selectedCategoryID = category.id
+                            dismiss()
+                        } label: {
+                            VStack(spacing: 8) {
+                                HStack(spacing: 8) {
+                                    Image(systemName: symbolForCategory(category.name))
+                                        .font(.subheadline.weight(.semibold))
+                                    Spacer(minLength: 0)
+                                    if isSelected {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .font(.footnote.weight(.bold))
+                                    }
+                                }
+
+                                Text(category.name)
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(AppTheme.textPrimary)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .lineLimit(2)
+                                    .minimumScaleFactor(0.9)
+                            }
+                            .padding(10)
+                            .frame(maxWidth: .infinity, minHeight: 72, alignment: .topLeading)
+                            .foregroundStyle(isSelected ? AppTheme.primary : AppTheme.textPrimary)
+                            .background(
+                                isSelected ? AppTheme.primary.opacity(0.14) : AppTheme.surface,
+                                in: RoundedRectangle(cornerRadius: 12)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(isSelected ? AppTheme.primary : AppTheme.divider, lineWidth: isSelected ? 1.4 : 1)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding()
+
+                if filteredCategories.isEmpty {
+                    Text("Ingen kategorier matcher søket.")
+                        .appSecondaryStyle()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal)
+                        .padding(.bottom, 12)
+                }
+            }
+            .background(AppTheme.background)
+            .navigationTitle("Velg kategori")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Lukk") { dismiss() }
+                }
+            }
+        }
     }
 }
 
