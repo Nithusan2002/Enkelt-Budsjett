@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import UIKit
 
 enum AppDateFormatters {
     static let fullDate: DateFormatter = {
@@ -119,8 +120,34 @@ extension View {
                     .stroke(AppTheme.divider, lineWidth: 1)
             )
     }
+
+    func appKeyboardDismissToolbar() -> some View {
+        self.modifier(AppKeyboardDismissToolbarModifier())
+    }
 }
 
 extension TextFieldStyle where Self == AppInputFieldStyle {
     static var appInput: AppInputFieldStyle { AppInputFieldStyle() }
+}
+
+private struct AppKeyboardDismissToolbarModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        content.toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button {
+                    UIApplication.shared.sendAction(
+                        #selector(UIResponder.resignFirstResponder),
+                        to: nil,
+                        from: nil,
+                        for: nil
+                    )
+                } label: {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.title3.weight(.semibold))
+                }
+                .accessibilityLabel("Lukk tastatur")
+            }
+        }
+    }
 }

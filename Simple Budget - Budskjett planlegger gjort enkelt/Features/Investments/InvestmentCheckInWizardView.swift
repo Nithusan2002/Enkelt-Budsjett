@@ -73,6 +73,7 @@ struct InvestmentCheckInWizardView: View {
                     }
                 }
             }
+            .appKeyboardDismissToolbar()
             .alert("Kunne ikke lagre", isPresented: Binding(
                 get: { errorMessage != nil },
                 set: { if !$0 { errorMessage = nil } }

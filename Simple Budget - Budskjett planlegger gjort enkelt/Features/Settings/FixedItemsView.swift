@@ -367,6 +367,7 @@ private struct FixedItemEditorSheet: View {
                     .disabled(!isValid)
                 }
             }
+            .appKeyboardDismissToolbar()
             .onAppear {
                 if let existing {
                     draft.title = existing.title

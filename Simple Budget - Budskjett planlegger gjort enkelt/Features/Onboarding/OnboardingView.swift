@@ -29,6 +29,7 @@ struct OnboardingView: View {
             .padding(.vertical)
             .background(AppTheme.background)
             .navigationTitle("Kom i gang")
+            .appKeyboardDismissToolbar()
             .sheet(isPresented: $viewModel.showDemo) {
                 DemoPreviewSheet()
             }

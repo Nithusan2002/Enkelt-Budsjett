@@ -1267,6 +1267,7 @@ private struct BucketQuickUpdateSheet: View {
                     .appCTAStyle()
                 }
             }
+            .appKeyboardDismissToolbar()
             .alert(
                 "Kunne ikke lagre",
                 isPresented: Binding(

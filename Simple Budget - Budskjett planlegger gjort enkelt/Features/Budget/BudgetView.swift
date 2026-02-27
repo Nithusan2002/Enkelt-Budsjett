@@ -158,6 +158,8 @@ struct BudgetView: View {
                     viewModel.selectedMonthDate = DateService.monthBounds(for: date).start
                 }
             )
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $viewModel.showAddTransaction) {
             AddTransactionSheet(
@@ -612,28 +614,57 @@ private struct BudgetDetailsView: View {
 private struct BudgetMonthPickerSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State var selectedDate: Date
+    @State private var optionsAnchor: Date = .now
     let onSelect: (Date) -> Void
+
+    private var monthOptions: [Date] {
+        let calendar = Calendar.current
+        let base = DateService.monthBounds(for: optionsAnchor).start
+        return (-120...120).compactMap { offset in
+            calendar.date(byAdding: .month, value: offset, to: base).map { DateService.monthBounds(for: $0).start }
+        }
+    }
 
     var body: some View {
         NavigationStack {
-            Form {
-                DatePicker(
-                    "Måned",
-                    selection: $selectedDate,
-                    displayedComponents: [.date]
-                )
-                .datePickerStyle(.graphical)
+            VStack(spacing: 12) {
+                Text("Velg måned")
+                    .appSecondaryStyle()
+
+                Picker("Måned", selection: $selectedDate) {
+                    ForEach(monthOptions, id: \.self) { month in
+                        Text(monthPickerLabel(month))
+                            .tag(month)
+                    }
+                }
+                .pickerStyle(.wheel)
+                .labelsHidden()
             }
             .navigationTitle("Velg måned")
             .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Avbryt") {
+                        dismiss()
+                    }
+                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Ferdig") {
-                        onSelect(selectedDate)
+                        onSelect(DateService.monthBounds(for: selectedDate).start)
                         dismiss()
                     }
                 }
             }
+            .onAppear {
+                selectedDate = DateService.monthBounds(for: selectedDate).start
+                optionsAnchor = selectedDate
+            }
         }
+    }
+
+    private func monthPickerLabel(_ date: Date) -> String {
+        let raw = formatMonthYearShort(date).replacingOccurrences(of: ".", with: "")
+        guard let first = raw.first else { return raw }
+        return String(first).uppercased() + String(raw.dropFirst())
     }
 }
 
@@ -682,82 +713,105 @@ private struct AddTransactionSheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Type") {
-                    HStack(spacing: 10) {
-                        typeCard(title: "Inntekt", systemImage: "arrow.down.circle.fill", type: .income)
-                        typeCard(title: "Utgift", systemImage: "arrow.up.circle.fill", type: .expense)
-                    }
-                }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Transaksjon")
+                            .appCardTitleStyle()
 
-                if selectedType != nil {
-                    Section(selectedType == .expense ? "Ny utgift" : "Ny inntekt") {
-                        if availableCategories.isEmpty {
-                            Text("Ingen kategorier for valgt type.")
+                        VStack(alignment: .leading, spacing: 14) {
+                            Text("Type")
                                 .appSecondaryStyle()
-                        } else {
-                            Button {
-                                showCategoryPicker = true
-                            } label: {
-                                HStack(spacing: 10) {
-                                    if let selected = selectedCategory {
-                                        Image(systemName: symbolForCategory(selected.name))
-                                            .font(.subheadline.weight(.semibold))
-                                            .foregroundStyle(AppTheme.primary)
-                                        Text(selected.name)
-                                            .appBodyStyle()
-                                    } else {
-                                        Text("Velg kategori")
-                                            .appBodyStyle()
-                                            .foregroundStyle(AppTheme.textSecondary)
+
+                            HStack(spacing: 10) {
+                                typeCard(title: "Inntekt", systemImage: "arrow.down.circle.fill", type: .income)
+                                typeCard(title: "Utgift", systemImage: "arrow.up.circle.fill", type: .expense)
+                            }
+
+                            if selectedType != nil {
+                                Divider()
+                                    .overlay(AppTheme.divider)
+
+                                Text(selectedType == .expense ? "Ny utgift" : "Ny inntekt")
+                                    .font(.headline.weight(.semibold))
+                                    .foregroundStyle(AppTheme.textPrimary)
+
+                                if availableCategories.isEmpty {
+                                    Text("Ingen kategorier for valgt type.")
+                                        .appSecondaryStyle()
+                                } else {
+                                    Button {
+                                        showCategoryPicker = true
+                                    } label: {
+                                        HStack(spacing: 10) {
+                                            if let selected = selectedCategory {
+                                                Image(systemName: symbolForCategory(selected.name))
+                                                    .font(.subheadline.weight(.semibold))
+                                                    .foregroundStyle(AppTheme.primary)
+                                                Text(selected.name)
+                                                    .appBodyStyle()
+                                            } else {
+                                                Text("Velg kategori")
+                                                    .appBodyStyle()
+                                                    .foregroundStyle(AppTheme.textSecondary)
+                                            }
+                                            Spacer()
+                                            Image(systemName: "chevron.up.chevron.down")
+                                                .font(.caption.weight(.semibold))
+                                                .foregroundStyle(AppTheme.textSecondary)
+                                        }
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 10)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .background(AppTheme.background, in: RoundedRectangle(cornerRadius: 12))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .stroke(AppTheme.divider, lineWidth: 1)
+                                        )
                                     }
-                                    Spacer()
-                                    Image(systemName: "chevron.up.chevron.down")
-                                        .font(.caption.weight(.semibold))
-                                        .foregroundStyle(AppTheme.textSecondary)
+                                    .buttonStyle(.plain)
                                 }
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 10)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 12))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(AppTheme.divider, lineWidth: 1)
-                                )
-                            }
-                            .buttonStyle(.plain)
-                        }
 
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text("Beløp")
-                                .appSecondaryStyle()
-                            HStack(spacing: 8) {
-                                Text("kr")
-                                    .font(.title3.weight(.semibold))
-                                    .foregroundStyle(AppTheme.textSecondary)
-                                TextField("f.eks. 450", text: $amountText)
-                                    .keyboardType(.decimalPad)
-                                    .font(.title2.weight(.semibold))
-                                    .monospacedDigit()
-                                    .focused($amountFocused)
-                            }
-                            Text("Grovt tall holder.")
-                                .appSecondaryStyle()
-                        }
+                                Divider()
+                                    .overlay(AppTheme.divider)
 
-                        if attemptedSave && selectedCategoryID == nil {
-                            Text("Velg kategori for å lagre.")
-                                .font(.footnote.weight(.semibold))
-                                .foregroundStyle(AppTheme.negative)
+                                VStack(alignment: .leading, spacing: 10) {
+                                    Text("Beløp")
+                                        .appSecondaryStyle()
+                                    HStack(spacing: 8) {
+                                        Text("kr")
+                                            .font(.title3.weight(.semibold))
+                                            .foregroundStyle(AppTheme.textSecondary)
+                                        TextField("f.eks. 450", text: $amountText)
+                                            .keyboardType(.decimalPad)
+                                            .font(.title2.weight(.semibold))
+                                            .monospacedDigit()
+                                            .focused($amountFocused)
+                                    }
+                                    Text("Grovt tall holder.")
+                                        .appSecondaryStyle()
+                                }
+
+                                if attemptedSave && selectedCategoryID == nil {
+                                    Text("Velg kategori for å lagre.")
+                                        .font(.footnote.weight(.semibold))
+                                        .foregroundStyle(AppTheme.negative)
+                                }
+                            }
                         }
+                        .padding()
+                        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
+                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
                     }
-                }
 
-                Section("Notat") {
+                    Text("Notat")
+                        .appCardTitleStyle()
                     TextField("Hva var dette?", text: $note)
                         .textFieldStyle(.appInput)
                 }
+                .padding()
             }
+            .background(AppTheme.background)
             .navigationTitle("Legg til transaksjon")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -781,6 +835,7 @@ private struct AddTransactionSheet: View {
                     .disabled(!isValid)
                 }
             }
+            .appKeyboardDismissToolbar()
             .safeAreaInset(edge: .bottom) {
                 if showSavedBanner || showPostSaveActions {
                     VStack(spacing: 8) {
@@ -1370,6 +1425,7 @@ private struct SetGroupLimitsSheet: View {
                     .disabled(!hasAnyInput && !hasExistingForMonth)
                 }
             }
+            .appKeyboardDismissToolbar()
             .onAppear {
                 let current = groupPlans.filter { $0.monthPeriodKey == periodKey }
                 for group in BudgetGroup.allCases {

@@ -37,6 +37,7 @@ struct GoalEditorView: View {
                     .disabled(!viewModel.canSave)
                 }
             }
+            .appKeyboardDismissToolbar()
             .onAppear {
                 viewModel.onAppear(goal: goal)
             }
