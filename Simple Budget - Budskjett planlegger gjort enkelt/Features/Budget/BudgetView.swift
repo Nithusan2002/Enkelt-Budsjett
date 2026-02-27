@@ -11,6 +11,7 @@ struct BudgetView: View {
 
     @StateObject private var viewModel = BudgetViewModel()
     @State private var showMonthPicker = false
+    @State private var addTransactionInitialType: TransactionKind?
 
     private var periodKey: String { viewModel.periodKey() }
     private var monthTransactions: [Transaction] {
@@ -100,19 +101,30 @@ struct BudgetView: View {
                     isOverBudgetFilterActive: viewModel.selectedFilter == .overLimit,
                     onToggleOverBudget: {
                         viewModel.selectedFilter = viewModel.selectedFilter == .overLimit ? .all : .overLimit
+                    },
+                    onAddExpense: {
+                        addTransactionInitialType = .expense
+                        viewModel.showAddTransaction = true
+                    },
+                    onAddIncome: {
+                        addTransactionInitialType = .income
+                        viewModel.showAddTransaction = true
                     }
                 )
 
                 NavigationLink {
-                    FixedItemsView()
+                    BudgetDetailsView(
+                        fixedTotalThisMonth: fixedTotalThisMonth,
+                        incomeRows: incomeRows,
+                        savingsRows: savingsRows
+                    )
                 } label: {
                     HStack {
-                        Text("Faste poster denne måneden")
+                        Text("Se detaljer")
                             .appBodyStyle()
                         Spacer()
-                        Text(formatNOK(fixedTotalThisMonth))
-                            .font(.headline.weight(.semibold))
-                            .monospacedDigit()
+                        Text("Historikk og ekstra innsikt")
+                            .appSecondaryStyle()
                         Image(systemName: "chevron.right")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(AppTheme.textSecondary)
@@ -122,14 +134,6 @@ struct BudgetView: View {
                     .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.divider, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
-
-                if !incomeRows.isEmpty {
-                    IncomeListView(rows: incomeRows)
-                }
-
-                if !savingsRows.isEmpty {
-                    SavingsListView(rows: savingsRows)
-                }
 
                 GroupListView(
                     rows: groupRows,
@@ -144,13 +148,15 @@ struct BudgetView: View {
         }
         .background(AppTheme.background)
         .navigationTitle("Budsjett")
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
+        .safeAreaInset(edge: .bottom) {
+            if !viewModel.showAddTransaction {
+                BudgetBottomAddTransactionButton {
+                    addTransactionInitialType = .expense
                     viewModel.showAddTransaction = true
-                } label: {
-                    Label("Legg til", systemImage: "plus")
                 }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         .sheet(isPresented: $showMonthPicker) {
@@ -162,7 +168,10 @@ struct BudgetView: View {
             )
         }
         .sheet(isPresented: $viewModel.showAddTransaction) {
-            AddTransactionSheet(categories: categories.filter(\.isActive)) { date, amount, kind, categoryID, note in
+            AddTransactionSheet(
+                categories: categories.filter(\.isActive),
+                initialType: addTransactionInitialType
+            ) { date, amount, kind, categoryID, note in
                 viewModel.addTransaction(
                     context: modelContext,
                     date: date,
@@ -217,6 +226,33 @@ struct BudgetView: View {
         let raw = formatMonthYearShort(date).replacingOccurrences(of: ".", with: "")
         guard let first = raw.first else { return raw }
         return String(first).uppercased() + String(raw.dropFirst())
+    }
+}
+
+private struct BudgetBottomAddTransactionButton: View {
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 10) {
+                Image(systemName: "plus")
+                    .font(.title3.weight(.bold))
+                Text("Legg til transaksjon")
+                    .font(.title3.weight(.semibold))
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .foregroundStyle(.white)
+            .background(AppTheme.primary, in: Capsule())
+            .overlay(
+                Capsule()
+                    .stroke(AppTheme.primary.opacity(0.35), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.22), radius: 12, x: 0, y: 6)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Legg til transaksjon")
     }
 }
 
@@ -364,58 +400,113 @@ private struct BudgetHeroCardView: View {
     let overBudgetCount: Int
     let isOverBudgetFilterActive: Bool
     let onToggleOverBudget: () -> Void
+    let onAddExpense: () -> Void
+    let onAddIncome: () -> Void
+
+    private var spentSoFar: Double {
+        hasPlannedBudget ? trackedActual : expenseTotal
+    }
 
     private var usedPercent: Double {
         guard planned > 0 else { return 0 }
         return min(max(trackedActual / planned, 0), 1)
     }
 
+    private var projectedMonthEnd: Double {
+        let calendar = Calendar.current
+        let now = Date()
+        guard calendar.isDate(now, equalTo: monthDate, toGranularity: .month) else {
+            return spentSoFar
+        }
+        let daysInMonth = calendar.range(of: .day, in: .month, for: now)?.count ?? 30
+        let dayOfMonth = max(calendar.component(.day, from: now), 1)
+        let pace = spentSoFar / Double(dayOfMonth)
+        return max(0, pace * Double(daysInMonth))
+    }
+
+    private var statusText: String {
+        guard hasPlannedBudget else {
+            return "Ingen grense satt ennå. Du kan fortsatt spore forbruket."
+        }
+        if remaining >= 0 {
+            return "Du ligger innenfor med \(formatNOK(remaining)) igjen."
+        }
+        return "Du ligger \(formatNOK(abs(remaining))) over plan."
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             if hasPlannedBudget {
-                Text("Igjen å bruke")
+                Text("Igjen denne måneden")
                     .appSecondaryStyle()
                 Text(formatNOK(remaining))
                     .appBigNumberStyle()
                     .foregroundStyle(remaining < 0 ? AppTheme.negative : AppTheme.textPrimary)
-                Text("Brukt \(formatNOK(trackedActual)) av \(formatNOK(planned))")
-                    .appSecondaryStyle()
+                Text(statusText)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(remaining < 0 ? AppTheme.warning : AppTheme.positive)
 
                 let progress = clampedProgress(value: usedPercent, total: 1)
                 ProgressView(value: progress.value, total: progress.total)
                     .tint(remaining < 0 ? AppTheme.warning : AppTheme.secondary)
-
-                if overBudgetCount > 0 {
-                    Button {
-                        onToggleOverBudget()
-                    } label: {
-                        Text(
-                            isOverBudgetFilterActive
-                                ? "Vis alle kategorier"
-                                : "Over budsjett i \(overBudgetCount) kategorier"
-                        )
-                            .font(.footnote.weight(.semibold))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(
-                                (isOverBudgetFilterActive ? AppTheme.secondary : AppTheme.warning).opacity(0.12),
-                                in: Capsule()
-                            )
-                    }
-                    .buttonStyle(.plain)
-                }
             } else {
-                Text("Netto hittil")
+                Text("Brukt denne måneden")
                     .appSecondaryStyle()
                 Text(formatNOK(expenseTotal))
                     .appBigNumberStyle()
                     .foregroundStyle(AppTheme.textPrimary)
-                Text("Forbruk hittil i \(monthName())")
-                    .appSecondaryStyle()
-
-                Text("Du kan også bare spore uten grenser.")
-                    .font(.footnote)
+                Text(statusText)
+                    .font(.footnote.weight(.semibold))
                     .foregroundStyle(AppTheme.textSecondary)
+            }
+
+            HStack(spacing: 10) {
+                BudgetQuickMetricView(
+                    title: "Brukt hittil",
+                    value: formatNOK(spentSoFar)
+                )
+                BudgetQuickMetricView(
+                    title: "Forventet ved månedsslutt",
+                    value: formatNOK(projectedMonthEnd)
+                )
+            }
+
+            HStack(spacing: 8) {
+                Button {
+                    onAddExpense()
+                } label: {
+                    Label("Legg til utgift", systemImage: "minus.circle.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(AppTheme.primary)
+                .appCTAStyle()
+
+                Button("Legg til inntekt") {
+                    onAddIncome()
+                }
+                .buttonStyle(.bordered)
+                .tint(AppTheme.primary)
+            }
+
+            if overBudgetCount > 0 {
+                Button {
+                    onToggleOverBudget()
+                } label: {
+                    Text(
+                        isOverBudgetFilterActive
+                            ? "Vis alle kategorier"
+                            : "Over budsjett i \(overBudgetCount) kategorier"
+                    )
+                        .font(.footnote.weight(.semibold))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(
+                            (isOverBudgetFilterActive ? AppTheme.secondary : AppTheme.warning).opacity(0.12),
+                            in: Capsule()
+                        )
+                }
+                .buttonStyle(.plain)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -427,8 +518,29 @@ private struct BudgetHeroCardView: View {
         .accessibilityValue(hasPlannedBudget ? formatNOK(remaining) : formatNOK(expenseTotal))
     }
 
-    private func monthName() -> String {
-        formatMonthName(monthDate)
+}
+
+private struct BudgetQuickMetricView: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(AppTheme.textSecondary)
+                .lineLimit(2)
+            Text(value)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(AppTheme.textPrimary)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
+        .background(AppTheme.background, in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(AppTheme.divider, lineWidth: 1))
     }
 }
 
@@ -473,6 +585,58 @@ private struct GroupListView: View {
     }
 }
 
+private struct BudgetDetailsView: View {
+    let fixedTotalThisMonth: Double
+    let incomeRows: [BudgetIncomeRow]
+    let savingsRows: [BudgetSavingsRow]
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 14) {
+                NavigationLink {
+                    FixedItemsView()
+                } label: {
+                    HStack {
+                        Text("Faste poster denne måneden")
+                            .appBodyStyle()
+                        Spacer()
+                        Text(formatNOK(fixedTotalThisMonth))
+                            .font(.headline.weight(.semibold))
+                            .monospacedDigit()
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(AppTheme.textSecondary)
+                    }
+                    .padding()
+                    .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.divider, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+
+                if !incomeRows.isEmpty {
+                    IncomeListView(rows: incomeRows)
+                }
+
+                if !savingsRows.isEmpty {
+                    SavingsListView(rows: savingsRows)
+                }
+
+                if incomeRows.isEmpty && savingsRows.isEmpty && fixedTotalThisMonth <= 0 {
+                    Text("Ingen ekstra detaljer ennå.")
+                        .appSecondaryStyle()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding()
+                        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
+                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.divider, lineWidth: 1))
+                }
+            }
+            .padding()
+        }
+        .background(AppTheme.background)
+        .navigationTitle("Detaljer")
+    }
+}
+
 private struct BudgetMonthPickerSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State var selectedDate: Date
@@ -505,6 +669,7 @@ private struct AddTransactionSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     let categories: [Category]
+    let initialType: TransactionKind?
     let onSave: (Date, Double, TransactionKind, String?, String) -> Void
 
     @State private var date: Date = .now
@@ -515,7 +680,6 @@ private struct AddTransactionSheet: View {
     @State private var attemptedSave = false
     @State private var showSavedBanner = false
     @State private var showPostSaveActions = false
-    @State private var expenseCategoryFilter: ExpenseCategoryFilter = .regular
     @FocusState private var amountFocused: Bool
 
     @AppStorage("budget.last_category.expense") private var lastExpenseCategoryID: String = ""
@@ -529,15 +693,9 @@ private struct AddTransactionSheet: View {
         guard let selectedType else { return [] }
         switch selectedType {
         case .expense:
-            let expenseLike = categories.filter { $0.type == .expense || $0.type == .savings }
-            let filtered: [Category]
-            switch expenseCategoryFilter {
-            case .regular:
-                filtered = expenseLike.filter { $0.type == .expense }
-            case .savings:
-                filtered = expenseLike.filter { $0.type == .savings }
-            }
-            return filtered.sorted { $0.sortOrder < $1.sortOrder }
+            return categories
+                .filter { ($0.type == .expense || $0.type == .savings) && $0.isActive }
+                .sorted { $0.sortOrder < $1.sortOrder }
         case .income:
             return categories.filter { $0.type == .income }.sorted { $0.sortOrder < $1.sortOrder }
         default:
@@ -561,59 +719,18 @@ private struct AddTransactionSheet: View {
 
                 if selectedType != nil {
                     Section(selectedType == .expense ? "Ny utgift" : "Ny inntekt") {
-                        if selectedType == .expense {
-                            Picker("Kategori-filter", selection: $expenseCategoryFilter) {
-                                ForEach(ExpenseCategoryFilter.allCases, id: \.self) { filter in
-                                    Text(filter.title).tag(filter)
-                                }
-                            }
-                            .pickerStyle(.segmented)
-                        }
-
                         if availableCategories.isEmpty {
                             Text("Ingen kategorier for valgt type.")
                                 .appSecondaryStyle()
                         } else {
-                            LazyVGrid(
-                                columns: [GridItem(.adaptive(minimum: 155), spacing: 10)],
-                                alignment: .leading,
-                                spacing: 10
-                            ) {
+                            Picker("Kategori", selection: $selectedCategoryID) {
+                                Text("Velg kategori").tag(Optional<String>.none)
                                 ForEach(availableCategories) { category in
-                                    let isSelected = selectedCategoryID == category.id
-                                    Button {
-                                        selectedCategoryID = category.id
-                                    } label: {
-                                        HStack(spacing: 8) {
-                                            Image(systemName: symbolForCategory(category.name))
-                                                .font(.subheadline.weight(.semibold))
-                                            Text(category.name)
-                                                .font(.subheadline.weight(.semibold))
-                                                .lineLimit(1)
-                                            Spacer(minLength: 0)
-                                            if isSelected {
-                                                Image(systemName: "checkmark.circle.fill")
-                                                    .font(.footnote.weight(.bold))
-                                            }
-                                        }
-                                        .foregroundStyle(isSelected ? AppTheme.primary : AppTheme.textPrimary)
-                                        .padding(.horizontal, 12)
-                                        .padding(.vertical, 10)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                        .background(
-                                            isSelected ? AppTheme.primary.opacity(0.14) : AppTheme.surface,
-                                            in: RoundedRectangle(cornerRadius: 12)
-                                        )
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 12)
-                                                .stroke(isSelected ? AppTheme.primary : AppTheme.divider, lineWidth: isSelected ? 1.4 : 1)
-                                        )
-                                    }
-                                    .buttonStyle(.plain)
+                                    Label(category.name, systemImage: symbolForCategory(category.name))
+                                        .tag(Optional(category.id))
                                 }
                             }
-                            .padding(.vertical, 4)
-                            .animation(.easeInOut(duration: 0.15), value: selectedCategoryID)
+                            .pickerStyle(.menu)
                         }
 
                         VStack(alignment: .leading, spacing: 10) {
@@ -714,10 +831,9 @@ private struct AddTransactionSheet: View {
                 }
             }
             .onAppear {
-                preselectCategoryForCurrentType()
-            }
-            .onChange(of: expenseCategoryFilter) { _, _ in
-                clearSelectionIfInvalidForType()
+                if selectedType == nil, let initialType {
+                    selectedType = initialType
+                }
                 preselectCategoryForCurrentType()
             }
             .onChange(of: amountText) { _, newValue in
@@ -871,20 +987,6 @@ private struct AddTransactionSheet: View {
         if key.contains("spar") { return "banknote.fill" }
         if key.contains("inntekt") || key.contains("lonn") { return "arrow.down.circle.fill" }
         return "tag.fill"
-    }
-}
-
-private enum ExpenseCategoryFilter: CaseIterable {
-    case regular
-    case savings
-
-    var title: String {
-        switch self {
-        case .regular:
-            return "Vanlige"
-        case .savings:
-            return "Sparing"
-        }
     }
 }
 
