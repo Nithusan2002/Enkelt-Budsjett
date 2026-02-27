@@ -31,6 +31,19 @@ struct OnboardingView: View {
             .sheet(isPresented: $viewModel.showDemo) {
                 DemoPreviewSheet()
             }
+            .alert(
+                "Kunne ikke lagre",
+                isPresented: Binding(
+                    get: { viewModel.errorMessage != nil },
+                    set: { if !$0 { viewModel.clearError() } }
+                )
+            ) {
+                Button("OK", role: .cancel) {
+                    viewModel.clearError()
+                }
+            } message: {
+                Text(viewModel.errorMessage ?? "")
+            }
         }
     }
 

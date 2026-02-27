@@ -6,7 +6,7 @@ final class Simple_Budget___Budskjett_planlegger_gjort_enkeltUITests: XCTestCase
     override func setUpWithError() throws {
         continueAfterFailure = false
         app = XCUIApplication()
-        app.launchArguments += ["UITEST_IN_MEMORY_STORE", "UITEST_DISABLE_FACEID"]
+        app.launchArguments += ["UITEST_IN_MEMORY_STORE", "UITEST_DISABLE_FACEID", "UITEST_SKIP_ONBOARDING"]
     }
 
     override func tearDownWithError() throws {
@@ -20,7 +20,18 @@ final class Simple_Budget___Budskjett_planlegger_gjort_enkeltUITests: XCTestCase
         XCTAssertTrue(app.tabBars.buttons["Budsjett"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.tabBars.buttons["Investeringer"].exists)
         XCTAssertTrue(app.tabBars.buttons["Oversikt"].exists)
+        XCTAssertTrue(app.tabBars.buttons["Tips & Triks"].exists)
         XCTAssertTrue(app.tabBars.buttons["Innstillinger"].exists)
+    }
+
+    @MainActor
+    func testOnboardingShowsOnFreshLaunchWithoutSkipFlag() throws {
+        let onboardingApp = XCUIApplication()
+        onboardingApp.launchArguments = ["UITEST_IN_MEMORY_STORE", "UITEST_DISABLE_FACEID"]
+        onboardingApp.launch()
+
+        XCTAssertTrue(onboardingApp.navigationBars["Kom i gang"].waitForExistence(timeout: 5))
+        XCTAssertTrue(onboardingApp.buttons["Kom i gang"].exists)
     }
 
     @MainActor

@@ -40,6 +40,7 @@ final class InvestmentsViewModel: ObservableObject {
     @Published var newBucketName: String = ""
     @Published var selectedBucketColorHex: String = AppTheme.customBucketPalette[0]
     @Published var addBucketError: String?
+    @Published var persistenceErrorMessage: String?
 
     var rangeOptions: [GraphViewRange] {
         [.yearToDate, .oneYear, .twoYears, .threeYears, .fiveYears, .max]
@@ -251,13 +252,13 @@ final class InvestmentsViewModel: ObservableObject {
 
     func hideBucket(_ bucket: InvestmentBucket, context: ModelContext) {
         bucket.isActive = false
-        try? context.save()
+        save(context: context, fallbackMessage: "Kunne ikke skjule beholdningstype.")
     }
 
     func restoreBucket(_ bucket: InvestmentBucket, context: ModelContext, existingBuckets: [InvestmentBucket]) {
         bucket.isActive = true
         bucket.sortOrder = (existingBuckets.map(\.sortOrder).max() ?? 0) + 1
-        try? context.save()
+        save(context: context, fallbackMessage: "Kunne ikke vise beholdningstype igjen.")
     }
 
     func moveActiveBuckets(
@@ -279,7 +280,7 @@ final class InvestmentsViewModel: ObservableObject {
             bucket.sortOrder = activeBuckets.count + offset
         }
 
-        try? context.save()
+        save(context: context, fallbackMessage: "Kunne ikke lagre ny rekkefølge.")
     }
 
     func updateBucket(
@@ -303,7 +304,11 @@ final class InvestmentsViewModel: ObservableObject {
 
         bucket.name = trimmedName
         bucket.colorHex = colorHex
-        try? context.save()
+        do {
+            try context.save()
+        } catch {
+            return "Kunne ikke lagre endringen nå. Prøv igjen."
+        }
         return nil
     }
 
@@ -317,7 +322,7 @@ final class InvestmentsViewModel: ObservableObject {
             snapshot.totalValue = snapshot.bucketValues.reduce(0) { $0 + $1.amount }
         }
         context.delete(bucket)
-        try? context.save()
+        save(context: context, fallbackMessage: "Kunne ikke slette beholdningstype.")
     }
 
     func addBucket(context: ModelContext, existingBuckets: [InvestmentBucket]) -> Bool {
@@ -336,7 +341,12 @@ final class InvestmentsViewModel: ObservableObject {
             existing.colorHex = selectedBucketColorHex
             existing.isActive = true
             existing.sortOrder = (existingBuckets.map(\.sortOrder).max() ?? 0) + 1
-            try? context.save()
+            do {
+                try context.save()
+            } catch {
+                addBucketError = "Kunne ikke lagre beholdningstype nå."
+                return false
+            }
             newBucketName = ""
             selectedBucketColorHex = AppTheme.customBucketPalette[0]
             addBucketError = nil
@@ -356,7 +366,12 @@ final class InvestmentsViewModel: ObservableObject {
                 sortOrder: sortOrder
             )
         )
-        try? context.save()
+        do {
+            try context.save()
+        } catch {
+            addBucketError = "Kunne ikke lagre beholdningstype nå."
+            return false
+        }
         newBucketName = ""
         selectedBucketColorHex = AppTheme.customBucketPalette[0]
         addBucketError = nil
@@ -411,8 +426,12 @@ final class InvestmentsViewModel: ObservableObject {
         }
 
         if didChange {
-            try? context.save()
+            save(context: context, fallbackMessage: "Kunne ikke oppdatere standard beholdningstyper.")
         }
+    }
+
+    func clearPersistenceError() {
+        persistenceErrorMessage = nil
     }
 
     private func formattedMonthDay(_ date: Date) -> String {
@@ -470,6 +489,14 @@ final class InvestmentsViewModel: ObservableObject {
 
     private func normalizedRange(_ range: GraphViewRange) -> GraphViewRange {
         range == .last12Months ? .oneYear : range
+    }
+
+    private func save(context: ModelContext, fallbackMessage: String) {
+        do {
+            try context.save()
+        } catch {
+            persistenceErrorMessage = fallbackMessage
+        }
     }
 }
 

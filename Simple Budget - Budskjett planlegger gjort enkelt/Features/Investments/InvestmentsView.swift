@@ -150,6 +150,19 @@ struct InvestmentsView: View {
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
+            .alert(
+                "Kunne ikke lagre endringer",
+                isPresented: Binding(
+                    get: { viewModel.persistenceErrorMessage != nil },
+                    set: { if !$0 { viewModel.clearPersistenceError() } }
+                )
+            ) {
+                Button("OK", role: .cancel) {
+                    viewModel.clearPersistenceError()
+                }
+            } message: {
+                Text(viewModel.persistenceErrorMessage ?? "Prøv igjen litt senere.")
+            }
         }
     }
 
@@ -1008,9 +1021,6 @@ private struct BucketDetailView: View {
         .sheet(isPresented: $showQuickUpdate) {
             BucketQuickUpdateSheet(bucket: bucket, latestSnapshot: sortedUpToNow.last)
         }
-        .onDisappear {
-            try? modelContext.save()
-        }
     }
 
     private var rangeOptions: [GraphViewRange] {
@@ -1188,8 +1198,18 @@ private struct EditInvestmentBucketSheet: View {
             .alert("Slette beholdningstype?", isPresented: $showDeleteAlert) {
                 Button("Avbryt", role: .cancel) { }
                 Button("Slett", role: .destructive) {
-                    viewModel.deleteBucket(bucket, context: modelContext, snapshots: snapshotsFromContext())
-                    dismiss()
+                    do {
+                        let snapshots = try modelContext.fetch(FetchDescriptor<InvestmentSnapshot>())
+                        viewModel.deleteBucket(bucket, context: modelContext, snapshots: snapshots)
+                        if let persistenceErrorMessage = viewModel.persistenceErrorMessage {
+                            errorMessage = persistenceErrorMessage
+                            viewModel.clearPersistenceError()
+                            return
+                        }
+                        dismiss()
+                    } catch {
+                        errorMessage = "Kunne ikke hente historikk for sletting."
+                    }
                 }
             } message: {
                 Text("Dette kan ikke angres.")
@@ -1199,10 +1219,6 @@ private struct EditInvestmentBucketSheet: View {
                 selectedColorHex = bucket.colorHex ?? AppTheme.customBucketPalette[0]
             }
         }
-    }
-
-    private func snapshotsFromContext() -> [InvestmentSnapshot] {
-        (try? modelContext.fetch(FetchDescriptor<InvestmentSnapshot>())) ?? []
     }
 }
 
@@ -1214,6 +1230,7 @@ private struct BucketQuickUpdateSheet: View {
     let latestSnapshot: InvestmentSnapshot?
 
     @State private var amountText: String = ""
+    @State private var saveErrorMessage: String?
 
     var body: some View {
         NavigationStack {
@@ -1238,11 +1255,28 @@ private struct BucketQuickUpdateSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Lagre") {
-                        saveSingleBucket()
-                        dismiss()
+                        do {
+                            try saveSingleBucket()
+                            dismiss()
+                        } catch let error as LocalizedError {
+                            saveErrorMessage = error.errorDescription ?? "Lagring feilet. Prøv igjen."
+                        } catch {
+                            saveErrorMessage = "Lagring feilet. Prøv igjen."
+                        }
                     }
                     .appCTAStyle()
                 }
+            }
+            .alert(
+                "Kunne ikke lagre",
+                isPresented: Binding(
+                    get: { saveErrorMessage != nil },
+                    set: { if !$0 { saveErrorMessage = nil } }
+                )
+            ) {
+                Button("OK", role: .cancel) { saveErrorMessage = nil }
+            } message: {
+                Text(saveErrorMessage ?? "")
             }
             .onAppear {
                 amountText = ""
@@ -1250,11 +1284,13 @@ private struct BucketQuickUpdateSheet: View {
         }
     }
 
-    private func saveSingleBucket() {
-        let amount = parseInputAmount(amountText) ?? 0
+    private func saveSingleBucket() throws {
+        guard let amount = parseInputAmount(amountText) else {
+            throw BucketQuickUpdateError.invalidAmount
+        }
         let periodKey = DateService.periodKey(from: .now)
         let descriptor = FetchDescriptor<InvestmentSnapshot>(predicate: #Predicate { $0.periodKey == periodKey })
-        let existing = try? modelContext.fetch(descriptor).first
+        let existing = try modelContext.fetch(descriptor).first
 
         if let existing {
             if let index = existing.bucketValues.firstIndex(where: { $0.bucketID == bucket.id }) {
@@ -1268,7 +1304,11 @@ private struct BucketQuickUpdateSheet: View {
             let value = InvestmentSnapshotValue(periodKey: periodKey, bucketID: bucket.id, amount: amount)
             modelContext.insert(InvestmentSnapshot(periodKey: periodKey, capturedAt: .now, totalValue: amount, bucketValues: [value]))
         }
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+        } catch {
+            throw BucketQuickUpdateError.saveFailed
+        }
     }
 
     private func parseInputAmount(_ text: String) -> Double? {
@@ -1278,5 +1318,19 @@ private struct BucketQuickUpdateSheet: View {
             .replacingOccurrences(of: " ", with: "")
             .replacingOccurrences(of: ",", with: ".")
         return Double(normalized)
+    }
+}
+
+private enum BucketQuickUpdateError: LocalizedError {
+    case invalidAmount
+    case saveFailed
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidAmount:
+            return "Skriv inn et gyldig beløp."
+        case .saveFailed:
+            return "Kunne ikke lagre oppdateringen."
+        }
     }
 }

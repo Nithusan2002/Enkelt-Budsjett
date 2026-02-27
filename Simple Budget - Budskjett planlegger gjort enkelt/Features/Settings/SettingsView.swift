@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import UIKit
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
@@ -18,6 +19,13 @@ struct SettingsView: View {
     @State private var showDemoLoadError = false
     @State private var showDemoLoadSuccess = false
     @State private var showDemoWipeConfirm = false
+    @State private var showImportModeDialog = false
+    @State private var showImportPicker = false
+    @State private var showImportError = false
+    @State private var showImportSuccess = false
+    @State private var pendingImportMode: DataImportMode = .merge
+    @State private var importMessage = ""
+    @State private var settingsErrorMessage: String?
     @State private var demoLoadMessage = ""
     @State private var demoToastMessage: String?
 
@@ -41,7 +49,7 @@ struct SettingsView: View {
         .sheet(isPresented: $showDayPicker) {
             ReminderDayPickerSheet(selectedDay: pref.checkInReminderDay) { day in
                 pref.checkInReminderDay = day
-                viewModel.save(context: modelContext)
+                persistSettingsChanges(syncReminder: true)
             }
         }
         .sheet(isPresented: $showTimePicker) {
@@ -51,7 +59,7 @@ struct SettingsView: View {
             ) { hour, minute in
                 pref.checkInReminderHour = hour
                 pref.checkInReminderMinute = minute
-                viewModel.save(context: modelContext)
+                persistSettingsChanges(syncReminder: true)
             }
         }
         .sheet(item: $shareItem) { item in
@@ -61,6 +69,36 @@ struct SettingsView: View {
             Button("OK", role: .cancel) { }
         } message: {
             Text("Prøv igjen litt senere.")
+        }
+        .confirmationDialog("Importer data", isPresented: $showImportModeDialog, titleVisibility: .visible) {
+            Button("Slå sammen med eksisterende data") {
+                pendingImportMode = .merge
+                showImportPicker = true
+            }
+            Button("Erstatt all data", role: .destructive) {
+                pendingImportMode = .replace
+                showImportPicker = true
+            }
+            Button("Avbryt", role: .cancel) { }
+        } message: {
+            Text("Velg hvordan importen skal håndtere data som allerede finnes.")
+        }
+        .fileImporter(
+            isPresented: $showImportPicker,
+            allowedContentTypes: [UTType.json],
+            allowsMultipleSelection: false
+        ) { result in
+            handleImport(result)
+        }
+        .alert("Kunne ikke importere data", isPresented: $showImportError) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(importMessage.isEmpty ? "Kontroller filen og prøv igjen." : importMessage)
+        }
+        .alert("Import fullført", isPresented: $showImportSuccess) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(importMessage)
         }
         .alert("Slett alle data?", isPresented: $showDeleteAllConfirm) {
             Button("Avbryt", role: .cancel) { }
@@ -79,6 +117,19 @@ struct SettingsView: View {
             Button("OK", role: .cancel) { }
         } message: {
             Text("Prøv igjen litt senere.")
+        }
+        .alert(
+            "Kunne ikke lagre innstilling",
+            isPresented: Binding(
+                get: { settingsErrorMessage != nil },
+                set: { if !$0 { settingsErrorMessage = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {
+                settingsErrorMessage = nil
+            }
+        } message: {
+            Text(settingsErrorMessage ?? "")
         }
         .alert("Alle data er slettet", isPresented: $showDeleteAllSuccess) {
             Button("OK", role: .cancel) { }
@@ -164,7 +215,7 @@ struct SettingsView: View {
             }
 
             VStack(alignment: .leading, spacing: 6) {
-                Toggle("Månedlig insjekk", isOn: binding(\.checkInReminderEnabled))
+                Toggle("Månedlig insjekk", isOn: reminderEnabledBinding)
                     .appBodyStyle()
                 Text("Få et lite dytt for å oppdatere totalsummene dine.")
                     .appSecondaryStyle()
@@ -229,6 +280,14 @@ struct SettingsView: View {
                     .appSecondaryStyle()
             }
 
+            HStack {
+                Text("Lagringsmodus")
+                    .appBodyStyle()
+                Spacer()
+                Text(storeModeText())
+                    .appSecondaryStyle()
+            }
+
             Button {
                 do {
                     shareItem = ShareURL(try viewModel.exportData(context: modelContext))
@@ -240,10 +299,20 @@ struct SettingsView: View {
             }
             .buttonStyle(.plain)
 
-            // TODO(settings): Implementer importflyt (filvalg + validering + merge/replace) etter MVP.
+            Button {
+                showImportModeDialog = true
+            } label: {
+                settingsRow(title: "Importer data", value: "", showsChevron: true)
+            }
+            .buttonStyle(.plain)
 
-            Text("Eksport oppretter en JSON-kopi av alle lokale data.")
+            Text("Eksport oppretter en JSON-kopi. Import kan slå sammen eller erstatte lokale data.")
                 .appSecondaryStyle()
+
+            if Simple_Budget___Budskjett_planlegger_gjort_enkeltApp.activeStoreMode != .primary {
+                Text("Recovery/midlertidig modus betyr at primær lagring ikke kunne åpnes.")
+                    .appSecondaryStyle()
+            }
         }
     }
 
@@ -328,6 +397,76 @@ struct SettingsView: View {
         }
     }
 
+    private func persistSettingsChanges(syncReminder: Bool) {
+        do {
+            try viewModel.save(context: modelContext)
+        } catch {
+            settingsErrorMessage = "Kunne ikke lagre endringen."
+            return
+        }
+
+        guard syncReminder else { return }
+        Task { @MainActor in
+            do {
+                try await viewModel.syncCheckInReminder(preference: pref)
+            } catch {
+                settingsErrorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private var reminderEnabledBinding: Binding<Bool> {
+        Binding(
+            get: { pref.checkInReminderEnabled },
+            set: { newValue in
+                pref.checkInReminderEnabled = newValue
+                persistSettingsChanges(syncReminder: true)
+            }
+        )
+    }
+
+    private func handleImport(_ result: Result<[URL], Error>) {
+        guard case .success(let urls) = result else {
+            if case .failure(let error) = result {
+                importMessage = error.localizedDescription
+                showImportError = true
+            }
+            return
+        }
+
+        guard let url = urls.first else { return }
+        let didAccess = url.startAccessingSecurityScopedResource()
+        defer {
+            if didAccess {
+                url.stopAccessingSecurityScopedResource()
+            }
+        }
+
+        do {
+            let report = try viewModel.importData(from: url, mode: pendingImportMode, context: modelContext)
+            importMessage = importSuccessText(report)
+            showImportSuccess = true
+            Task { @MainActor in
+                do {
+                    try await viewModel.syncCheckInReminder(preference: pref)
+                } catch {
+                    settingsErrorMessage = error.localizedDescription
+                }
+            }
+        } catch {
+            importMessage = error.localizedDescription
+            showImportError = true
+        }
+    }
+
+    private func importSuccessText(_ report: DataImportReport) -> String {
+        "\(report.mode.title) fullført.\n\n" +
+        "Måneder: \(report.budgetMonths)\n" +
+        "Kategorier: \(report.categories)\n" +
+        "Transaksjoner: \(report.transactions)\n" +
+        "Snapshots: \(report.snapshots)"
+    }
+
     private func settingsRow(title: String, value: String, showsChevron: Bool) -> some View {
         HStack {
             Text(title)
@@ -356,12 +495,23 @@ struct SettingsView: View {
         return "v\(short) (\(build))"
     }
 
+    private func storeModeText() -> String {
+        switch Simple_Budget___Budskjett_planlegger_gjort_enkeltApp.activeStoreMode {
+        case .primary:
+            return "Primær"
+        case .recovery:
+            return "Recovery"
+        case .memoryOnly:
+            return "Midlertidig"
+        }
+    }
+
     private func binding<T>(_ keyPath: ReferenceWritableKeyPath<UserPreference, T>) -> Binding<T> {
         Binding(
             get: { pref[keyPath: keyPath] },
             set: {
                 pref[keyPath: keyPath] = $0
-                viewModel.save(context: modelContext)
+                persistSettingsChanges(syncReminder: false)
             }
         )
     }

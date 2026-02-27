@@ -198,6 +198,19 @@ struct BudgetView: View {
         .onChange(of: viewModel.selectedMonthDate) { _, _ in
             viewModel.ensureMonthExists(context: modelContext, months: months)
         }
+        .alert(
+            "Kunne ikke lagre",
+            isPresented: Binding(
+                get: { viewModel.persistenceErrorMessage != nil },
+                set: { if !$0 { viewModel.clearPersistenceError() } }
+            )
+        ) {
+            Button("OK", role: .cancel) {
+                viewModel.clearPersistenceError()
+            }
+        } message: {
+            Text(viewModel.persistenceErrorMessage ?? "")
+        }
     }
 
     private func monthLabel(_ date: Date) -> String {

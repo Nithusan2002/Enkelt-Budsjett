@@ -44,6 +44,7 @@ final class OnboardingViewModel: ObservableObject {
     @Published var reminderDay = 5
     @Published var reminderTime = Calendar.current.date(bySettingHour: 18, minute: 0, second: 0, of: .now) ?? .now
     @Published var faceIDEnabled = false
+    @Published var errorMessage: String?
 
     init(preference: UserPreference) {
         self.focus = preference.onboardingFocus
@@ -77,12 +78,17 @@ final class OnboardingViewModel: ObservableObject {
     }
 
     func next(preference: UserPreference, context: ModelContext) {
-        saveStepState(preference: preference, context: context)
-        guard let idx = orderedSteps.firstIndex(of: currentStep), idx < orderedSteps.count - 1 else { return }
-        currentStep = orderedSteps[idx + 1]
-        preference.onboardingCurrentStep = currentStep.rawValue
-        try? context.save()
-        logEvent("onboarding_step_advanced")
+        do {
+            try saveStepState(preference: preference, context: context)
+            guard let idx = orderedSteps.firstIndex(of: currentStep), idx < orderedSteps.count - 1 else { return }
+            let nextStep = orderedSteps[idx + 1]
+            preference.onboardingCurrentStep = nextStep.rawValue
+            try context.save()
+            currentStep = nextStep
+            logEvent("onboarding_step_advanced")
+        } catch {
+            setError("Kunne ikke lagre fremdrift. Prøv igjen.")
+        }
     }
 
     func skipCurrent(preference: UserPreference, context: ModelContext) {
@@ -127,28 +133,40 @@ final class OnboardingViewModel: ObservableObject {
         let reminderHour = Calendar.current.component(.hour, from: reminderTime)
         let reminderMinute = Calendar.current.component(.minute, from: reminderTime)
 
-        try? OnboardingService.complete(
-            context: context,
-            preference: preference,
-            focus: focus,
-            tone: tone,
-            firstWealthTotal: totalWealth,
-            goalAmount: goalAmount,
-            goalDate: goalAmount != nil ? goalDate : nil,
-            snapshotValues: snapshotValues,
-            snapshotInputProvided: snapshotInputProvided,
-            budgetCategories: selectedBudgetCategories,
-            monthlyBudget: budgetPackage == .trackingOnly ? nil : monthlyBudget,
-            budgetTrackOnly: budgetPackage == .trackingOnly,
-            reminderEnabled: forceReminderOff ? false : reminderEnabled,
-            reminderDay: reminderEnabled ? reminderDay : 5,
-            reminderHour: reminderEnabled ? reminderHour : 18,
-            reminderMinute: reminderEnabled ? reminderMinute : 0,
-            faceIDEnabled: faceIDEnabled,
-            selectedBuckets: selectedBuckets,
-            customBucketName: nil
-        )
-        logEvent("onboarding_completed")
+        do {
+            try OnboardingService.complete(
+                context: context,
+                preference: preference,
+                focus: focus,
+                tone: tone,
+                firstWealthTotal: totalWealth,
+                goalAmount: goalAmount,
+                goalDate: goalAmount != nil ? goalDate : nil,
+                snapshotValues: snapshotValues,
+                snapshotInputProvided: snapshotInputProvided,
+                budgetCategories: selectedBudgetCategories,
+                monthlyBudget: budgetPackage == .trackingOnly ? nil : monthlyBudget,
+                budgetTrackOnly: budgetPackage == .trackingOnly,
+                reminderEnabled: forceReminderOff ? false : reminderEnabled,
+                reminderDay: reminderEnabled ? reminderDay : 5,
+                reminderHour: reminderEnabled ? reminderHour : 18,
+                reminderMinute: reminderEnabled ? reminderMinute : 0,
+                faceIDEnabled: faceIDEnabled,
+                selectedBuckets: selectedBuckets,
+                customBucketName: nil
+            )
+            logEvent("onboarding_completed")
+
+            Task { @MainActor [weak self] in
+                do {
+                    try await CheckInReminderService.syncFromPreference(preference)
+                } catch {
+                    self?.setError(error.localizedDescription)
+                }
+            }
+        } catch {
+            setError("Kunne ikke fullføre onboarding. Prøv igjen.")
+        }
     }
 
     func titleForFocus(_ value: OnboardingFocus) -> String {
@@ -175,7 +193,7 @@ final class OnboardingViewModel: ObservableObject {
         }
     }
 
-    private func saveStepState(preference: UserPreference, context: ModelContext) {
+    private func saveStepState(preference: UserPreference, context: ModelContext) throws {
         preference.onboardingFocus = focus
         preference.toneStyle = tone
         preference.onboardingCurrentStep = currentStep.rawValue
@@ -184,7 +202,7 @@ final class OnboardingViewModel: ObservableObject {
         preference.checkInReminderHour = Calendar.current.component(.hour, from: reminderTime)
         preference.checkInReminderMinute = Calendar.current.component(.minute, from: reminderTime)
         preference.faceIDLockEnabled = faceIDEnabled
-        try? context.save()
+        try context.save()
     }
 
     private func parseDouble(_ text: String) -> Double? {
@@ -198,6 +216,15 @@ final class OnboardingViewModel: ObservableObject {
 
     private func logEvent(_ event: String) {
         OnboardingEventLogger.log(event)
+    }
+
+    private func setError(_ message: String) {
+        errorMessage = message
+        logEvent("onboarding_error")
+    }
+
+    func clearError() {
+        errorMessage = nil
     }
 
     func title(for package: BudgetStarterPackage) -> String {

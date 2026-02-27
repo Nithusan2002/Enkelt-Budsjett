@@ -59,8 +59,12 @@ final class InvestmentCheckInWizardViewModel: ObservableObject {
         valuesDictionary(from: InvestmentService.previousSnapshot(before: periodKey, snapshots: snapshots))
     }
 
+    var existingPeriodValues: [String: Double] {
+        valuesDictionary(from: InvestmentService.snapshot(for: periodKey, snapshots: snapshots))
+    }
+
     var baselineValues: [String: Double] {
-        return previousValues
+        existingPeriodValues.isEmpty ? previousValues : existingPeriodValues
     }
 
     var isEditingExistingPeriod: Bool {
@@ -204,7 +208,7 @@ final class InvestmentCheckInWizardViewModel: ObservableObject {
         for bucket in buckets {
             newStates[bucket.id] = InvestmentWizardStepState(
                 mode: .changed,
-                inputString: Self.formatInputAmount(previousValue(for: bucket.id))
+                inputString: Self.formatInputAmount(previousValues[bucket.id] ?? 0)
             )
         }
         stepStates = newStates

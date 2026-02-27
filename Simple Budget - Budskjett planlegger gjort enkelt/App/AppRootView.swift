@@ -19,6 +19,11 @@ struct AppRootView: View {
     @State private var bootstrapAttempted = false
 
     private var preference: UserPreference? { preferences.first }
+    private var activeStoreMode: AppStoreMode { Simple_Budget___Budskjett_planlegger_gjort_enkeltApp.activeStoreMode }
+    private var shouldShowStoreModeBanner: Bool {
+        guard preference?.onboardingCompleted ?? false else { return false }
+        return activeStoreMode != .primary
+    }
     private var shouldUseFaceIDLock: Bool {
         if ProcessInfo.processInfo.arguments.contains("UITEST_DISABLE_FACEID") {
             return false
@@ -80,6 +85,16 @@ struct AppRootView: View {
                 lockOverlay
                     .transition(.opacity)
                     .zIndex(5)
+            }
+
+            if shouldShowStoreModeBanner {
+                VStack {
+                    storeModeBanner
+                    Spacer()
+                }
+                .padding(.horizontal, 12)
+                .padding(.top, 8)
+                .zIndex(4)
             }
         }
         .tint(AppTheme.primary)
@@ -158,6 +173,42 @@ struct AppRootView: View {
             .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
             .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
             .padding(24)
+        }
+    }
+
+    private var storeModeBanner: some View {
+        HStack(alignment: .center, spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(AppTheme.primary)
+            Text(storeModeMessage)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(AppTheme.textPrimary)
+            Spacer(minLength: 8)
+            Button("Innstillinger") {
+                navigationState.selectedTab = .settings
+            }
+            .font(.footnote.weight(.semibold))
+            .buttonStyle(.bordered)
+            .tint(AppTheme.primary)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(AppTheme.surfaceElevated, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(AppTheme.divider, lineWidth: 1)
+        )
+        .accessibilityLabel(storeModeMessage)
+    }
+
+    private var storeModeMessage: String {
+        switch activeStoreMode {
+        case .primary:
+            return ""
+        case .recovery:
+            return "Appen kjører i recovery-lagring. Primær lagring kunne ikke åpnes."
+        case .memoryOnly:
+            return "Appen kjører midlertidig uten lokal lagring. Start appen på nytt."
         }
     }
 }

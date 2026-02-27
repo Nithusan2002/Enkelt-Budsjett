@@ -44,6 +44,7 @@ final class BudgetViewModel: ObservableObject {
     @Published var selectedFilter: BudgetGroupFilter = .all
     @Published var showAddTransaction = false
     @Published var showGroupLimitsSheet = false
+    @Published var persistenceErrorMessage: String?
 
     func periodKey() -> String {
         DateService.periodKey(from: selectedMonthDate)
@@ -72,14 +73,17 @@ final class BudgetViewModel: ObservableObject {
         }
 
         let bounds = DateService.monthBounds(for: selectedMonthDate)
-        try? FixedItemsService.generateForMonth(
-            context: context,
-            periodKey: currentKey,
-            monthStart: bounds.start,
-            monthEnd: bounds.end
-        )
-
-        try? context.save()
+        do {
+            try FixedItemsService.generateForMonth(
+                context: context,
+                periodKey: currentKey,
+                monthStart: bounds.start,
+                monthEnd: bounds.end
+            )
+            try context.save()
+        } catch {
+            persistenceErrorMessage = "Kunne ikke oppdatere månedens data."
+        }
     }
 
     func summary(
@@ -263,7 +267,11 @@ final class BudgetViewModel: ObservableObject {
                 context.delete(existing)
             }
         }
-        try? context.save()
+        do {
+            try context.save()
+        } catch {
+            persistenceErrorMessage = "Kunne ikke lagre gruppegrenser."
+        }
     }
 
     func copyPreviousMonthGroupPlans(
@@ -316,14 +324,26 @@ final class BudgetViewModel: ObservableObject {
             note: note
         )
         context.insert(transaction)
-        try? context.save()
+        do {
+            try context.save()
+        } catch {
+            persistenceErrorMessage = "Kunne ikke lagre transaksjon."
+        }
     }
 
     func deleteTransaction(context: ModelContext, transaction: Transaction) {
-        if transaction.fixedItemID != nil {
-            try? FixedItemsService.registerDeletionSkipIfNeeded(transaction: transaction, context: context)
+        do {
+            if transaction.fixedItemID != nil {
+                try FixedItemsService.registerDeletionSkipIfNeeded(transaction: transaction, context: context)
+            }
+            context.delete(transaction)
+            try context.save()
+        } catch {
+            persistenceErrorMessage = "Kunne ikke slette transaksjon."
         }
-        context.delete(transaction)
-        try? context.save()
+    }
+
+    func clearPersistenceError() {
+        persistenceErrorMessage = nil
     }
 }

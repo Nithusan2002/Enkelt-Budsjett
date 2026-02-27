@@ -16,6 +16,15 @@ final class AppRootViewModel: ObservableObject {
     func bootstrap(context: ModelContext) {
         do {
             try BootstrapService.ensurePreference(context: context)
+            if ProcessInfo.processInfo.arguments.contains("UITEST_SKIP_ONBOARDING") {
+                var descriptor = FetchDescriptor<UserPreference>()
+                descriptor.fetchLimit = 1
+                if let preference = try context.fetch(descriptor).first, !preference.onboardingCompleted {
+                    preference.onboardingCompleted = true
+                    preference.onboardingCurrentStep = 0
+                    try context.save()
+                }
+            }
             try BootstrapService.ensureCurrentBudgetMonthAndRecurring(context: context)
             bootstrapErrorMessage = nil
         } catch {

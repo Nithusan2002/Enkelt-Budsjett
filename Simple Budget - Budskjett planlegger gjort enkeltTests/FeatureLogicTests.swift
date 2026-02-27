@@ -151,6 +151,104 @@ struct FeatureLogicTests {
 
     @Test
     @MainActor
+    func investmentWizardUsesExistingPeriodAsBaselineWhenEditing() throws {
+        let container = try makeInMemoryContainer()
+        let context = container.mainContext
+
+        let bucket = InvestmentBucket(id: "bucket_fond", name: "Fond", isDefault: true, sortOrder: 1)
+        context.insert(bucket)
+
+        let previousDate = Calendar.current.date(from: DateComponents(year: 2026, month: 2, day: 1)) ?? .now
+        let currentDate = Calendar.current.date(from: DateComponents(year: 2026, month: 3, day: 1)) ?? .now
+        let previousKey = DateService.periodKey(from: previousDate)
+        let currentKey = DateService.periodKey(from: currentDate)
+
+        context.insert(
+            InvestmentSnapshot(
+                periodKey: previousKey,
+                capturedAt: previousDate,
+                totalValue: 100_000,
+                bucketValues: [
+                    InvestmentSnapshotValue(periodKey: previousKey, bucketID: bucket.id, amount: 100_000)
+                ]
+            )
+        )
+        context.insert(
+            InvestmentSnapshot(
+                periodKey: currentKey,
+                capturedAt: currentDate,
+                totalValue: 120_000,
+                bucketValues: [
+                    InvestmentSnapshotValue(periodKey: currentKey, bucketID: bucket.id, amount: 120_000)
+                ]
+            )
+        )
+        try context.save()
+
+        let viewModel = InvestmentCheckInWizardViewModel()
+        viewModel.loadInitialState(
+            buckets: [bucket],
+            snapshots: try context.fetch(FetchDescriptor<InvestmentSnapshot>()),
+            selectedMonth: currentDate
+        )
+
+        #expect(viewModel.isEditingExistingPeriod)
+        #expect(viewModel.previousValues[bucket.id] == 100_000)
+        #expect(viewModel.existingPeriodValues[bucket.id] == 120_000)
+        #expect(viewModel.previousValue(for: bucket.id) == 120_000)
+        #expect(viewModel.effectiveValue(for: bucket.id) == 120_000)
+    }
+
+    @Test
+    @MainActor
+    func investmentWizardCopyPreviousUsesPreviousMonthValues() throws {
+        let container = try makeInMemoryContainer()
+        let context = container.mainContext
+
+        let bucket = InvestmentBucket(id: "bucket_fond", name: "Fond", isDefault: true, sortOrder: 1)
+        context.insert(bucket)
+
+        let previousDate = Calendar.current.date(from: DateComponents(year: 2026, month: 2, day: 1)) ?? .now
+        let currentDate = Calendar.current.date(from: DateComponents(year: 2026, month: 3, day: 1)) ?? .now
+        let previousKey = DateService.periodKey(from: previousDate)
+        let currentKey = DateService.periodKey(from: currentDate)
+
+        context.insert(
+            InvestmentSnapshot(
+                periodKey: previousKey,
+                capturedAt: previousDate,
+                totalValue: 100_000,
+                bucketValues: [
+                    InvestmentSnapshotValue(periodKey: previousKey, bucketID: bucket.id, amount: 100_000)
+                ]
+            )
+        )
+        context.insert(
+            InvestmentSnapshot(
+                periodKey: currentKey,
+                capturedAt: currentDate,
+                totalValue: 120_000,
+                bucketValues: [
+                    InvestmentSnapshotValue(periodKey: currentKey, bucketID: bucket.id, amount: 120_000)
+                ]
+            )
+        )
+        try context.save()
+
+        let viewModel = InvestmentCheckInWizardViewModel()
+        viewModel.loadInitialState(
+            buckets: [bucket],
+            snapshots: try context.fetch(FetchDescriptor<InvestmentSnapshot>()),
+            selectedMonth: currentDate
+        )
+        viewModel.copyPreviousToChanged()
+
+        #expect(viewModel.stepStates[bucket.id]?.mode == .changed)
+        #expect(viewModel.effectiveValue(for: bucket.id) == 100_000)
+    }
+
+    @Test
+    @MainActor
     func budgetSummaryIncludesIncomeAndNet() {
         let viewModel = BudgetViewModel()
         let periodKey = DateService.periodKey(from: .now)
@@ -508,11 +606,88 @@ struct FeatureLogicTests {
         #expect(thirdDelta == -1_500)
     }
 
+    @Test
+    @MainActor
+    func settingsImportReplaceRestoresExportedCategoryAndPreference() throws {
+        let container = try makeInMemoryContainer()
+        let context = container.mainContext
+        let settingsVM = SettingsViewModel()
+
+        let category = Category(
+            id: "cat_test_custom",
+            name: "Test-kategori",
+            type: .expense,
+            groupKey: BudgetGroup.fast.rawValue,
+            isActive: true,
+            sortOrder: 99
+        )
+        let preference = UserPreference(
+            singletonKey: "main",
+            checkInReminderEnabled: false,
+            onboardingCompleted: true,
+            onboardingCurrentStep: 0,
+            onboardingFocus: .investments,
+            toneStyle: .calm
+        )
+        context.insert(category)
+        context.insert(preference)
+        try context.save()
+
+        let exportURL = try settingsVM.exportData(context: context)
+        _ = try settingsVM.importData(from: exportURL, mode: .replace, context: context)
+
+        let categories = try context.fetch(FetchDescriptor<Category>())
+        let preferences = try context.fetch(FetchDescriptor<UserPreference>())
+
+        let importedCategory = categories.first(where: { $0.id == "cat_test_custom" })
+        #expect(importedCategory != nil)
+        #expect(importedCategory?.groupKey == BudgetGroup.fast.rawValue)
+
+        let importedPreference = preferences.first(where: { $0.singletonKey == "main" })
+        #expect(importedPreference != nil)
+        #expect(importedPreference?.onboardingCompleted == true)
+        #expect(importedPreference?.checkInReminderEnabled == false)
+        #expect(importedPreference?.toneStyle == .calm)
+    }
+
+    @Test
+    @MainActor
+    func settingsImportMergeAvoidsDuplicateTransactionsFromSameExport() throws {
+        let container = try makeInMemoryContainer()
+        let context = container.mainContext
+        let settingsVM = SettingsViewModel()
+
+        context.insert(
+            Transaction(
+                date: Calendar.current.date(from: DateComponents(year: 2026, month: 2, day: 15)) ?? .now,
+                amount: 499,
+                kind: .expense,
+                categoryID: "cat_food",
+                note: "Testimport"
+            )
+        )
+        context.insert(UserPreference(onboardingCompleted: true))
+        try context.save()
+
+        let exportURL = try settingsVM.exportData(context: context)
+        _ = try settingsVM.importData(from: exportURL, mode: .merge, context: context)
+
+        let transactions = try context.fetch(FetchDescriptor<Transaction>())
+        let matching = transactions.filter {
+            $0.amount == 499 &&
+            $0.kind == .expense &&
+            $0.categoryID == "cat_food" &&
+            $0.note == "Testimport"
+        }
+        #expect(matching.count == 1)
+    }
+
     private func makeInMemoryContainer() throws -> ModelContainer {
         let schema = Schema([
             BudgetMonth.self,
             Category.self,
             BudgetPlan.self,
+            BudgetGroupPlan.self,
             Transaction.self,
             Account.self,
             InvestmentBucket.self,
