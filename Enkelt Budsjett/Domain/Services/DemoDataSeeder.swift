@@ -49,7 +49,6 @@ enum DemoDataSeeder {
         try deleteAll(Category.self, context: context)
         try deleteAll(Account.self, context: context)
         try deleteAll(InvestmentSnapshot.self, context: context)
-        try deleteAll(InvestmentSnapshotValue.self, context: context)
         try deleteAll(InvestmentBucket.self, context: context)
         try deleteAll(Goal.self, context: context)
         try deleteAll(Challenge.self, context: context)

@@ -567,7 +567,20 @@ struct SettingsView: View {
         case .primary:
             return nil
         case .primaryWithoutCloud:
-            return "iCloud-synk er ikke aktiv. Data lagres kun lokalt på denne enheten."
+            var detail = "iCloud-synk er ikke aktiv. Data lagres kun lokalt på denne enheten."
+            if let accountStatus = Simple_Budget___Budskjett_planlegger_gjort_enkeltApp.lastCloudAccountStatus, !accountStatus.isEmpty {
+                detail += "\n\nKonto-status: \(accountStatus)"
+            }
+            if let probe = Simple_Budget___Budskjett_planlegger_gjort_enkeltApp.lastCloudProbeStatus, !probe.isEmpty {
+                detail += "\n\nCloud probe: \(probe)"
+            }
+            if let analysis = Simple_Budget___Budskjett_planlegger_gjort_enkeltApp.lastCloudCompatibilityAnalysis, !analysis.isEmpty {
+                detail += "\n\nCloud analyse: \(analysis)"
+            }
+            if let error = Simple_Budget___Budskjett_planlegger_gjort_enkeltApp.lastCloudInitError, !error.isEmpty {
+                detail += "\n\nFeildetaljer: \(error)"
+            }
+            return detail
         case .recovery, .memoryOnly:
             return "Recovery/midlertidig modus betyr at primær lagring ikke kunne åpnes."
         }

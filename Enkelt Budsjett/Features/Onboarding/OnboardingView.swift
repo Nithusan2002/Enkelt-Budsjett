@@ -376,7 +376,6 @@ private enum OnboardingPreviewData {
             Account.self,
             InvestmentBucket.self,
             InvestmentSnapshot.self,
-            InvestmentSnapshotValue.self,
             FixedItem.self,
             FixedItemSkip.self,
             Goal.self,

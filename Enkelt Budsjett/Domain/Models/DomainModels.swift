@@ -343,21 +343,34 @@ final class InvestmentSnapshot {
     var periodKey: String = ""
     var capturedAt: Date = Date.now
     var totalValue: Double = 0
-    var bucketValues: [InvestmentSnapshotValue] = []
+    private var bucketValuesPayload: Data = Data()
+
+    var bucketValues: [InvestmentSnapshotValue] {
+        get { Self.decodeBucketValues(from: bucketValuesPayload) }
+        set { bucketValuesPayload = Self.encodeBucketValues(newValue) }
+    }
 
     init(periodKey: String, capturedAt: Date, totalValue: Double, bucketValues: [InvestmentSnapshotValue] = []) {
         self.periodKey = periodKey
         self.capturedAt = capturedAt
         self.totalValue = totalValue
-        self.bucketValues = bucketValues
+        self.bucketValuesPayload = Self.encodeBucketValues(bucketValues)
+    }
+
+    private static func encodeBucketValues(_ values: [InvestmentSnapshotValue]) -> Data {
+        (try? JSONEncoder().encode(values)) ?? Data()
+    }
+
+    private static func decodeBucketValues(from data: Data) -> [InvestmentSnapshotValue] {
+        guard !data.isEmpty else { return [] }
+        return (try? JSONDecoder().decode([InvestmentSnapshotValue].self, from: data)) ?? []
     }
 }
 
-@Model
-final class InvestmentSnapshotValue {
-    var periodKey: String = ""
-    var bucketID: String = ""
-    var amount: Double = 0
+struct InvestmentSnapshotValue: Codable, Hashable {
+    var periodKey: String
+    var bucketID: String
+    var amount: Double
 
     init(periodKey: String, bucketID: String, amount: Double) {
         self.periodKey = periodKey
