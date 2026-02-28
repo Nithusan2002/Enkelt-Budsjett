@@ -1624,7 +1624,7 @@ private struct BudgetGroupDetailView: View {
                         Text("Ingen transaksjoner i \(group.title.lowercased()) ennå.")
                             .appSecondaryStyle()
                     }
-                    ForEach(rows, id: \.date) { transaction in
+                    ForEach(rows, id: \.persistentModelID) { transaction in
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(formatDate(transaction.date))

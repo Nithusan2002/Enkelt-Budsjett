@@ -10,6 +10,7 @@ struct FixedItemsView: View {
 
     @State private var editorItem: FixedItem?
     @State private var showAddSheet = false
+    @State private var saveErrorMessage: String?
 
     var body: some View {
         List {
@@ -45,8 +46,14 @@ struct FixedItemsView: View {
                                 Toggle("", isOn: Binding(
                                     get: { item.isActive },
                                     set: { value in
+                                        let previousValue = item.isActive
                                         item.isActive = value
-                                        try? modelContext.save()
+                                        do {
+                                            try modelContext.save()
+                                        } catch {
+                                            item.isActive = previousValue
+                                            saveErrorMessage = "Kunne ikke oppdatere fast post."
+                                        }
                                     }
                                 ))
                                 .labelsHidden()
@@ -82,13 +89,22 @@ struct FixedItemsView: View {
                     autoCreate: draft.autoCreate
                 )
                 modelContext.insert(item)
-                try? modelContext.save()
+                do {
+                    try modelContext.save()
+                } catch {
+                    saveErrorMessage = "Kunne ikke opprette fast post."
+                    return
+                }
 
                 if createCurrentMonth {
-                    try? FixedItemsService.generateForCurrentMonthForItem(
-                        context: modelContext,
-                        fixedItemID: item.id
-                    )
+                    do {
+                        try FixedItemsService.generateForCurrentMonthForItem(
+                            context: modelContext,
+                            fixedItemID: item.id
+                        )
+                    } catch {
+                        saveErrorMessage = "Fast post ble lagret, men månedens transaksjon kunne ikke opprettes."
+                    }
                 }
             }
         }
@@ -106,8 +122,25 @@ struct FixedItemsView: View {
                 item.endDate = draft.endDate
                 item.isActive = draft.isActive
                 item.autoCreate = draft.autoCreate
-                try? modelContext.save()
+                do {
+                    try modelContext.save()
+                } catch {
+                    saveErrorMessage = "Kunne ikke lagre endringer i fast post."
+                }
             }
+        }
+        .alert(
+            "Kunne ikke lagre faste poster",
+            isPresented: Binding(
+                get: { saveErrorMessage != nil },
+                set: { if !$0 { saveErrorMessage = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {
+                saveErrorMessage = nil
+            }
+        } message: {
+            Text(saveErrorMessage ?? "Prøv igjen litt senere.")
         }
     }
 
@@ -125,7 +158,11 @@ struct FixedItemsView: View {
 
             modelContext.delete(item)
         }
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+        } catch {
+            saveErrorMessage = "Kunne ikke slette fast post."
+        }
     }
 }
 

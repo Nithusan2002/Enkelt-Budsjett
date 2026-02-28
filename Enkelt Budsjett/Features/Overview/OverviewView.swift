@@ -22,6 +22,7 @@ struct OverviewView: View {
     private var latestSnapshot: InvestmentSnapshot? { viewModel.latestSnapshot(from: snapshots) }
     private var previousSnapshot: InvestmentSnapshot? { InvestmentService.previousSnapshot(snapshots) }
     private var preference: UserPreference? { preferences.first }
+    private var savingsDefinition: SavingsDefinition { preference?.savingsDefinition ?? .incomeMinusExpense }
     private var overviewTitle: String {
         let name = preference?.firstName.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         guard !name.isEmpty else { return "Oversikt" }
@@ -33,7 +34,7 @@ struct OverviewView: View {
     }
 
     private var savedYTD: Double {
-        viewModel.savedYTD(definition: .savingsCategoryOnly, transactions: transactions, categories: categories)
+        viewModel.savedYTD(definition: savingsDefinition, transactions: transactions, categories: categories)
     }
 
     private var savingsCategoryIDs: Set<String> {
@@ -41,10 +42,16 @@ struct OverviewView: View {
     }
 
     private var hasSavedData: Bool {
-        abs(savedYTD) >= 1 && transactions.contains { transaction in
-            if transaction.kind == .manualSaving { return true }
-            guard let categoryID = transaction.categoryID else { return false }
-            return savingsCategoryIDs.contains(categoryID)
+        guard abs(savedYTD) >= 1 else { return false }
+        switch savingsDefinition {
+        case .incomeMinusExpense:
+            return transactions.contains { $0.kind != .transfer }
+        case .savingsCategoryOnly:
+            return transactions.contains { transaction in
+                if transaction.kind == .manualSaving { return true }
+                guard let categoryID = transaction.categoryID else { return false }
+                return savingsCategoryIDs.contains(categoryID)
+            }
         }
     }
 
