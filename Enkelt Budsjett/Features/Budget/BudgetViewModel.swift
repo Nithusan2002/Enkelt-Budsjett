@@ -101,7 +101,7 @@ final class BudgetViewModel: ObservableObject {
     ) -> BudgetSummaryData {
         let planned = groupRows.compactMap(\.planned).reduce(0, +)
         let trackedActual = groupRows.filter(\.hasLimit).reduce(0) { $0 + $1.spent }
-        let expenseTotal = periodTransactions.reduce(0) { $0 + BudgetService.expenseImpact($1) }
+        let expenseTotal = periodTransactions.reduce(0) { $0 + BudgetService.trackedBudgetImpact($1) }
         return makeSummary(
             planned: planned,
             trackedActual: trackedActual,
@@ -182,7 +182,7 @@ final class BudgetViewModel: ObservableObject {
             return category.groupKey
         }
         .mapValues { tx in
-            tx.reduce(0) { $0 + BudgetService.budgetImpact($1) }
+            tx.reduce(0) { $0 + BudgetService.trackedBudgetImpact($1) }
         }
 
         let categoryIDsByGroup = Dictionary(grouping: categories.filter { $0.type != .income && $0.isActive }) { $0.groupKey }
@@ -244,7 +244,7 @@ final class BudgetViewModel: ObservableObject {
         for tx in periodTransactions where tx.recurringKey != nil {
             guard let categoryID = tx.categoryID,
                   let category = categoryByID[categoryID] else { continue }
-            let impact = max(BudgetService.budgetImpact(tx), 0)
+            let impact = max(BudgetService.trackedBudgetImpact(tx), 0)
             totals[category.groupKey, default: 0] += impact
         }
         return totals

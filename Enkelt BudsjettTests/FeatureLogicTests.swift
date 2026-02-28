@@ -128,6 +128,51 @@ struct FeatureLogicTests {
 
     @Test
     @MainActor
+    func budgetTrackedImpactCountsManualSaving() {
+        let transaction = Transaction(
+            date: .now,
+            amount: 1_500,
+            kind: .manualSaving
+        )
+
+        #expect(BudgetService.budgetImpact(transaction) == 0)
+        #expect(BudgetService.trackedBudgetImpact(transaction) == 1_500)
+    }
+
+    @Test
+    @MainActor
+    func budgetGroupRowsIncludeManualSavingInSpentTotals() {
+        let now = Calendar.current.date(from: DateComponents(year: 2026, month: 6, day: 15)) ?? .now
+        let periodKey = DateService.periodKey(from: now)
+        let category = Category(
+            id: "cat_savings",
+            name: "Målsparekonto",
+            type: .savings,
+            groupKey: BudgetGroup.hverdags.rawValue,
+            sortOrder: 1
+        )
+        let transaction = Transaction(
+            date: now,
+            amount: 800,
+            kind: .manualSaving,
+            categoryID: category.id
+        )
+
+        let viewModel = BudgetViewModel()
+        let rows = viewModel.groupRows(
+            periodKey: periodKey,
+            categories: [category],
+            groupPlans: [],
+            periodTransactions: [transaction]
+        )
+        let summary = viewModel.summary(groupRows: rows, periodTransactions: [transaction])
+
+        #expect(rows.first(where: { $0.group == .hverdags })?.spent == 800)
+        #expect(summary.expenseTotal == 800)
+    }
+
+    @Test
+    @MainActor
     func investmentWizardEffectiveValuesAndTotalsFollowRules() throws {
         let container = try makeInMemoryContainer()
         let context = container.mainContext

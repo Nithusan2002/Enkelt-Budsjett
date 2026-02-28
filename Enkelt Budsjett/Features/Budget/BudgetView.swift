@@ -1545,7 +1545,7 @@ private struct BudgetGroupDetailView: View {
     }
 
     private var spent: Double {
-        rows.reduce(0) { $0 + BudgetService.budgetImpact($1) }
+        rows.reduce(0) { $0 + BudgetService.trackedBudgetImpact($1) }
     }
 
     private var groupCategories: [Category] {
@@ -1561,7 +1561,7 @@ private struct BudgetGroupDetailView: View {
             .map { category in
                 let spent = rows
                     .filter { $0.categoryID == category.id }
-                    .reduce(0) { $0 + BudgetService.budgetImpact($1) }
+                    .reduce(0) { $0 + BudgetService.trackedBudgetImpact($1) }
                 return (category, max(spent, 0))
             }
             .sorted { lhs, rhs in
@@ -1638,8 +1638,8 @@ private struct BudgetGroupDetailView: View {
                                 }
                             }
                             Spacer()
-                            Text(formatNOK(BudgetService.budgetImpact(transaction)))
-                                .foregroundStyle(BudgetService.budgetImpact(transaction) >= 0 ? AppTheme.textPrimary : AppTheme.positive)
+                            Text(formatNOK(BudgetService.trackedBudgetImpact(transaction)))
+                                .foregroundStyle(BudgetService.trackedBudgetImpact(transaction) >= 0 ? AppTheme.textPrimary : AppTheme.positive)
                                 .monospacedDigit()
                         }
                         .contextMenu {
