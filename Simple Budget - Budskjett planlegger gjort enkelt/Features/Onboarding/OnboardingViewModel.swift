@@ -101,10 +101,25 @@ final class OnboardingViewModel: ObservableObject {
     var isPrimaryDisabled: Bool {
         switch currentStep {
         case .minimumData:
-            return parseDouble(monthlyIncomeText) == nil
+            return isMonthlyIncomeRequired && parseDouble(monthlyIncomeText) == nil
         default:
             return false
         }
+    }
+
+    var isMonthlyIncomeRequired: Bool {
+        selectedGoal != .trackInvestments
+    }
+
+    var monthlyIncomeLabel: String {
+        isMonthlyIncomeRequired ? "Månedlig inntekt" : "Månedlig inntekt (valgfritt)"
+    }
+
+    var minimumDataHelpText: String {
+        if isMonthlyIncomeRequired {
+            return "Kun inntekt og lønnsdato er nødvendig nå."
+        }
+        return "Lønnsdato er nødvendig nå. Inntekt er valgfritt for investeringsmål."
     }
 
     var firstActionPrimaryButtonTitle: String {

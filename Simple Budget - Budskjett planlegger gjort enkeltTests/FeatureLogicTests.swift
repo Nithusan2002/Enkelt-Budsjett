@@ -65,6 +65,21 @@ struct FeatureLogicTests {
 
     @Test
     @MainActor
+    func onboardingIncomeRequirementDependsOnGoal() {
+        let preference = UserPreference(onboardingCompleted: false)
+        let viewModel = OnboardingViewModel(preference: preference)
+
+        viewModel.currentStep = .minimumData
+        viewModel.selectGoal(.trackInvestments)
+        viewModel.monthlyIncomeText = ""
+        #expect(viewModel.isPrimaryDisabled == false)
+
+        viewModel.selectGoal(.reduceSpending)
+        #expect(viewModel.isPrimaryDisabled == true)
+    }
+
+    @Test
+    @MainActor
     func investmentWizardEffectiveValuesAndTotalsFollowRules() throws {
         let container = try makeInMemoryContainer()
         let context = container.mainContext
