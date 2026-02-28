@@ -5,6 +5,14 @@ En offline-first iOS-app bygget i SwiftUI + SwiftData for:
 - investeringsoversikt (månedlige snapshots)
 - enkel måloppfølging
 
+## Foreløpig status
+
+- Budsjett: inntekt, utgift og manuell sparing med gruppert visning.
+- Faste poster: månedlig auto-opprettelse av transaksjoner.
+- Investeringer: månedlig innsjekk med oppdatering per måned (`periodKey`).
+- Oversikt: formue, utvikling og spart hittil i år.
+- Dataflyt: eksport/import av JSON med `Slå sammen` eller `Erstatt alt`.
+
 ## Kjør lokalt
 
 1. Åpne `Enkelt Budsjett.xcodeproj` i Xcode.
@@ -22,7 +30,7 @@ En offline-first iOS-app bygget i SwiftUI + SwiftData for:
 
 - Appen lagrer data lokalt på enheten (offline-first).
 - Ingen tredjepartssporing i MVP.
-- Eksport av data (JSON) er tilgjengelig fra `Innstillinger > Data`.
+- Eksport og import av data (JSON) er tilgjengelig fra `Innstillinger > Data`.
 
 ## Demo-år (realistisk)
 
