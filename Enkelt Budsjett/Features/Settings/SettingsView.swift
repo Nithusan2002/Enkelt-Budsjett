@@ -199,6 +199,11 @@ struct SettingsView: View {
             } message: {
             Text("Dette sletter alt lokalt på enheten.")
             }
+            .onChange(of: viewModel.preferencePersistenceErrorMessage) { _, newValue in
+                guard let newValue else { return }
+                settingsErrorMessage = newValue
+                viewModel.clearPreferencePersistenceError()
+            }
     }
 
     private var trustSection: some View {
@@ -206,7 +211,7 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Trygg lagring")
                     .appCardTitleStyle()
-                Text("Data lagres kun på denne enheten. Ingen bankkobling i denne versjonen.")
+                Text(trustStorageText())
                     .appSecondaryStyle()
             }
             .padding(.vertical, 6)
@@ -310,7 +315,7 @@ struct SettingsView: View {
                 Text("Lagring")
                     .appBodyStyle()
                 Spacer()
-                Text("Kun lokalt")
+                Text(storageLocationText())
                     .appSecondaryStyle()
             }
 
@@ -560,6 +565,21 @@ struct SettingsView: View {
         case .memoryOnly:
             return "Midlertidig"
         }
+    }
+
+    private func storageLocationText() -> String {
+        isCloudSyncActive() ? "iCloud + lokalt" : "Kun lokalt"
+    }
+
+    private func trustStorageText() -> String {
+        if isCloudSyncActive() {
+            return "Data synkroniseres med iCloud og lagres lokalt på enheten. Ingen bankkobling i denne versjonen."
+        }
+        return "Data lagres kun på denne enheten. Ingen bankkobling i denne versjonen."
+    }
+
+    private func isCloudSyncActive() -> Bool {
+        Simple_Budget___Budskjett_planlegger_gjort_enkeltApp.activeStoreMode == .primary
     }
 
     private func storeModeDetailText() -> String? {

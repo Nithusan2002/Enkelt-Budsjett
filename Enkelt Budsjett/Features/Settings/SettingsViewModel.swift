@@ -34,6 +34,8 @@ struct DataImportReport {
 
 @MainActor
 final class SettingsViewModel: ObservableObject {
+    @Published var preferencePersistenceErrorMessage: String?
+
     func shouldShowDemoTools() -> Bool {
 #if DEBUG
         return true
@@ -64,9 +66,13 @@ final class SettingsViewModel: ObservableObject {
         do {
             try context.save()
         } catch {
-            // Behold objektet i kontekst; neste vellykkede save vil persistere det.
+            preferencePersistenceErrorMessage = "Kunne ikke opprette standardinnstillinger."
         }
         return newPref
+    }
+
+    func clearPreferencePersistenceError() {
+        preferencePersistenceErrorMessage = nil
     }
 
     func save(context: ModelContext) throws {
