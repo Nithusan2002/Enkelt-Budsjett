@@ -80,6 +80,54 @@ struct FeatureLogicTests {
 
     @Test
     @MainActor
+    func savedYearToDateSavingsOnlyIgnoresIncomeAndExpense() {
+        let now = Calendar.current.date(from: DateComponents(year: 2026, month: 6, day: 15)) ?? .now
+        let monthStart = Calendar.current.date(from: DateComponents(year: 2026, month: 6, day: 1)) ?? now
+
+        let categories = [
+            Category(id: "cat_savings", name: "Sparing", type: .savings, sortOrder: 1),
+            Category(id: "cat_food", name: "Mat", type: .expense, sortOrder: 2)
+        ]
+        let transactions = [
+            Transaction(date: monthStart, amount: 20_000, kind: .income),
+            Transaction(date: monthStart, amount: 3_000, kind: .expense, categoryID: "cat_food"),
+            Transaction(date: monthStart, amount: 500, kind: .manualSaving),
+            Transaction(date: monthStart, amount: 700, kind: .expense, categoryID: "cat_savings")
+        ]
+
+        let saved = SavingsService.savedYearToDate(
+            definition: .savingsCategoryOnly,
+            transactions: transactions,
+            categories: categories,
+            now: now
+        )
+        #expect(saved == 1_200)
+    }
+
+    @Test
+    @MainActor
+    func savedYearToDateExcludesFutureTransactionsInSameYear() {
+        let now = Calendar.current.date(from: DateComponents(year: 2026, month: 6, day: 15)) ?? .now
+        let past = Calendar.current.date(from: DateComponents(year: 2026, month: 6, day: 10)) ?? now
+        let future = Calendar.current.date(from: DateComponents(year: 2026, month: 7, day: 1)) ?? now
+
+        let transactions = [
+            Transaction(date: past, amount: 10_000, kind: .income),
+            Transaction(date: past, amount: 2_000, kind: .expense),
+            Transaction(date: future, amount: 50_000, kind: .income)
+        ]
+
+        let saved = SavingsService.savedYearToDate(
+            definition: .incomeMinusExpense,
+            transactions: transactions,
+            categories: [],
+            now: now
+        )
+        #expect(saved == 8_000)
+    }
+
+    @Test
+    @MainActor
     func investmentWizardEffectiveValuesAndTotalsFollowRules() throws {
         let container = try makeInMemoryContainer()
         let context = container.mainContext

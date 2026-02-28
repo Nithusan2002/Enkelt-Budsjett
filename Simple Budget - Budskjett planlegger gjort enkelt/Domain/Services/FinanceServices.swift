@@ -261,7 +261,9 @@ enum SavingsService {
         let cal = Calendar.current
         let year = cal.component(.year, from: now)
 
-        let ytd = transactions.filter { cal.component(.year, from: $0.date) == year }
+        let ytd = transactions.filter {
+            cal.component(.year, from: $0.date) == year && $0.date <= now
+        }
         switch definition {
         case .incomeMinusExpense:
             let income = ytd.filter { $0.kind == .income }.reduce(0) { $0 + $1.amount }

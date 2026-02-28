@@ -22,17 +22,30 @@ struct OverviewView: View {
     private var latestSnapshot: InvestmentSnapshot? { viewModel.latestSnapshot(from: snapshots) }
     private var previousSnapshot: InvestmentSnapshot? { InvestmentService.previousSnapshot(snapshots) }
     private var preference: UserPreference? { preferences.first }
+    private var overviewTitle: String {
+        let name = preference?.firstName.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !name.isEmpty else { return "Oversikt" }
+        return "\(name)´s oversikt"
+    }
 
     private var currentWealth: Double {
         viewModel.currentWealth(activeGoal: activeGoal, latestSnapshot: latestSnapshot, accounts: accounts)
     }
 
     private var savedYTD: Double {
-        viewModel.savedYTD(definition: .incomeMinusExpense, transactions: transactions, categories: categories)
+        viewModel.savedYTD(definition: .savingsCategoryOnly, transactions: transactions, categories: categories)
+    }
+
+    private var savingsCategoryIDs: Set<String> {
+        Set(categories.filter { $0.type == .savings && $0.isActive }.map(\.id))
     }
 
     private var hasSavedData: Bool {
-        abs(savedYTD) >= 1 && transactions.contains { $0.kind == .income || $0.kind == .expense || $0.kind == .refund }
+        abs(savedYTD) >= 1 && transactions.contains { transaction in
+            if transaction.kind == .manualSaving { return true }
+            guard let categoryID = transaction.categoryID else { return false }
+            return savingsCategoryIDs.contains(categoryID)
+        }
     }
 
     private var shouldShowPrimaryCTA: Bool {
@@ -83,7 +96,7 @@ struct OverviewView: View {
             }
         }
         .background(AppTheme.background)
-        .navigationTitle("Oversikt")
+        .navigationTitle(overviewTitle)
         .sheet(isPresented: $viewModel.showGoalEditor) {
             GoalEditorView(goal: activeGoal)
         }
