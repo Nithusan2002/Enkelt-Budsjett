@@ -4,7 +4,7 @@
 <dict>
 	<key>com.apple.developer.icloud-container-identifiers</key>
 	<array>
-		<string>iCloud.com.nithusan.Simple-Budget---Budskjett-planlegger-gjort-enkelt</string>
+		<string>iCloud.com.nithusan.Enkelt-Budsjett</string>
 	</array>
 	<key>com.apple.developer.icloud-services</key>
 	<array>
