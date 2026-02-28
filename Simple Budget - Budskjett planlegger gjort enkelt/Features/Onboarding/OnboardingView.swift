@@ -25,6 +25,8 @@ struct OnboardingView: View {
                     }
                     .padding(.horizontal)
                     .padding(.bottom, 16)
+                    .frame(maxWidth: 560, alignment: .center)
+                    .frame(maxWidth: .infinity, alignment: .center)
                 }
             }
             .padding(.vertical)
@@ -83,34 +85,44 @@ struct OnboardingView: View {
     }
 
     private var goalStep: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Hva vil du oppnå først?")
-                .appCardTitleStyle()
-            Text("Vi tilpasser oppstarten. Du kan endre alt senere.")
-                .appBodyStyle()
+        VStack(spacing: 18) {
+            heroIcon(systemName: "eye")
 
-            ForEach(OnboardingGoalChoice.allCases, id: \.rawValue) { goal in
-                Button {
-                    viewModel.selectGoal(goal)
-                } label: {
-                    HStack {
-                        Text(viewModel.title(for: goal))
-                            .appBodyStyle()
-                        Spacer()
-                        if viewModel.selectedGoal == goal {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(AppTheme.primary)
-                        }
-                    }
-                    .padding(12)
-                    .background(AppTheme.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.divider, lineWidth: 1))
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(viewModel.title(for: goal))
+            VStack(spacing: 8) {
+                Text("Hva vil du oppnå først?")
+                    .appCardTitleStyle()
+                Text("Vi tilpasser oppstarten. Du kan endre alt senere.")
+                    .appBodyStyle()
             }
+            .multilineTextAlignment(.center)
+
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(OnboardingGoalChoice.allCases, id: \.rawValue) { goal in
+                    Button {
+                        viewModel.selectGoal(goal)
+                    } label: {
+                        HStack {
+                            Text(viewModel.title(for: goal))
+                                .appBodyStyle()
+                            Spacer()
+                            if viewModel.selectedGoal == goal {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(AppTheme.primary)
+                            }
+                        }
+                        .padding(12)
+                        .background(AppTheme.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.divider, lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(viewModel.title(for: goal))
+                }
+            }
+            .frame(maxWidth: 460, alignment: .leading)
         }
+        .frame(maxWidth: .infinity, alignment: .center)
+        .padding(.top, 24)
     }
 
     private var minimumDataStep: some View {
@@ -211,12 +223,18 @@ struct OnboardingView: View {
     }
 
     private var firstActionStep: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(spacing: 18) {
+            heroIcon(systemName: "sparkles")
+
             Text("Bra start")
                 .appCardTitleStyle()
             Text("Ett lite steg nå gir deg bedre oversikt med én gang.")
                 .appBodyStyle()
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 420)
         }
+        .frame(maxWidth: .infinity, alignment: .center)
+        .padding(.top, 36)
     }
 
     private var monthlyIncomeSummary: String {
@@ -243,6 +261,23 @@ struct OnboardingView: View {
                 .appSecondaryStyle()
                 .accessibilityLabel(secondary)
             }
+        }
+        .frame(maxWidth: isHeroStep ? 420 : .infinity, alignment: .center)
+        .frame(maxWidth: .infinity, alignment: .center)
+    }
+
+    private var isHeroStep: Bool {
+        viewModel.currentStep == .goal || viewModel.currentStep == .firstAction
+    }
+
+    private func heroIcon(systemName: String) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 22)
+                .fill(AppTheme.surface)
+                .frame(width: 112, height: 112)
+            Image(systemName: systemName)
+                .font(.system(size: 36, weight: .semibold))
+                .foregroundStyle(AppTheme.primary)
         }
     }
 
