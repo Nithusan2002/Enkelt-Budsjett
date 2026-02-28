@@ -227,14 +227,28 @@ struct SettingsView: View {
                 Text("Visning")
                     .appBodyStyle()
                 Spacer()
-                Picker("Visning", selection: appearanceModeBinding) {
+                Menu {
                     ForEach(AppAppearancePreference.allCases, id: \.rawValue) { mode in
-                        Text(mode.title).tag(mode)
+                        Button {
+                            appearanceModeBinding.wrappedValue = mode
+                        } label: {
+                            if mode == currentAppearanceMode {
+                                Label(mode.title, systemImage: "checkmark")
+                            } else {
+                                Text(mode.title)
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(currentAppearanceMode.title)
+                            .appSecondaryStyle()
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(AppTheme.textSecondary)
                     }
                 }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .tint(AppTheme.textPrimary)
+                .tint(AppTheme.textSecondary)
             }
 
             HStack {
@@ -329,8 +343,8 @@ struct SettingsView: View {
             Text("Eksport oppretter en JSON-kopi. Import kan slå sammen eller erstatte lokale data.")
                 .appSecondaryStyle()
 
-            if Simple_Budget___Budskjett_planlegger_gjort_enkeltApp.activeStoreMode != .primary {
-                Text("Recovery/midlertidig modus betyr at primær lagring ikke kunne åpnes.")
+            if let detail = storeModeDetailText() {
+                Text(detail)
                     .appSecondaryStyle()
             }
         }
@@ -484,6 +498,10 @@ struct SettingsView: View {
         )
     }
 
+    private var currentAppearanceMode: AppAppearancePreference {
+        AppAppearancePreference(rawValue: appAppearanceModeRawValue) ?? .followSystem
+    }
+
     private func settingsRow(title: String, value: String, showsChevron: Bool) -> some View {
         HStack {
             Text(title)
@@ -535,10 +553,23 @@ struct SettingsView: View {
         switch Simple_Budget___Budskjett_planlegger_gjort_enkeltApp.activeStoreMode {
         case .primary:
             return "Primær"
+        case .primaryWithoutCloud:
+            return "Primær (lokal)"
         case .recovery:
             return "Recovery"
         case .memoryOnly:
             return "Midlertidig"
+        }
+    }
+
+    private func storeModeDetailText() -> String? {
+        switch Simple_Budget___Budskjett_planlegger_gjort_enkeltApp.activeStoreMode {
+        case .primary:
+            return nil
+        case .primaryWithoutCloud:
+            return "iCloud-synk er ikke aktiv. Data lagres kun lokalt på denne enheten."
+        case .recovery, .memoryOnly:
+            return "Recovery/midlertidig modus betyr at primær lagring ikke kunne åpnes."
         }
     }
 

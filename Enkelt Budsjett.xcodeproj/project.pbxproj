@@ -12,37 +12,37 @@
 			containerPortal = 82F82F6A2F4CB67E00CA6205 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 82F82F712F4CB67E00CA6205;
-			remoteInfo = "Simple Budget - Budskjett planlegger gjort enkelt";
+			remoteInfo = "Enkelt Budsjett";
 		};
 		82F82F8A2F4CB68000CA6205 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 82F82F6A2F4CB67E00CA6205 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 82F82F712F4CB67E00CA6205;
-			remoteInfo = "Simple Budget - Budskjett planlegger gjort enkelt";
+			remoteInfo = "Enkelt Budsjett";
 		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		82F82F722F4CB67E00CA6205 /* Simple Budget - Budskjett planlegger gjort enkelt.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Simple Budget - Budskjett planlegger gjort enkelt.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		82F82F7F2F4CB68000CA6205 /* Simple Budget - Budskjett planlegger gjort enkeltTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Simple Budget - Budskjett planlegger gjort enkeltTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
-		82F82F892F4CB68000CA6205 /* Simple Budget - Budskjett planlegger gjort enkeltUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Simple Budget - Budskjett planlegger gjort enkeltUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		82F82F722F4CB67E00CA6205 /* Enkelt Budsjett.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Enkelt Budsjett.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		82F82F7F2F4CB68000CA6205 /* Enkelt BudsjettTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Enkelt BudsjettTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		82F82F892F4CB68000CA6205 /* Enkelt BudsjettUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Enkelt BudsjettUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		82F82F742F4CB67E00CA6205 /* Simple Budget - Budskjett planlegger gjort enkelt */ = {
+		82F82F742F4CB67E00CA6205 /* Enkelt Budsjett */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "Simple Budget - Budskjett planlegger gjort enkelt";
+			path = "Enkelt Budsjett";
 			sourceTree = "<group>";
 		};
-		82F82F822F4CB68000CA6205 /* Simple Budget - Budskjett planlegger gjort enkeltTests */ = {
+		82F82F822F4CB68000CA6205 /* Enkelt BudsjettTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "Simple Budget - Budskjett planlegger gjort enkeltTests";
+			path = "Enkelt BudsjettTests";
 			sourceTree = "<group>";
 		};
-		82F82F8C2F4CB68000CA6205 /* Simple Budget - Budskjett planlegger gjort enkeltUITests */ = {
+		82F82F8C2F4CB68000CA6205 /* Enkelt BudsjettUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "Simple Budget - Budskjett planlegger gjort enkeltUITests";
+			path = "Enkelt BudsjettUITests";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -75,9 +75,9 @@
 		82F82F692F4CB67E00CA6205 = {
 			isa = PBXGroup;
 			children = (
-				82F82F742F4CB67E00CA6205 /* Simple Budget - Budskjett planlegger gjort enkelt */,
-				82F82F822F4CB68000CA6205 /* Simple Budget - Budskjett planlegger gjort enkeltTests */,
-				82F82F8C2F4CB68000CA6205 /* Simple Budget - Budskjett planlegger gjort enkeltUITests */,
+				82F82F742F4CB67E00CA6205 /* Enkelt Budsjett */,
+				82F82F822F4CB68000CA6205 /* Enkelt BudsjettTests */,
+				82F82F8C2F4CB68000CA6205 /* Enkelt BudsjettUITests */,
 				82F82F732F4CB67E00CA6205 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -85,9 +85,9 @@
 		82F82F732F4CB67E00CA6205 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				82F82F722F4CB67E00CA6205 /* Simple Budget - Budskjett planlegger gjort enkelt.app */,
-				82F82F7F2F4CB68000CA6205 /* Simple Budget - Budskjett planlegger gjort enkeltTests.xctest */,
-				82F82F892F4CB68000CA6205 /* Simple Budget - Budskjett planlegger gjort enkeltUITests.xctest */,
+				82F82F722F4CB67E00CA6205 /* Enkelt Budsjett.app */,
+				82F82F7F2F4CB68000CA6205 /* Enkelt BudsjettTests.xctest */,
+				82F82F892F4CB68000CA6205 /* Enkelt BudsjettUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -95,9 +95,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		82F82F712F4CB67E00CA6205 /* Simple Budget - Budskjett planlegger gjort enkelt */ = {
+		82F82F712F4CB67E00CA6205 /* Enkelt Budsjett */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 82F82F932F4CB68000CA6205 /* Build configuration list for PBXNativeTarget "Simple Budget - Budskjett planlegger gjort enkelt" */;
+			buildConfigurationList = 82F82F932F4CB68000CA6205 /* Build configuration list for PBXNativeTarget "Enkelt Budsjett" */;
 			buildPhases = (
 				82F82F6E2F4CB67E00CA6205 /* Sources */,
 				82F82F6F2F4CB67E00CA6205 /* Frameworks */,
@@ -108,18 +108,18 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				82F82F742F4CB67E00CA6205 /* Simple Budget - Budskjett planlegger gjort enkelt */,
+				82F82F742F4CB67E00CA6205 /* Enkelt Budsjett */,
 			);
-			name = "Simple Budget - Budskjett planlegger gjort enkelt";
+			name = "Enkelt Budsjett";
 			packageProductDependencies = (
 			);
-			productName = "Simple Budget - Budskjett planlegger gjort enkelt";
-			productReference = 82F82F722F4CB67E00CA6205 /* Simple Budget - Budskjett planlegger gjort enkelt.app */;
+			productName = "Enkelt Budsjett";
+			productReference = 82F82F722F4CB67E00CA6205 /* Enkelt Budsjett.app */;
 			productType = "com.apple.product-type.application";
 		};
-		82F82F7E2F4CB68000CA6205 /* Simple Budget - Budskjett planlegger gjort enkeltTests */ = {
+		82F82F7E2F4CB68000CA6205 /* Enkelt BudsjettTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 82F82F962F4CB68000CA6205 /* Build configuration list for PBXNativeTarget "Simple Budget - Budskjett planlegger gjort enkeltTests" */;
+			buildConfigurationList = 82F82F962F4CB68000CA6205 /* Build configuration list for PBXNativeTarget "Enkelt BudsjettTests" */;
 			buildPhases = (
 				82F82F7B2F4CB68000CA6205 /* Sources */,
 				82F82F7C2F4CB68000CA6205 /* Frameworks */,
@@ -131,18 +131,18 @@
 				82F82F812F4CB68000CA6205 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				82F82F822F4CB68000CA6205 /* Simple Budget - Budskjett planlegger gjort enkeltTests */,
+				82F82F822F4CB68000CA6205 /* Enkelt BudsjettTests */,
 			);
-			name = "Simple Budget - Budskjett planlegger gjort enkeltTests";
+			name = "Enkelt BudsjettTests";
 			packageProductDependencies = (
 			);
-			productName = "Simple Budget - Budskjett planlegger gjort enkeltTests";
-			productReference = 82F82F7F2F4CB68000CA6205 /* Simple Budget - Budskjett planlegger gjort enkeltTests.xctest */;
+			productName = "Enkelt BudsjettTests";
+			productReference = 82F82F7F2F4CB68000CA6205 /* Enkelt BudsjettTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		82F82F882F4CB68000CA6205 /* Simple Budget - Budskjett planlegger gjort enkeltUITests */ = {
+		82F82F882F4CB68000CA6205 /* Enkelt BudsjettUITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 82F82F992F4CB68000CA6205 /* Build configuration list for PBXNativeTarget "Simple Budget - Budskjett planlegger gjort enkeltUITests" */;
+			buildConfigurationList = 82F82F992F4CB68000CA6205 /* Build configuration list for PBXNativeTarget "Enkelt BudsjettUITests" */;
 			buildPhases = (
 				82F82F852F4CB68000CA6205 /* Sources */,
 				82F82F862F4CB68000CA6205 /* Frameworks */,
@@ -154,13 +154,13 @@
 				82F82F8B2F4CB68000CA6205 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				82F82F8C2F4CB68000CA6205 /* Simple Budget - Budskjett planlegger gjort enkeltUITests */,
+				82F82F8C2F4CB68000CA6205 /* Enkelt BudsjettUITests */,
 			);
-			name = "Simple Budget - Budskjett planlegger gjort enkeltUITests";
+			name = "Enkelt BudsjettUITests";
 			packageProductDependencies = (
 			);
-			productName = "Simple Budget - Budskjett planlegger gjort enkeltUITests";
-			productReference = 82F82F892F4CB68000CA6205 /* Simple Budget - Budskjett planlegger gjort enkeltUITests.xctest */;
+			productName = "Enkelt BudsjettUITests";
+			productReference = 82F82F892F4CB68000CA6205 /* Enkelt BudsjettUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
@@ -186,7 +186,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 82F82F6D2F4CB67E00CA6205 /* Build configuration list for PBXProject "Simple Budget - Budskjett planlegger gjort enkelt" */;
+			buildConfigurationList = 82F82F6D2F4CB67E00CA6205 /* Build configuration list for PBXProject "Enkelt Budsjett" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -200,9 +200,9 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				82F82F712F4CB67E00CA6205 /* Simple Budget - Budskjett planlegger gjort enkelt */,
-				82F82F7E2F4CB68000CA6205 /* Simple Budget - Budskjett planlegger gjort enkeltTests */,
-				82F82F882F4CB68000CA6205 /* Simple Budget - Budskjett planlegger gjort enkeltUITests */,
+				82F82F712F4CB67E00CA6205 /* Enkelt Budsjett */,
+				82F82F7E2F4CB68000CA6205 /* Enkelt BudsjettTests */,
+				82F82F882F4CB68000CA6205 /* Enkelt BudsjettUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -258,12 +258,12 @@
 /* Begin PBXTargetDependency section */
 		82F82F812F4CB68000CA6205 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 82F82F712F4CB67E00CA6205 /* Simple Budget - Budskjett planlegger gjort enkelt */;
+			target = 82F82F712F4CB67E00CA6205 /* Enkelt Budsjett */;
 			targetProxy = 82F82F802F4CB68000CA6205 /* PBXContainerItemProxy */;
 		};
 		82F82F8B2F4CB68000CA6205 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 82F82F712F4CB67E00CA6205 /* Simple Budget - Budskjett planlegger gjort enkelt */;
+			target = 82F82F712F4CB67E00CA6205 /* Enkelt Budsjett */;
 			targetProxy = 82F82F8A2F4CB68000CA6205 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -397,6 +397,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Enkelt Budsjett/SimpleBudget.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = K392629S8S;
@@ -431,6 +432,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Enkelt Budsjett/SimpleBudget.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = K392629S8S;
@@ -478,7 +480,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Simple Budget - Budskjett planlegger gjort enkelt.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Simple Budget - Budskjett planlegger gjort enkelt";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Enkelt Budsjett.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Enkelt Budsjett";
 			};
 			name = Debug;
 		};
@@ -500,7 +502,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Simple Budget - Budskjett planlegger gjort enkelt.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Simple Budget - Budskjett planlegger gjort enkelt";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Enkelt Budsjett.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Enkelt Budsjett";
 			};
 			name = Release;
 		};
@@ -520,7 +522,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = "Simple Budget - Budskjett planlegger gjort enkelt";
+				TEST_TARGET_NAME = "Enkelt Budsjett";
 			};
 			name = Debug;
 		};
@@ -540,14 +542,14 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = "Simple Budget - Budskjett planlegger gjort enkelt";
+				TEST_TARGET_NAME = "Enkelt Budsjett";
 			};
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		82F82F6D2F4CB67E00CA6205 /* Build configuration list for PBXProject "Simple Budget - Budskjett planlegger gjort enkelt" */ = {
+		82F82F6D2F4CB67E00CA6205 /* Build configuration list for PBXProject "Enkelt Budsjett" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				82F82F912F4CB68000CA6205 /* Debug */,
@@ -556,7 +558,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		82F82F932F4CB68000CA6205 /* Build configuration list for PBXNativeTarget "Simple Budget - Budskjett planlegger gjort enkelt" */ = {
+		82F82F932F4CB68000CA6205 /* Build configuration list for PBXNativeTarget "Enkelt Budsjett" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				82F82F942F4CB68000CA6205 /* Debug */,
@@ -565,7 +567,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		82F82F962F4CB68000CA6205 /* Build configuration list for PBXNativeTarget "Simple Budget - Budskjett planlegger gjort enkeltTests" */ = {
+		82F82F962F4CB68000CA6205 /* Build configuration list for PBXNativeTarget "Enkelt BudsjettTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				82F82F972F4CB68000CA6205 /* Debug */,
@@ -574,7 +576,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		82F82F992F4CB68000CA6205 /* Build configuration list for PBXNativeTarget "Simple Budget - Budskjett planlegger gjort enkeltUITests" */ = {
+		82F82F992F4CB68000CA6205 /* Build configuration list for PBXNativeTarget "Enkelt BudsjettUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				82F82F9A2F4CB68000CA6205 /* Debug */,

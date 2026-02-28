@@ -169,7 +169,10 @@ final class InvestmentsViewModel: ObservableObject {
         buckets: [InvestmentBucket]
     ) -> [(bucketID: String, bucketName: String, amount: Double, percent: Double)] {
         guard let latestSnapshot, latestSnapshot.totalValue > 0 else { return [] }
-        let names = Dictionary(uniqueKeysWithValues: buckets.map { ($0.id, $0.name) })
+        let names = Dictionary(
+            buckets.map { ($0.id, $0.name) },
+            uniquingKeysWith: { first, _ in first }
+        )
         return latestSnapshot.bucketValues
             .filter { $0.amount > 0 }
             .map { value in

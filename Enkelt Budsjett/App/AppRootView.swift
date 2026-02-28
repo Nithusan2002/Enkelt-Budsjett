@@ -97,18 +97,12 @@ struct AppRootView: View {
                         .environmentObject(navigationState)
                     }
                 } else {
-                    VStack(spacing: 12) {
-                        ProgressView("Klargjør appen...")
-                        if let message = viewModel.bootstrapErrorMessage {
-                            Text(message)
-                                .appSecondaryStyle()
-                        }
-                        if bootstrapAttempted {
-                            Button("Prøv igjen") {
-                                viewModel.bootstrap(context: modelContext)
-                            }
-                            .buttonStyle(.bordered)
-                        }
+                    BootstrapLoadingView(
+                        phase: viewModel.bootstrapPhase,
+                        errorMessage: viewModel.bootstrapErrorMessage,
+                        showRetry: bootstrapAttempted
+                    ) {
+                        viewModel.bootstrap(context: modelContext)
                     }
                 }
             }
@@ -241,10 +235,70 @@ struct AppRootView: View {
         switch activeStoreMode {
         case .primary:
             return ""
+        case .primaryWithoutCloud:
+            return "Appen kjører lokalt uten iCloud-synk. Sjekk iCloud-innstillinger på enheten."
         case .recovery:
             return "Appen kjører i recovery-lagring. Primær lagring kunne ikke åpnes."
         case .memoryOnly:
             return "Appen kjører midlertidig uten lokal lagring. Start appen på nytt."
         }
+    }
+}
+
+private struct BootstrapLoadingView: View {
+    let phase: BootstrapPhase
+    let errorMessage: String?
+    let showRetry: Bool
+    let onRetry: () -> Void
+
+    var body: some View {
+        VStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("Klargjør appen")
+                        .font(.headline.weight(.semibold))
+                    Spacer()
+                    Text(phase.title)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(AppTheme.textSecondary)
+                }
+
+                ProgressView(value: phase.progress, total: 1)
+                    .tint(AppTheme.primary)
+
+                VStack(spacing: 8) {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(AppTheme.surfaceElevated)
+                        .frame(height: 14)
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(AppTheme.surfaceElevated)
+                        .frame(height: 14)
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(AppTheme.surfaceElevated)
+                        .frame(height: 14)
+                }
+            }
+            .padding(16)
+            .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(AppTheme.divider, lineWidth: 1)
+            )
+
+            if let errorMessage {
+                Text(errorMessage)
+                    .appSecondaryStyle()
+                    .multilineTextAlignment(.center)
+            }
+
+            if showRetry {
+                Button("Prøv igjen") {
+                    onRetry()
+                }
+                .buttonStyle(.bordered)
+                .tint(AppTheme.primary)
+            }
+        }
+        .padding(24)
     }
 }

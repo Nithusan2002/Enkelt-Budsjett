@@ -100,12 +100,12 @@ enum AppToneStyle: String, Codable, CaseIterable {
 
 @Model
 final class BudgetMonth {
-    @Attribute(.unique) var periodKey: String
-    var year: Int
-    var month: Int
-    var startDate: Date
-    var endDate: Date
-    var isClosed: Bool
+    var periodKey: String = ""
+    var year: Int = 0
+    var month: Int = 0
+    var startDate: Date = Date.distantPast
+    var endDate: Date = Date.distantPast
+    var isClosed: Bool = false
 
     init(periodKey: String, year: Int, month: Int, startDate: Date, endDate: Date, isClosed: Bool = false) {
         self.periodKey = periodKey
@@ -119,12 +119,12 @@ final class BudgetMonth {
 
 @Model
 final class Category {
-    @Attribute(.unique) var id: String
-    var name: String
-    var type: CategoryType
-    var groupKey: String
-    var isActive: Bool
-    var sortOrder: Int
+    var id: String = ""
+    var name: String = ""
+    var type: CategoryType = CategoryType.expense
+    var groupKey: String = BudgetGroup.annet.rawValue
+    var isActive: Bool = true
+    var sortOrder: Int = 0
 
     init(
         id: String = UUID().uuidString,
@@ -179,10 +179,10 @@ final class Category {
 
 @Model
 final class BudgetGroupPlan {
-    @Attribute(.unique) var uniqueKey: String
-    var monthPeriodKey: String
-    var groupKey: String
-    var plannedAmount: Double
+    var uniqueKey: String = ""
+    var monthPeriodKey: String = ""
+    var groupKey: String = BudgetGroup.annet.rawValue
+    var plannedAmount: Double = 0
 
     init(monthPeriodKey: String, groupKey: String, plannedAmount: Double) {
         self.monthPeriodKey = monthPeriodKey
@@ -194,10 +194,10 @@ final class BudgetGroupPlan {
 
 @Model
 final class BudgetPlan {
-    @Attribute(.unique) var uniqueKey: String
-    var monthPeriodKey: String
-    var categoryID: String
-    var plannedAmount: Double
+    var uniqueKey: String = ""
+    var monthPeriodKey: String = ""
+    var categoryID: String = ""
+    var plannedAmount: Double = 0
 
     init(monthPeriodKey: String, categoryID: String, plannedAmount: Double) {
         self.monthPeriodKey = monthPeriodKey
@@ -209,12 +209,12 @@ final class BudgetPlan {
 
 @Model
 final class Transaction {
-    var date: Date
-    var amount: Double
-    var kind: TransactionKind
+    var date: Date = Date.now
+    var amount: Double = 0
+    var kind: TransactionKind = TransactionKind.expense
     var categoryID: String?
     var accountID: String?
-    var note: String
+    var note: String = ""
     var recurringKey: String?
     var fixedItemID: String?
 
@@ -241,16 +241,16 @@ final class Transaction {
 
 @Model
 final class FixedItem {
-    @Attribute(.unique) var id: String
-    var title: String
-    var amount: Double
-    var categoryID: String
-    var kind: TransactionKind
-    var dayOfMonth: Int
-    var startDate: Date
+    var id: String = ""
+    var title: String = ""
+    var amount: Double = 0
+    var categoryID: String = ""
+    var kind: TransactionKind = TransactionKind.expense
+    var dayOfMonth: Int = 1
+    var startDate: Date = Date.now
     var endDate: Date?
-    var isActive: Bool
-    var autoCreate: Bool
+    var isActive: Bool = true
+    var autoCreate: Bool = true
     var lastGeneratedPeriodKey: String?
 
     init(
@@ -282,10 +282,10 @@ final class FixedItem {
 
 @Model
 final class FixedItemSkip {
-    @Attribute(.unique) var uniqueKey: String
-    var fixedItemID: String
-    var periodKey: String
-    var createdAt: Date
+    var uniqueKey: String = ""
+    var fixedItemID: String = ""
+    var periodKey: String = ""
+    var createdAt: Date = Date.now
 
     init(fixedItemID: String, periodKey: String, createdAt: Date = .now) {
         self.fixedItemID = fixedItemID
@@ -297,11 +297,11 @@ final class FixedItemSkip {
 
 @Model
 final class Account {
-    @Attribute(.unique) var id: String
-    var name: String
-    var type: AccountType
-    var includeInNetWealth: Bool
-    var currentBalance: Double
+    var id: String = ""
+    var name: String = ""
+    var type: AccountType = AccountType.checking
+    var includeInNetWealth: Bool = true
+    var currentBalance: Double = 0
 
     init(id: String = UUID().uuidString, name: String, type: AccountType, includeInNetWealth: Bool = true, currentBalance: Double = 0) {
         self.id = id
@@ -314,12 +314,12 @@ final class Account {
 
 @Model
 final class InvestmentBucket {
-    @Attribute(.unique) var id: String
-    var name: String
+    var id: String = ""
+    var name: String = ""
     var colorHex: String?
-    var isDefault: Bool
-    var isActive: Bool
-    var sortOrder: Int
+    var isDefault: Bool = false
+    var isActive: Bool = true
+    var sortOrder: Int = 0
 
     init(
         id: String = UUID().uuidString,
@@ -340,10 +340,10 @@ final class InvestmentBucket {
 
 @Model
 final class InvestmentSnapshot {
-    @Attribute(.unique) var periodKey: String
-    var capturedAt: Date
-    var totalValue: Double
-    @Relationship(deleteRule: .cascade) var bucketValues: [InvestmentSnapshotValue]
+    var periodKey: String = ""
+    var capturedAt: Date = Date.now
+    var totalValue: Double = 0
+    var bucketValues: [InvestmentSnapshotValue] = []
 
     init(periodKey: String, capturedAt: Date, totalValue: Double, bucketValues: [InvestmentSnapshotValue] = []) {
         self.periodKey = periodKey
@@ -355,9 +355,9 @@ final class InvestmentSnapshot {
 
 @Model
 final class InvestmentSnapshotValue {
-    var periodKey: String
-    var bucketID: String
-    var amount: Double
+    var periodKey: String = ""
+    var bucketID: String = ""
+    var amount: Double = 0
 
     init(periodKey: String, bucketID: String, amount: Double) {
         self.periodKey = periodKey
@@ -368,12 +368,12 @@ final class InvestmentSnapshotValue {
 
 @Model
 final class Goal {
-    var targetAmount: Double
-    var targetDate: Date
-    var scope: GoalScope
-    var includeAccounts: Bool
-    var isActive: Bool
-    var createdAt: Date
+    var targetAmount: Double = 0
+    var targetDate: Date = Date.now
+    var scope: GoalScope = GoalScope.wealth
+    var includeAccounts: Bool = true
+    var isActive: Bool = true
+    var createdAt: Date = Date.now
 
     init(targetAmount: Double, targetDate: Date, scope: GoalScope = .wealth, includeAccounts: Bool = true, isActive: Bool = true, createdAt: Date = .now) {
         self.targetAmount = targetAmount
@@ -387,16 +387,16 @@ final class Goal {
 
 @Model
 final class Challenge {
-    @Attribute(.unique) var uniqueKey: String
-    var type: ChallengeType
-    var startDate: Date
-    var endDate: Date
+    var uniqueKey: String = ""
+    var type: ChallengeType = ChallengeType.save1000In30Days
+    var startDate: Date = Date.now
+    var endDate: Date = Date.now
     var targetAmount: Double?
     var targetDays: Int?
-    var status: ChallengeStatus
-    var progress: Double
-    var measurementMode: ChallengeMeasurementMode
-    var manualProgress: Double
+    var status: ChallengeStatus = ChallengeStatus.active
+    var progress: Double = 0
+    var measurementMode: ChallengeMeasurementMode = ChallengeMeasurementMode.manualCheckin
+    var manualProgress: Double = 0
 
     init(
         type: ChallengeType,
@@ -424,22 +424,24 @@ final class Challenge {
 
 @Model
 final class UserPreference {
-    @Attribute(.unique) var singletonKey: String
-    var savingsDefinition: SavingsDefinition
-    var yearStartRule: String
-    var checkInReminderEnabled: Bool
-    var checkInReminderDay: Int
-    var checkInReminderHour: Int
-    var checkInReminderMinute: Int
-    var defaultGraphView: GraphViewRange
-    var faceIDLockEnabled: Bool
-    var onboardingCompleted: Bool
-    var onboardingCurrentStep: Int
-    var onboardingFocus: OnboardingFocus
-    var toneStyle: AppToneStyle
+    var singletonKey: String = "main"
+    var firstName: String = ""
+    var savingsDefinition: SavingsDefinition = SavingsDefinition.incomeMinusExpense
+    var yearStartRule: String = "calendarYear"
+    var checkInReminderEnabled: Bool = true
+    var checkInReminderDay: Int = 5
+    var checkInReminderHour: Int = 19
+    var checkInReminderMinute: Int = 0
+    var defaultGraphView: GraphViewRange = GraphViewRange.yearToDate
+    var faceIDLockEnabled: Bool = false
+    var onboardingCompleted: Bool = false
+    var onboardingCurrentStep: Int = 0
+    var onboardingFocus: OnboardingFocus = OnboardingFocus.both
+    var toneStyle: AppToneStyle = AppToneStyle.warm
 
     init(
         singletonKey: String = "main",
+        firstName: String = "",
         savingsDefinition: SavingsDefinition = .incomeMinusExpense,
         yearStartRule: String = "calendarYear",
         checkInReminderEnabled: Bool = true,
@@ -454,6 +456,7 @@ final class UserPreference {
         toneStyle: AppToneStyle = .warm
     ) {
         self.singletonKey = singletonKey
+        self.firstName = firstName
         self.savingsDefinition = savingsDefinition
         self.yearStartRule = yearStartRule
         self.checkInReminderEnabled = checkInReminderEnabled

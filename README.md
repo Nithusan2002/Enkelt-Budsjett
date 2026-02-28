@@ -7,7 +7,7 @@ En offline-first iOS-app bygget i SwiftUI + SwiftData for:
 
 ## Kjør lokalt
 
-1. Åpne `Simple Budget - Budskjett planlegger gjort enkelt.xcodeproj` i Xcode.
+1. Åpne `Enkelt Budsjett.xcodeproj` i Xcode.
 2. Velg iPhone-simulator eller fysisk enhet.
 3. Trykk `Run` (`Cmd + R`).
 

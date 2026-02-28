@@ -315,6 +315,8 @@ final class InvestmentCheckInWizardViewModel: ObservableObject {
 
     private func valuesDictionary(from snapshot: InvestmentSnapshot?) -> [String: Double] {
         guard let snapshot else { return [:] }
-        return Dictionary(uniqueKeysWithValues: snapshot.bucketValues.map { ($0.bucketID, $0.amount) })
+        return snapshot.bucketValues.reduce(into: [:]) { result, value in
+            result[value.bucketID, default: 0] += value.amount
+        }
     }
 }

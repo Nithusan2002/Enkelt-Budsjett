@@ -170,7 +170,10 @@ final class BudgetViewModel: ObservableObject {
         groupPlans: [BudgetGroupPlan],
         periodTransactions: [Transaction]
     ) -> [BudgetGroupRow] {
-        let categoryByID = Dictionary(uniqueKeysWithValues: categories.map { ($0.id, $0) })
+        let categoryByID = Dictionary(
+            categories.map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
 
         let actualByGroup = Dictionary(grouping: periodTransactions) { tx in
             guard let categoryID = tx.categoryID, let category = categoryByID[categoryID] else {
@@ -185,7 +188,10 @@ final class BudgetViewModel: ObservableObject {
         let categoryIDsByGroup = Dictionary(grouping: categories.filter { $0.type != .income && $0.isActive }) { $0.groupKey }
             .mapValues { rows in rows.map(\.id) }
 
-        let plansByKey = Dictionary(uniqueKeysWithValues: groupPlans.filter { $0.monthPeriodKey == periodKey }.map { ($0.groupKey, $0) })
+        let plansByKey = Dictionary(
+            groupPlans.filter { $0.monthPeriodKey == periodKey }.map { ($0.groupKey, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
 
         let rows = BudgetGroup.allCases.compactMap { group -> BudgetGroupRow? in
             let groupKey = group.rawValue
@@ -230,7 +236,10 @@ final class BudgetViewModel: ObservableObject {
         categories: [Category],
         periodTransactions: [Transaction]
     ) -> [String: Double] {
-        let categoryByID = Dictionary(uniqueKeysWithValues: categories.map { ($0.id, $0) })
+        let categoryByID = Dictionary(
+            categories.map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
         var totals: [String: Double] = [:]
         for tx in periodTransactions where tx.recurringKey != nil {
             guard let categoryID = tx.categoryID,

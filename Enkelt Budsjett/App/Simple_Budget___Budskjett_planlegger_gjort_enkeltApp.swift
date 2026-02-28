@@ -3,6 +3,7 @@ import SwiftData
 
 enum AppStoreMode {
     case primary
+    case primaryWithoutCloud
     case recovery
     case memoryOnly
 }
@@ -45,23 +46,31 @@ struct Simple_Budget___Budskjett_planlegger_gjort_enkeltApp: App {
 
         let storeURL = localStoreURL()
         do {
-            let configuration = ModelConfiguration(url: storeURL, cloudKitDatabase: .none)
+            let configuration = ModelConfiguration(url: storeURL, cloudKitDatabase: .automatic)
             let container = try ModelContainer(for: schema, configurations: [configuration])
             activeStoreMode = .primary
             return container
         } catch {
-            // Sikker recovery: aldri slett brukerdata automatisk.
-            // Start i en separat recovery-store hvis primær store ikke kan åpnes.
+            // Fallback: behold samme lokale store selv om iCloud ikke kan initialiseres.
             do {
-                let configuration = ModelConfiguration(url: recoveryStoreURL(), cloudKitDatabase: .none)
+                let configuration = ModelConfiguration(url: storeURL, cloudKitDatabase: .none)
                 let container = try ModelContainer(for: schema, configurations: [configuration])
-                activeStoreMode = .recovery
+                activeStoreMode = .primaryWithoutCloud
                 return container
             } catch {
-                // Siste nødnett: la appen starte i-memory.
-                let memory = ModelConfiguration(isStoredInMemoryOnly: true)
-                activeStoreMode = .memoryOnly
-                return try! ModelContainer(for: schema, configurations: [memory])
+                // Sikker recovery: aldri slett brukerdata automatisk.
+                // Start i en separat recovery-store hvis primær store ikke kan åpnes.
+                do {
+                    let configuration = ModelConfiguration(url: recoveryStoreURL(), cloudKitDatabase: .none)
+                    let container = try ModelContainer(for: schema, configurations: [configuration])
+                    activeStoreMode = .recovery
+                    return container
+                } catch {
+                    // Siste nødnett: la appen starte i-memory.
+                    let memory = ModelConfiguration(isStoredInMemoryOnly: true)
+                    activeStoreMode = .memoryOnly
+                    return try! ModelContainer(for: schema, configurations: [memory])
+                }
             }
         }
     }

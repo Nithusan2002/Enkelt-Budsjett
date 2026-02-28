@@ -382,7 +382,10 @@ enum InvestmentService {
         let sorted = filteredSnapshots(range: range, snapshots: snapshots, now: now)
         let targetKeys = Set(sorted.map(\.periodKey))
 
-        let bucketNameByID = Dictionary(uniqueKeysWithValues: buckets.map { ($0.id, $0.name) })
+        let bucketNameByID = Dictionary(
+            buckets.map { ($0.id, $0.name) },
+            uniquingKeysWith: { first, _ in first }
+        )
         var result: [ChartPoint] = []
         for snapshot in sorted where targetKeys.contains(snapshot.periodKey) {
             for value in snapshot.bucketValues {
@@ -501,6 +504,10 @@ enum BootstrapService {
     static func ensurePreference(context: ModelContext) throws {
         var didChange = false
         do {
+            if try deduplicateKeyedModels(context: context) {
+                didChange = true
+            }
+
             var descriptor = FetchDescriptor<UserPreference>()
             descriptor.fetchLimit = 1
             let existing = try context.fetch(descriptor)
@@ -526,6 +533,42 @@ enum BootstrapService {
             _ = ensureCategoryGroups(context: context)
             try context.save()
         }
+    }
+
+    @discardableResult
+    private static func deduplicateKeyedModels(context: ModelContext) throws -> Bool {
+        var didChange = false
+        if try deduplicate(context: context, key: { (month: BudgetMonth) in month.periodKey }) { didChange = true }
+        if try deduplicate(context: context, key: { (category: Category) in category.id }) { didChange = true }
+        if try deduplicate(context: context, key: { (plan: BudgetPlan) in plan.uniqueKey }) { didChange = true }
+        if try deduplicate(context: context, key: { (plan: BudgetGroupPlan) in plan.uniqueKey }) { didChange = true }
+        if try deduplicate(context: context, key: { (item: FixedItem) in item.id }) { didChange = true }
+        if try deduplicate(context: context, key: { (skip: FixedItemSkip) in skip.uniqueKey }) { didChange = true }
+        if try deduplicate(context: context, key: { (account: Account) in account.id }) { didChange = true }
+        if try deduplicate(context: context, key: { (bucket: InvestmentBucket) in bucket.id }) { didChange = true }
+        if try deduplicate(context: context, key: { (snapshot: InvestmentSnapshot) in snapshot.periodKey }) { didChange = true }
+        if try deduplicate(context: context, key: { (challenge: Challenge) in challenge.uniqueKey }) { didChange = true }
+        if try deduplicate(context: context, key: { (preference: UserPreference) in preference.singletonKey }) { didChange = true }
+        return didChange
+    }
+
+    private static func deduplicate<Model: PersistentModel, Key: Hashable>(
+        context: ModelContext,
+        key: (Model) -> Key
+    ) throws -> Bool {
+        let rows = try context.fetch(FetchDescriptor<Model>())
+        var seen = Set<Key>()
+        var didDelete = false
+        for row in rows {
+            let value = key(row)
+            if seen.contains(value) {
+                context.delete(row)
+                didDelete = true
+            } else {
+                seen.insert(value)
+            }
+        }
+        return didDelete
     }
 
     static func ensureCurrentBudgetMonthAndRecurring(context: ModelContext, now: Date = .now) throws {

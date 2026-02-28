@@ -1292,21 +1292,20 @@ private struct BucketQuickUpdateSheet: View {
         let periodKey = DateService.periodKey(from: .now)
         let descriptor = FetchDescriptor<InvestmentSnapshot>(predicate: #Predicate { $0.periodKey == periodKey })
         let existing = try modelContext.fetch(descriptor).first
-
-        if let existing {
-            if let index = existing.bucketValues.firstIndex(where: { $0.bucketID == bucket.id }) {
-                existing.bucketValues[index].amount = amount
-            } else {
-                existing.bucketValues.append(InvestmentSnapshotValue(periodKey: periodKey, bucketID: bucket.id, amount: amount))
-            }
-            existing.capturedAt = .now
-            existing.totalValue = existing.bucketValues.reduce(0) { $0 + $1.amount }
-        } else {
-            let value = InvestmentSnapshotValue(periodKey: periodKey, bucketID: bucket.id, amount: amount)
-            modelContext.insert(InvestmentSnapshot(periodKey: periodKey, capturedAt: .now, totalValue: amount, bucketValues: [value]))
+        var amountsByBucket = existing?.bucketValues.reduce(into: [String: Double]()) { result, value in
+            result[value.bucketID] = value.amount
+        } ?? [:]
+        amountsByBucket[bucket.id] = amount
+        let values = amountsByBucket.map { bucketID, value in
+            InvestmentSnapshotValue(periodKey: periodKey, bucketID: bucketID, amount: value)
         }
         do {
-            try modelContext.save()
+            try InvestmentService.upsertSnapshot(
+                context: modelContext,
+                periodKey: periodKey,
+                capturedAt: .now,
+                values: values
+            )
         } catch {
             throw BucketQuickUpdateError.saveFailed
         }

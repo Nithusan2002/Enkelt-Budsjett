@@ -165,7 +165,8 @@ final class SettingsViewModel: ObservableObject {
 
     private func upsertBudgetMonths(_ rows: [BudgetMonthDTO], context: ModelContext) throws {
         var existingByKey = Dictionary(
-            uniqueKeysWithValues: try context.fetch(FetchDescriptor<BudgetMonth>()).map { ($0.periodKey, $0) }
+            try context.fetch(FetchDescriptor<BudgetMonth>()).map { ($0.periodKey, $0) },
+            uniquingKeysWith: { first, _ in first }
         )
         for row in rows {
             if let existing = existingByKey[row.periodKey] {
@@ -191,7 +192,8 @@ final class SettingsViewModel: ObservableObject {
 
     private func upsertCategories(_ rows: [CategoryDTO], context: ModelContext) throws {
         var existingByID = Dictionary(
-            uniqueKeysWithValues: try context.fetch(FetchDescriptor<Category>()).map { ($0.id, $0) }
+            try context.fetch(FetchDescriptor<Category>()).map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
         )
         for row in rows {
             if let existing = existingByID[row.id] {
@@ -217,7 +219,8 @@ final class SettingsViewModel: ObservableObject {
 
     private func upsertBudgetPlans(_ rows: [BudgetPlanDTO], context: ModelContext) throws {
         var existingByKey = Dictionary(
-            uniqueKeysWithValues: try context.fetch(FetchDescriptor<BudgetPlan>()).map { ($0.uniqueKey, $0) }
+            try context.fetch(FetchDescriptor<BudgetPlan>()).map { ($0.uniqueKey, $0) },
+            uniquingKeysWith: { first, _ in first }
         )
         for row in rows {
             if let existing = existingByKey[row.uniqueKey] {
@@ -238,7 +241,8 @@ final class SettingsViewModel: ObservableObject {
 
     private func upsertBudgetGroupPlans(_ rows: [BudgetGroupPlanDTO], context: ModelContext) throws {
         var existingByKey = Dictionary(
-            uniqueKeysWithValues: try context.fetch(FetchDescriptor<BudgetGroupPlan>()).map { ($0.uniqueKey, $0) }
+            try context.fetch(FetchDescriptor<BudgetGroupPlan>()).map { ($0.uniqueKey, $0) },
+            uniquingKeysWith: { first, _ in first }
         )
         for row in rows {
             if let existing = existingByKey[row.uniqueKey] {
@@ -259,7 +263,8 @@ final class SettingsViewModel: ObservableObject {
 
     private func upsertAccounts(_ rows: [AccountDTO], context: ModelContext) throws {
         var existingByID = Dictionary(
-            uniqueKeysWithValues: try context.fetch(FetchDescriptor<Account>()).map { ($0.id, $0) }
+            try context.fetch(FetchDescriptor<Account>()).map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
         )
         for row in rows {
             if let existing = existingByID[row.id] {
@@ -283,7 +288,8 @@ final class SettingsViewModel: ObservableObject {
 
     private func upsertBuckets(_ rows: [InvestmentBucketDTO], context: ModelContext) throws {
         var existingByID = Dictionary(
-            uniqueKeysWithValues: try context.fetch(FetchDescriptor<InvestmentBucket>()).map { ($0.id, $0) }
+            try context.fetch(FetchDescriptor<InvestmentBucket>()).map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
         )
         for row in rows {
             if let existing = existingByID[row.id] {
@@ -309,7 +315,8 @@ final class SettingsViewModel: ObservableObject {
 
     private func upsertSnapshots(_ rows: [InvestmentSnapshotDTO], context: ModelContext) throws {
         var existingByKey = Dictionary(
-            uniqueKeysWithValues: try context.fetch(FetchDescriptor<InvestmentSnapshot>()).map { ($0.periodKey, $0) }
+            try context.fetch(FetchDescriptor<InvestmentSnapshot>()).map { ($0.periodKey, $0) },
+            uniquingKeysWith: { first, _ in first }
         )
         for row in rows {
             let values = row.bucketValues.map {
@@ -334,7 +341,8 @@ final class SettingsViewModel: ObservableObject {
 
     private func upsertFixedItems(_ rows: [FixedItemDTO], context: ModelContext) throws {
         var existingByID = Dictionary(
-            uniqueKeysWithValues: try context.fetch(FetchDescriptor<FixedItem>()).map { ($0.id, $0) }
+            try context.fetch(FetchDescriptor<FixedItem>()).map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
         )
         for row in rows {
             if let existing = existingByID[row.id] {
@@ -370,7 +378,8 @@ final class SettingsViewModel: ObservableObject {
 
     private func upsertFixedItemSkips(_ rows: [FixedItemSkipDTO], context: ModelContext) throws {
         var existingByKey = Dictionary(
-            uniqueKeysWithValues: try context.fetch(FetchDescriptor<FixedItemSkip>()).map { ($0.uniqueKey, $0) }
+            try context.fetch(FetchDescriptor<FixedItemSkip>()).map { ($0.uniqueKey, $0) },
+            uniquingKeysWith: { first, _ in first }
         )
         for row in rows {
             if let existing = existingByKey[row.uniqueKey] {
@@ -433,7 +442,8 @@ final class SettingsViewModel: ObservableObject {
 
     private func upsertChallenges(_ rows: [ChallengeDTO], context: ModelContext) throws {
         var existingByKey = Dictionary(
-            uniqueKeysWithValues: try context.fetch(FetchDescriptor<Challenge>()).map { ($0.uniqueKey, $0) }
+            try context.fetch(FetchDescriptor<Challenge>()).map { ($0.uniqueKey, $0) },
+            uniquingKeysWith: { first, _ in first }
         )
         for row in rows {
             if let existing = existingByKey[row.uniqueKey] {
@@ -466,7 +476,8 @@ final class SettingsViewModel: ObservableObject {
 
     private func upsertPreferences(_ rows: [UserPreferenceDTO], context: ModelContext) throws {
         var existingByKey = Dictionary(
-            uniqueKeysWithValues: try context.fetch(FetchDescriptor<UserPreference>()).map { ($0.singletonKey, $0) }
+            try context.fetch(FetchDescriptor<UserPreference>()).map { ($0.singletonKey, $0) },
+            uniquingKeysWith: { first, _ in first }
         )
         for row in rows {
             if let existing = existingByKey[row.singletonKey] {
@@ -481,6 +492,7 @@ final class SettingsViewModel: ObservableObject {
     }
 
     private func applyPreference(_ row: UserPreferenceDTO, to preference: UserPreference) {
+        preference.firstName = row.firstName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         preference.savingsDefinition = SavingsDefinition(rawValue: row.savingsDefinition) ?? .incomeMinusExpense
         preference.yearStartRule = row.yearStartRule
         preference.checkInReminderEnabled = row.checkInReminderEnabled
@@ -854,6 +866,7 @@ private struct ChallengeDTO: Codable {
 
 private struct UserPreferenceDTO: Codable {
     let singletonKey: String
+    let firstName: String?
     let savingsDefinition: String
     let yearStartRule: String
     let checkInReminderEnabled: Bool
@@ -868,6 +881,7 @@ private struct UserPreferenceDTO: Codable {
     let toneStyle: String
     init(_ model: UserPreference) {
         singletonKey = model.singletonKey
+        firstName = model.firstName
         savingsDefinition = model.savingsDefinition.rawValue
         yearStartRule = model.yearStartRule
         checkInReminderEnabled = model.checkInReminderEnabled
