@@ -6,6 +6,8 @@ struct CategoryManagementView: View {
     @Query(sort: \Category.sortOrder) private var categories: [Category]
 
     @State private var editorState: CategoryEditorState?
+    @State private var saveErrorMessage: String?
+    private var isReadOnlyMode: Bool { PersistenceGate.isReadOnlyMode }
 
     var body: some View {
         List {
@@ -29,8 +31,18 @@ struct CategoryManagementView: View {
                                 Toggle("", isOn: Binding(
                                     get: { category.isActive },
                                     set: { newValue in
+                                        if isReadOnlyMode {
+                                            saveErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+                                            return
+                                        }
+                                        let previousValue = category.isActive
                                         category.isActive = newValue
-                                        try? modelContext.save()
+                                        do {
+                                            try modelContext.guardedSave(feature: "Categories", operation: "toggle_category")
+                                        } catch {
+                                            category.isActive = previousValue
+                                            saveErrorMessage = (error as? LocalizedError)?.errorDescription ?? "Kunne ikke lagre kategori."
+                                        }
                                     }
                                 ))
                                 .labelsHidden()
@@ -49,6 +61,7 @@ struct CategoryManagementView: View {
                 } label: {
                     Label("Legg til", systemImage: "plus")
                 }
+                .disabled(isReadOnlyMode)
             }
         }
         .sheet(item: $editorState) { state in
@@ -56,9 +69,26 @@ struct CategoryManagementView: View {
                 save(input: input, state: state)
             }
         }
+        .alert(
+            "Kunne ikke lagre kategori",
+            isPresented: Binding(
+                get: { saveErrorMessage != nil },
+                set: { if !$0 { saveErrorMessage = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {
+                saveErrorMessage = nil
+            }
+        } message: {
+            Text(saveErrorMessage ?? "")
+        }
     }
 
     private func save(input: CategoryEditorInput, state: CategoryEditorState) {
+        guard !isReadOnlyMode else {
+            saveErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+            return
+        }
         let trimmedName = input.name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else { return }
 
@@ -80,7 +110,11 @@ struct CategoryManagementView: View {
             category.isActive = input.isActive
         }
 
-        try? modelContext.save()
+        do {
+            try modelContext.guardedSave(feature: "Categories", operation: "save_category")
+        } catch {
+            saveErrorMessage = (error as? LocalizedError)?.errorDescription ?? "Kunne ikke lagre kategori."
+        }
     }
 
     private func typeText(_ type: CategoryType) -> String {

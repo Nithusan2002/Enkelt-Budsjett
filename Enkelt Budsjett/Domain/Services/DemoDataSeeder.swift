@@ -32,7 +32,7 @@ enum DemoDataSeeder {
         try createInvestmentSnapshots(context: context, years: years, profile: profile)
         try createGoalAndPreference(context: context, endYear: endYear)
 
-        try context.save()
+        try context.guardedSave(feature: "DemoData", operation: "save", enforceReadOnly: false)
 
         let report = try buildReport(context: context)
         print("[DemoDataSeeder] Seed fullført: months=\(report.budgetMonths), categories=\(report.categories), plans=\(report.budgetPlans), tx=\(report.transactions), buckets=\(report.buckets), snapshots=\(report.snapshots), goals=\(report.goals), prefs=\(report.preferences)")
@@ -55,7 +55,7 @@ enum DemoDataSeeder {
         try deleteAll(UserPreference.self, context: context)
         UserDefaults.standard.removeObject(forKey: "onboarding_local_events")
         UserDefaults.standard.removeObject(forKey: "challenges_waitlist_optin")
-        try context.save()
+        try context.guardedSave(feature: "DemoData", operation: "save", enforceReadOnly: false)
         print("[DemoDataSeeder] Alle lokale data er slettet")
     }
 
@@ -83,7 +83,7 @@ enum DemoDataSeeder {
             all[item.id] = category
         }
 
-        try context.save()
+        try context.guardedSave(feature: "DemoData", operation: "save", enforceReadOnly: false)
         return all
     }
 
@@ -100,7 +100,7 @@ enum DemoDataSeeder {
                 )
             )
         }
-        try context.save()
+        try context.guardedSave(feature: "DemoData", operation: "save", enforceReadOnly: false)
     }
 
     private static func createBudgetMonths(context: ModelContext, years: ClosedRange<Int>) throws {
@@ -129,7 +129,7 @@ enum DemoDataSeeder {
                 )
             }
         }
-        try context.save()
+        try context.guardedSave(feature: "DemoData", operation: "save", enforceReadOnly: false)
     }
 
     private static func createBudgetPlans(
@@ -159,7 +159,7 @@ enum DemoDataSeeder {
                 }
             }
         }
-        try context.save()
+        try context.guardedSave(feature: "DemoData", operation: "save", enforceReadOnly: false)
     }
 
     private static func createBudgetGroupPlans(
@@ -202,7 +202,7 @@ enum DemoDataSeeder {
                 }
             }
         }
-        try context.save()
+        try context.guardedSave(feature: "DemoData", operation: "save", enforceReadOnly: false)
     }
 
     private static func createTransactions(
@@ -289,7 +289,7 @@ enum DemoDataSeeder {
         }
 
         _ = categories
-        try context.save()
+        try context.guardedSave(feature: "DemoData", operation: "save", enforceReadOnly: false)
     }
 
     private static func createInvestmentSnapshots(context: ModelContext, years: ClosedRange<Int>, profile: DemoProfile) throws {
@@ -385,7 +385,7 @@ enum DemoDataSeeder {
             )
         )
 
-        try context.save()
+        try context.guardedSave(feature: "DemoData", operation: "save", enforceReadOnly: false)
     }
 
     private static func buildReport(context: ModelContext) throws -> DemoSeedReport {

@@ -15,6 +15,7 @@ struct InvestmentsView: View {
     @State private var checkInToastMessage: String?
     @State private var historyFilter: InvestmentsHistoryFilter = .threeMonths
     @State private var selectedDistributionBucketID: String?
+    private var isReadOnlyMode: Bool { PersistenceGate.isReadOnlyMode }
 
     private enum SectionAnchor: String {
         case development
@@ -116,7 +117,9 @@ struct InvestmentsView: View {
                 }
             }
             .onAppear {
-                viewModel.ensureDefaultBuckets(context: modelContext, existingBuckets: buckets)
+                if !isReadOnlyMode {
+                    viewModel.ensureDefaultBuckets(context: modelContext, existingBuckets: buckets)
+                }
                 viewModel.onAppear(preference: preferences.first, snapshots: snapshots)
             }
             .onChange(of: snapshotToken) { _, _ in
@@ -185,6 +188,7 @@ struct InvestmentsView: View {
                     .font(.footnote.weight(.semibold))
                     .buttonStyle(.bordered)
                     .tint(AppTheme.primary)
+                    .disabled(isReadOnlyMode)
                 }
 
                 Text(formatNOK(viewModel.displayedTotal))
@@ -249,27 +253,40 @@ struct InvestmentsView: View {
                     }
                     .buttonStyle(.bordered)
                     .tint(AppTheme.primary)
+                    .disabled(isReadOnlyMode)
                 }
             } else {
                 ForEach(bucketRows) { row in
                     NavigationLink(value: row.id) {
                         bucketRow(row)
                     }
-                    .moveDisabled(false)
+                    .moveDisabled(isReadOnlyMode)
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         if let bucket = buckets.first(where: { $0.id == row.id }) {
                             Button("Rediger") {
+                                guard !isReadOnlyMode else {
+                                    viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+                                    return
+                                }
                                 viewModel.selectedBucketForEdit = bucket
                             }
                             .tint(AppTheme.secondary)
 
                             Button("Skjul", role: .destructive) {
+                                guard !isReadOnlyMode else {
+                                    viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+                                    return
+                                }
                                 viewModel.hideBucket(bucket, context: modelContext)
                             }
                         }
                     }
                 }
                 .onMove { source, destination in
+                    guard !isReadOnlyMode else {
+                        viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+                        return
+                    }
                     viewModel.moveActiveBuckets(
                         from: source,
                         to: destination,
@@ -291,6 +308,7 @@ struct InvestmentsView: View {
                 Label("Legg til beholdningstype", systemImage: "plus.circle")
             }
             .foregroundStyle(AppTheme.primary)
+            .disabled(isReadOnlyMode)
 
             if hiddenBuckets.isEmpty {
                 Text("Ingen skjulte beholdningstyper.")
@@ -308,6 +326,10 @@ struct InvestmentsView: View {
                                 .appBodyStyle()
                             Spacer()
                             Button("Vis igjen") {
+                                guard !isReadOnlyMode else {
+                                    viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+                                    return
+                                }
                                 viewModel.restoreBucket(bucket, context: modelContext, existingBuckets: buckets)
                             }
                             .buttonStyle(.bordered)
@@ -426,6 +448,7 @@ struct InvestmentsView: View {
                     .appCTAStyle()
                     .buttonStyle(.borderedProminent)
                     .tint(AppTheme.primary)
+                    .disabled(isReadOnlyMode)
                 }
                 .padding(12)
             } else {
@@ -601,6 +624,10 @@ struct InvestmentsView: View {
     }
 
     private func openCheckIn() {
+        guard !isReadOnlyMode else {
+            viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+            return
+        }
         if activeBuckets.isEmpty {
             viewModel.ensureDefaultBuckets(context: modelContext, existingBuckets: buckets)
             DispatchQueue.main.async {
@@ -725,6 +752,7 @@ private struct BucketDetailView: View {
     @State private var selectedPointPeriodKey: String?
 
     private var sorted: [InvestmentSnapshot] { InvestmentService.sortedSnapshots(snapshots) }
+    private var isReadOnlyMode: Bool { PersistenceGate.isReadOnlyMode }
     private var sortedUpToNow: [InvestmentSnapshot] {
         InvestmentService.filteredSnapshots(range: .max, snapshots: sorted)
     }
@@ -817,6 +845,7 @@ private struct BucketDetailView: View {
                     }
                     .buttonStyle(.bordered)
                     .tint(AppTheme.primary.opacity(0.9))
+                    .disabled(isReadOnlyMode)
                 }
                 .padding()
                 .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
@@ -863,6 +892,7 @@ private struct BucketDetailView: View {
                             }
                             .buttonStyle(.bordered)
                             .tint(AppTheme.primary)
+                            .disabled(isReadOnlyMode)
                         }
                     } else {
                         Chart(filtered, id: \.periodKey) { snapshot in
@@ -1015,6 +1045,7 @@ private struct BucketDetailView: View {
                 Button("Oppdater") {
                     showQuickUpdate = true
                 }
+                .disabled(isReadOnlyMode)
             }
         }
         .background(AppTheme.background)
@@ -1122,6 +1153,7 @@ private struct EditInvestmentBucketSheet: View {
     @State private var selectedColorHex: String = AppTheme.customBucketPalette[0]
     @State private var showDeleteAlert = false
     @State private var errorMessage: String?
+    private var isReadOnlyMode: Bool { PersistenceGate.isReadOnlyMode }
 
     var body: some View {
         NavigationStack {
@@ -1169,6 +1201,7 @@ private struct EditInvestmentBucketSheet: View {
                     Button("Slett beholdningstype", role: .destructive) {
                         showDeleteAlert = true
                     }
+                    .disabled(isReadOnlyMode)
                 } footer: {
                     Text("Sletter typen helt og fjerner den fra historikk/snapshots.")
                         .appSecondaryStyle()
@@ -1181,6 +1214,10 @@ private struct EditInvestmentBucketSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Lagre") {
+                        guard !isReadOnlyMode else {
+                            errorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+                            return
+                        }
                         errorMessage = viewModel.updateBucket(
                             bucket,
                             name: name,
@@ -1198,6 +1235,10 @@ private struct EditInvestmentBucketSheet: View {
             .alert("Slette beholdningstype?", isPresented: $showDeleteAlert) {
                 Button("Avbryt", role: .cancel) { }
                 Button("Slett", role: .destructive) {
+                    guard !isReadOnlyMode else {
+                        errorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+                        return
+                    }
                     do {
                         let snapshots = try modelContext.fetch(FetchDescriptor<InvestmentSnapshot>())
                         viewModel.deleteBucket(bucket, context: modelContext, snapshots: snapshots)
@@ -1231,6 +1272,7 @@ private struct BucketQuickUpdateSheet: View {
 
     @State private var amountText: String = ""
     @State private var saveErrorMessage: String?
+    private var isReadOnlyMode: Bool { PersistenceGate.isReadOnlyMode }
 
     var body: some View {
         NavigationStack {
@@ -1265,6 +1307,7 @@ private struct BucketQuickUpdateSheet: View {
                         }
                     }
                     .appCTAStyle()
+                    .disabled(isReadOnlyMode)
                 }
             }
             .appKeyboardDismissToolbar()
@@ -1286,6 +1329,9 @@ private struct BucketQuickUpdateSheet: View {
     }
 
     private func saveSingleBucket() throws {
+        if isReadOnlyMode {
+            throw PersistenceWriteError.readOnlyMode
+        }
         guard let amount = parseInputAmount(amountText) else {
             throw BucketQuickUpdateError.invalidAmount
         }

@@ -6,6 +6,7 @@ import SwiftData
 final class GoalEditorViewModel: ObservableObject {
     @Published var targetAmountText: String = ""
     @Published var targetDate: Date = Calendar.current.date(byAdding: .year, value: 2, to: .now) ?? .now
+    @Published var persistenceErrorMessage: String?
 
     func onAppear(goal: Goal?) {
         if let goal, goal.targetAmount > 0 {
@@ -20,8 +21,13 @@ final class GoalEditorViewModel: ObservableObject {
         (parsedTargetAmount ?? 0) > 0
     }
 
-    func save(goal: Goal?, context: ModelContext) {
-        guard let targetAmount = parsedTargetAmount, targetAmount > 0 else { return }
+    @discardableResult
+    func save(goal: Goal?, context: ModelContext) -> Bool {
+        guard let targetAmount = parsedTargetAmount, targetAmount > 0 else { return false }
+        guard !PersistenceGate.isReadOnlyMode else {
+            persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+            return false
+        }
         if let goal {
             goal.targetAmount = targetAmount
             goal.targetDate = targetDate
@@ -30,7 +36,18 @@ final class GoalEditorViewModel: ObservableObject {
         } else {
             context.insert(Goal(targetAmount: targetAmount, targetDate: targetDate, includeAccounts: false))
         }
-        try? context.save()
+        do {
+            try context.guardedSave(feature: "Goals", operation: "save_goal")
+            persistenceErrorMessage = nil
+            return true
+        } catch {
+            persistenceErrorMessage = (error as? LocalizedError)?.errorDescription ?? "Kunne ikke lagre målet."
+            return false
+        }
+    }
+
+    func clearPersistenceError() {
+        persistenceErrorMessage = nil
     }
 
     private var parsedTargetAmount: Double? {

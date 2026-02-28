@@ -15,7 +15,9 @@ struct SettingsView: View {
     @State private var showGoalSheet = false
     @State private var showBucketTypesSheet = false
     @State private var shareItem: ShareURL?
+    @State private var sharedExportURL: URL?
     @State private var showExportError = false
+    @State private var exportMessage = ""
     @State private var showDeleteAllConfirm = false
     @State private var showDeleteAllError = false
     @State private var showDeleteAllSuccess = false
@@ -24,15 +26,20 @@ struct SettingsView: View {
     @State private var showDemoWipeConfirm = false
     @State private var showImportModeDialog = false
     @State private var showImportPicker = false
+    @State private var showExportPasswordPrompt = false
+    @State private var showImportPasswordPrompt = false
     @State private var showImportError = false
     @State private var showImportSuccess = false
     @State private var pendingImportMode: DataImportMode = .merge
+    @State private var pendingImportURL: URL?
+    @State private var transferPassword = ""
     @State private var importMessage = ""
     @State private var settingsErrorMessage: String?
     @State private var demoLoadMessage = ""
     @State private var demoToastMessage: String?
 
     private var pref: UserPreference { viewModel.preference(from: preferences, context: modelContext) }
+    private var isReadOnlyMode: Bool { PersistenceGate.isReadOnlyMode }
 
     var body: some View {
         configuredForm
@@ -96,8 +103,12 @@ struct SettingsView: View {
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
             }
-            .sheet(item: $shareItem) { item in
-            ShareSheet(activityItems: [item.url])
+            .sheet(item: $shareItem, onDismiss: {
+                cleanupSharedExportFile()
+            }) { item in
+            ShareSheet(activityItems: [item.url]) {
+                cleanupSharedExportFile()
+            }
             }
     }
 
@@ -106,7 +117,18 @@ struct SettingsView: View {
             .alert("Kunne ikke eksportere data", isPresented: $showExportError) {
             Button("OK", role: .cancel) { }
             } message: {
-            Text("Prøv igjen litt senere.")
+            Text(exportMessage.isEmpty ? "Prøv igjen litt senere." : exportMessage)
+            }
+            .alert("Passordbeskyttet eksport", isPresented: $showExportPasswordPrompt) {
+            SecureField("Passord (minst 8 tegn)", text: $transferPassword)
+            Button("Avbryt", role: .cancel) {
+                transferPassword = ""
+            }
+            Button("Eksporter") {
+                performExport()
+            }
+            } message: {
+            Text("Eksportfilen krypteres med passordet før deling.")
             }
             .confirmationDialog("Importer data", isPresented: $showImportModeDialog, titleVisibility: .visible) {
             Button("Slå sammen med eksisterende data") {
@@ -123,10 +145,22 @@ struct SettingsView: View {
             }
             .fileImporter(
                 isPresented: $showImportPicker,
-                allowedContentTypes: [UTType.json],
+                allowedContentTypes: [UTType.json, UTType.data],
                 allowsMultipleSelection: false
             ) { result in
                 handleImport(result)
+            }
+            .alert("Passord for import", isPresented: $showImportPasswordPrompt) {
+            SecureField("Passord (tomt hvis ukryptert fil)", text: $transferPassword)
+            Button("Avbryt", role: .cancel) {
+                transferPassword = ""
+                pendingImportURL = nil
+            }
+            Button("Importer") {
+                performImport()
+            }
+            } message: {
+            Text("Krypterte filer krever passord. Ved ‘Erstatt alt’ brukes passordet også for automatisk backup.")
             }
             .alert("Kunne ikke importere data", isPresented: $showImportError) {
             Button("OK", role: .cancel) { }
@@ -270,12 +304,14 @@ struct SettingsView: View {
                 settingsRow(title: "Månedlig innsjekk", value: reminderSummaryText(), showsChevron: true)
             }
             .buttonStyle(.plain)
+            .disabled(isReadOnlyMode)
 
             Text("Få et lite dytt for å oppdatere totalsummene dine.")
                 .appSecondaryStyle()
 
             Toggle("Face ID-lås", isOn: binding(\.faceIDLockEnabled))
                 .appBodyStyle()
+                .disabled(isReadOnlyMode)
         }
     }
 
@@ -307,6 +343,7 @@ struct SettingsView: View {
                 settingsRow(title: "Kategorier", value: "", showsChevron: false)
             }
         }
+        .disabled(isReadOnlyMode)
     }
 
     private var dataSection: some View {
@@ -328,25 +365,29 @@ struct SettingsView: View {
             }
 
             Button {
-                do {
-                    shareItem = ShareURL(try viewModel.exportData(context: modelContext))
-                } catch {
-                    showExportError = true
-                }
+                transferPassword = ""
+                showExportPasswordPrompt = true
             } label: {
                 settingsRow(title: "Eksporter data", value: "", showsChevron: true)
             }
             .buttonStyle(.plain)
 
             Button {
+                transferPassword = ""
                 showImportModeDialog = true
             } label: {
                 settingsRow(title: "Importer data", value: "", showsChevron: true)
             }
             .buttonStyle(.plain)
+            .disabled(isReadOnlyMode)
 
-            Text("Eksport oppretter en JSON-kopi. Import kan slå sammen eller erstatte lokale data.")
+            Text("Eksport oppretter en kryptert fil. Import kan slå sammen eller erstatte lokale data.")
                 .appSecondaryStyle()
+
+            if isReadOnlyMode {
+                Text("Skrivende handlinger er deaktivert fordi appen kjører i midlertidig lagring.")
+                    .appSecondaryStyle()
+            }
 
             if let detail = storeModeDetailText() {
                 Text(detail)
@@ -409,6 +450,7 @@ struct SettingsView: View {
             Text("Kun for testing i debug/TestFlight.")
                 .appSecondaryStyle()
         }
+        .disabled(isReadOnlyMode)
     }
 
     private var destructiveSection: some View {
@@ -423,6 +465,7 @@ struct SettingsView: View {
             Text("Dette kan ikke angres.")
                 .appSecondaryStyle()
         }
+        .disabled(isReadOnlyMode)
     }
 
     private func showToast(_ message: String) {
@@ -436,11 +479,46 @@ struct SettingsView: View {
         }
     }
 
+    private func performExport() {
+        let trimmedPassword = transferPassword.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedPassword.isEmpty else {
+            exportMessage = "Skriv inn passord for eksport."
+            showExportError = true
+            return
+        }
+        do {
+            let url = try viewModel.exportData(context: modelContext, password: trimmedPassword)
+            shareItem = ShareURL(url)
+            sharedExportURL = url
+            transferPassword = ""
+            exportMessage = ""
+            DispatchQueue.main.asyncAfter(deadline: .now() + 600) {
+                if sharedExportURL == url {
+                    cleanupSharedExportFile()
+                }
+            }
+        } catch {
+            exportMessage = error.localizedDescription
+            showExportError = true
+        }
+    }
+
+    private func cleanupSharedExportFile() {
+        guard let url = sharedExportURL else { return }
+        try? FileManager.default.removeItem(at: url)
+        sharedExportURL = nil
+        shareItem = nil
+    }
+
     private func persistSettingsChanges(syncReminder: Bool) {
+        guard !isReadOnlyMode else {
+            settingsErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+            return
+        }
         do {
             try viewModel.save(context: modelContext)
         } catch {
-            settingsErrorMessage = "Kunne ikke lagre endringen."
+            settingsErrorMessage = (error as? LocalizedError)?.errorDescription ?? "Kunne ikke lagre endringen."
             return
         }
 
@@ -464,15 +542,38 @@ struct SettingsView: View {
         }
 
         guard let url = urls.first else { return }
+        pendingImportURL = url
+        transferPassword = ""
+        showImportPasswordPrompt = true
+    }
+
+    private func performImport() {
+        guard !isReadOnlyMode else {
+            importMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+            showImportError = true
+            return
+        }
+        guard let url = pendingImportURL else { return }
+
         let didAccess = url.startAccessingSecurityScopedResource()
         defer {
             if didAccess {
                 url.stopAccessingSecurityScopedResource()
             }
+            pendingImportURL = nil
+            transferPassword = ""
         }
 
+        let trimmedPassword = transferPassword.trimmingCharacters(in: .whitespacesAndNewlines)
+        let password = trimmedPassword.isEmpty ? nil : trimmedPassword
+
         do {
-            let report = try viewModel.importData(from: url, mode: pendingImportMode, context: modelContext)
+            let report = try viewModel.importData(
+                from: url,
+                mode: pendingImportMode,
+                context: modelContext,
+                password: password
+            )
             importMessage = importSuccessText(report)
             showImportSuccess = true
             Task { @MainActor in
@@ -489,11 +590,13 @@ struct SettingsView: View {
     }
 
     private func importSuccessText(_ report: DataImportReport) -> String {
-        "\(report.mode.title) fullført.\n\n" +
+        let backupLine = report.backupFileName.map { "\nBackup: \($0)" } ?? ""
+        return "\(report.mode.title) fullført.\n\n" +
         "Måneder: \(report.budgetMonths)\n" +
         "Kategorier: \(report.categories)\n" +
         "Transaksjoner: \(report.transactions)\n" +
-        "Snapshots: \(report.snapshots)"
+        "Snapshots: \(report.snapshots)" +
+        backupLine
     }
 
     private var appearanceModeBinding: Binding<AppAppearancePreference> {
@@ -541,6 +644,10 @@ struct SettingsView: View {
     }
 
     private func applyReminderSettings(enabled: Bool, day: Int, hour: Int, minute: Int) {
+        guard !isReadOnlyMode else {
+            settingsErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+            return
+        }
         pref.checkInReminderEnabled = enabled
         pref.checkInReminderDay = max(1, min(28, day))
         pref.checkInReminderHour = max(0, min(23, hour))
@@ -572,6 +679,9 @@ struct SettingsView: View {
     }
 
     private func trustStorageText() -> String {
+        if isReadOnlyMode {
+            return "Appen kjører i midlertidig modus uten varig lokal lagring. Endringer lagres ikke permanent før normal lagring er tilbake."
+        }
         if isCloudSyncActive() {
             return "Data synkroniseres med iCloud og lagres lokalt på enheten. Ingen bankkobling i denne versjonen."
         }
@@ -602,7 +712,7 @@ struct SettingsView: View {
             }
             return detail
         case .recovery, .memoryOnly:
-            return "Recovery/midlertidig modus betyr at primær lagring ikke kunne åpnes."
+            return "Recovery/midlertidig modus betyr at primær lagring ikke kunne åpnes. Skrivende handlinger er derfor begrenset."
         }
     }
 
@@ -610,6 +720,10 @@ struct SettingsView: View {
         Binding(
             get: { pref[keyPath: keyPath] },
             set: {
+                guard !isReadOnlyMode else {
+                    settingsErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+                    return
+                }
                 pref[keyPath: keyPath] = $0
                 persistSettingsChanges(syncReminder: false)
             }
@@ -625,9 +739,16 @@ private struct ShareURL: Identifiable {
 
 private struct ShareSheet: UIViewControllerRepresentable {
     let activityItems: [Any]
+    var onComplete: (() -> Void)?
 
     func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+        let controller = UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+        controller.completionWithItemsHandler = { _, _, _, _ in
+            DispatchQueue.main.async {
+                onComplete?()
+            }
+        }
+        return controller
     }
 
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
@@ -862,7 +983,7 @@ private struct PrivacyInfoView: View {
         List {
             Text("Appen lagrer data lokalt på enheten din.")
             Text("Ingen sporing eller tredjepartsannonser brukes i MVP.")
-            Text("Du kan eksportere en lokal JSON-kopi fra Innstillinger > Data.")
+            Text("Du kan eksportere en kryptert datafil fra Innstillinger > Data.")
             Text("Du kan også slette alle lokale data fra Innstillinger > Data.")
         }
         .navigationTitle("Personvern")

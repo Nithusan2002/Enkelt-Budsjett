@@ -163,11 +163,12 @@ final class OnboardingViewModel: ObservableObject {
             guard let idx = orderedSteps.firstIndex(of: currentStep), idx < orderedSteps.count - 1 else { return }
             let nextStep = orderedSteps[idx + 1]
             preference.onboardingCurrentStep = nextStep.rawValue
-            try context.save()
+            try context.guardedSave(feature: "Onboarding", operation: "save_step_transition")
             currentStep = nextStep
             markCurrentStepSeen()
         } catch {
-            setError("Kunne ikke lagre fremdrift. Prøv igjen.")
+            let message = (error as? LocalizedError)?.errorDescription ?? "Kunne ikke lagre fremdrift. Prøv igjen."
+            setError(message)
         }
     }
 
@@ -230,7 +231,8 @@ final class OnboardingViewModel: ObservableObject {
             )
             logEvent("onboarding_completed")
         } catch {
-            setError("Kunne ikke fullføre onboarding. Prøv igjen.")
+            let message = (error as? LocalizedError)?.errorDescription ?? "Kunne ikke fullføre onboarding. Prøv igjen."
+            setError(message)
         }
     }
 
@@ -281,7 +283,7 @@ final class OnboardingViewModel: ObservableObject {
         preference.onboardingCurrentStep = currentStep.rawValue
         preference.checkInReminderEnabled = false
         preference.faceIDLockEnabled = false
-        try context.save()
+        try context.guardedSave(feature: "Onboarding", operation: "save_step_state")
     }
 
     private func categories(for package: BudgetStarterPackage) -> [String] {

@@ -39,6 +39,8 @@ enum AppAppearancePreference: String, CaseIterable {
 }
 
 struct AppRootView: View {
+    // Midlertidig skjult i navigasjonen, beholdt i kodebasen for senere aktivering.
+    private let showTipsTab = false
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
     @Query private var preferences: [UserPreference]
@@ -53,6 +55,9 @@ struct AppRootView: View {
         (AppAppearancePreference(rawValue: appAppearanceModeRawValue) ?? .followSystem).colorScheme
     }
     private var shouldShowStoreModeBanner: Bool {
+        if activeStoreMode == .memoryOnly {
+            return true
+        }
         guard preference?.onboardingCompleted ?? false else { return false }
         return activeStoreMode != .primary
     }
@@ -74,21 +79,23 @@ struct AppRootView: View {
                         OnboardingView(preference: preference)
                     } else {
                         TabView(selection: $navigationState.selectedTab) {
-                            NavigationStack { BudgetView() }
-                                .tabItem { Label("Budsjett", systemImage: "list.bullet.rectangle") }
-                                .tag(AppTab.budget)
+                            NavigationStack { OverviewView() }
+                                .tabItem { Label("Oversikt", systemImage: "chart.pie.fill") }
+                                .tag(AppTab.overview)
 
                             NavigationStack { InvestmentsView() }
                                 .tabItem { Label("Investeringer", systemImage: "chart.line.uptrend.xyaxis") }
                                 .tag(AppTab.investments)
 
-                            NavigationStack { OverviewView() }
-                                .tabItem { Label("Oversikt", systemImage: "chart.pie.fill") }
-                                .tag(AppTab.overview)
+                            NavigationStack { BudgetView() }
+                                .tabItem { Label("Budsjett", systemImage: "list.bullet.rectangle") }
+                                .tag(AppTab.budget)
 
-                            NavigationStack { TipsTriksView() }
-                                .tabItem { Label("Tips & Triks", systemImage: "lightbulb") }
-                                .tag(AppTab.tips)
+                            if showTipsTab {
+                                NavigationStack { TipsTriksView() }
+                                    .tabItem { Label("Tips & Triks", systemImage: "lightbulb") }
+                                    .tag(AppTab.tips)
+                            }
 
                             NavigationStack { SettingsView() }
                                 .tabItem { Label("Innstillinger", systemImage: "gear") }
@@ -240,7 +247,7 @@ struct AppRootView: View {
         case .recovery:
             return "Appen kjører i recovery-lagring. Primær lagring kunne ikke åpnes."
         case .memoryOnly:
-            return "Appen kjører midlertidig uten lokal lagring. Start appen på nytt."
+            return "Appen kjører midlertidig uten varig lagring. Skrivende handlinger er låst til normal lagring er tilbake."
         }
     }
 }

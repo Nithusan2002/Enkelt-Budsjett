@@ -254,11 +254,19 @@ final class InvestmentsViewModel: ObservableObject {
     }
 
     func hideBucket(_ bucket: InvestmentBucket, context: ModelContext) {
+        guard !PersistenceGate.isReadOnlyMode else {
+            persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+            return
+        }
         bucket.isActive = false
         save(context: context, fallbackMessage: "Kunne ikke skjule beholdningstype.")
     }
 
     func restoreBucket(_ bucket: InvestmentBucket, context: ModelContext, existingBuckets: [InvestmentBucket]) {
+        guard !PersistenceGate.isReadOnlyMode else {
+            persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+            return
+        }
         bucket.isActive = true
         bucket.sortOrder = (existingBuckets.map(\.sortOrder).max() ?? 0) + 1
         save(context: context, fallbackMessage: "Kunne ikke vise beholdningstype igjen.")
@@ -270,6 +278,10 @@ final class InvestmentsViewModel: ObservableObject {
         allBuckets: [InvestmentBucket],
         context: ModelContext
     ) {
+        guard !PersistenceGate.isReadOnlyMode else {
+            persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+            return
+        }
         var activeBuckets = allBuckets.filter(\.isActive).sorted { $0.sortOrder < $1.sortOrder }
         guard !activeBuckets.isEmpty else { return }
 
@@ -293,6 +305,9 @@ final class InvestmentsViewModel: ObservableObject {
         context: ModelContext,
         existingBuckets: [InvestmentBucket]
     ) -> String? {
+        guard !PersistenceGate.isReadOnlyMode else {
+            return PersistenceWriteError.readOnlyMode.localizedDescription
+        }
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else {
             return "Navn kan ikke være tomt."
@@ -308,9 +323,9 @@ final class InvestmentsViewModel: ObservableObject {
         bucket.name = trimmedName
         bucket.colorHex = colorHex
         do {
-            try context.save()
+            try context.guardedSave(feature: "Investments", operation: "update_bucket")
         } catch {
-            return "Kunne ikke lagre endringen nå. Prøv igjen."
+            return (error as? LocalizedError)?.errorDescription ?? "Kunne ikke lagre endringen nå. Prøv igjen."
         }
         return nil
     }
@@ -320,6 +335,10 @@ final class InvestmentsViewModel: ObservableObject {
         context: ModelContext,
         snapshots: [InvestmentSnapshot]
     ) {
+        guard !PersistenceGate.isReadOnlyMode else {
+            persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+            return
+        }
         for snapshot in snapshots {
             snapshot.bucketValues.removeAll(where: { $0.bucketID == bucket.id })
             snapshot.totalValue = snapshot.bucketValues.reduce(0) { $0 + $1.amount }
@@ -329,6 +348,10 @@ final class InvestmentsViewModel: ObservableObject {
     }
 
     func addBucket(context: ModelContext, existingBuckets: [InvestmentBucket]) -> Bool {
+        guard !PersistenceGate.isReadOnlyMode else {
+            addBucketError = PersistenceWriteError.readOnlyMode.localizedDescription
+            return false
+        }
         let trimmedName = newBucketName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else {
             addBucketError = "Skriv inn et navn på beholdningstypen."
@@ -345,9 +368,9 @@ final class InvestmentsViewModel: ObservableObject {
             existing.isActive = true
             existing.sortOrder = (existingBuckets.map(\.sortOrder).max() ?? 0) + 1
             do {
-                try context.save()
+                try context.guardedSave(feature: "Investments", operation: "reactivate_bucket")
             } catch {
-                addBucketError = "Kunne ikke lagre beholdningstype nå."
+                addBucketError = (error as? LocalizedError)?.errorDescription ?? "Kunne ikke lagre beholdningstype nå."
                 return false
             }
             newBucketName = ""
@@ -370,9 +393,9 @@ final class InvestmentsViewModel: ObservableObject {
             )
         )
         do {
-            try context.save()
+            try context.guardedSave(feature: "Investments", operation: "add_bucket")
         } catch {
-            addBucketError = "Kunne ikke lagre beholdningstype nå."
+            addBucketError = (error as? LocalizedError)?.errorDescription ?? "Kunne ikke lagre beholdningstype nå."
             return false
         }
         newBucketName = ""
@@ -389,6 +412,7 @@ final class InvestmentsViewModel: ObservableObject {
     }
 
     func ensureDefaultBuckets(context: ModelContext, existingBuckets: [InvestmentBucket]) {
+        guard !PersistenceGate.isReadOnlyMode else { return }
         let legacyDefaultHex: Set<String> = ["#0EA5E9", "#8B5CF6", "#22C55E", "#F59E0B", "#EA580C"]
         let defaults: [(id: String, name: String, colorHex: String)] = [
             ("funds", "Fond", "#1F9BD3"),
@@ -496,9 +520,10 @@ final class InvestmentsViewModel: ObservableObject {
 
     private func save(context: ModelContext, fallbackMessage: String) {
         do {
-            try context.save()
+            try context.guardedSave(feature: "Investments", operation: "save_changes")
+            persistenceErrorMessage = nil
         } catch {
-            persistenceErrorMessage = fallbackMessage
+            persistenceErrorMessage = (error as? LocalizedError)?.errorDescription ?? fallbackMessage
         }
     }
 }

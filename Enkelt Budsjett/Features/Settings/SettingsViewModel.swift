@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import SwiftData
+import CryptoKit
 
 enum DataImportMode {
     case merge
@@ -30,6 +31,33 @@ struct DataImportReport {
     let goals: Int
     let challenges: Int
     let preferences: Int
+    let backupFileName: String?
+}
+
+enum DataTransferError: LocalizedError {
+    case passwordTooShort
+    case passwordRequiredForEncryptedImport
+    case passwordRequiredForReplaceBackup
+    case encryptedPayloadInvalid
+    case encryptedPayloadWrongPassword
+    case replaceFailedRollbackFailed
+
+    var errorDescription: String? {
+        switch self {
+        case .passwordTooShort:
+            return "Velg et passord med minst 8 tegn."
+        case .passwordRequiredForEncryptedImport:
+            return "Denne filen er kryptert. Skriv inn passord for å importere."
+        case .passwordRequiredForReplaceBackup:
+            return "Erstatt alt krever passord for automatisk kryptert backup."
+        case .encryptedPayloadInvalid:
+            return "Filen kunne ikke leses som gyldig eksportformat."
+        case .encryptedPayloadWrongPassword:
+            return "Feil passord eller ugyldig kryptert fil."
+        case .replaceFailedRollbackFailed:
+            return "Import feilet, og automatisk gjenoppretting fra backup feilet også. Bruk backup-filen manuelt."
+        }
+    }
 }
 
 @MainActor
@@ -48,10 +76,16 @@ final class SettingsViewModel: ObservableObject {
     }
 
     func seedDemoRealisticYear(context: ModelContext, year: Int? = nil) throws -> DemoSeedReport {
-        try DemoDataSeeder.seedRealisticYear(context: context, year: year)
+        if PersistenceGate.isReadOnlyMode {
+            throw PersistenceWriteError.readOnlyMode
+        }
+        return try DemoDataSeeder.seedRealisticYear(context: context, year: year)
     }
 
     func wipeAllDataForDemo(context: ModelContext) throws {
+        if PersistenceGate.isReadOnlyMode {
+            throw PersistenceWriteError.readOnlyMode
+        }
         try DemoDataSeeder.wipeAllData(context: context)
         try BootstrapService.ensurePreference(context: context)
         try BootstrapService.ensureCurrentBudgetMonthAndRecurring(context: context)
@@ -64,7 +98,11 @@ final class SettingsViewModel: ObservableObject {
         let newPref = UserPreference()
         context.insert(newPref)
         do {
-            try context.save()
+            try context.guardedSave(
+                feature: "Settings",
+                operation: "create_default_preference",
+                enforceReadOnly: false
+            )
         } catch {
             preferencePersistenceErrorMessage = "Kunne ikke opprette standardinnstillinger."
         }
@@ -76,15 +114,26 @@ final class SettingsViewModel: ObservableObject {
     }
 
     func save(context: ModelContext) throws {
-        try context.save()
+        if PersistenceGate.isReadOnlyMode {
+            throw PersistenceWriteError.readOnlyMode
+        }
+        try context.guardedSave(feature: "Settings", operation: "save_preferences")
     }
 
     func syncCheckInReminder(preference: UserPreference) async throws {
         try await CheckInReminderService.syncFromPreference(preference)
     }
 
-    func exportData(context: ModelContext) throws -> URL {
-        let payload = ExportPayload(
+    func exportData(context: ModelContext, password: String) throws -> URL {
+        guard password.count >= 8 else {
+            throw DataTransferError.passwordTooShort
+        }
+        let payload = try makeExportPayload(context: context)
+        return try writeEncryptedPayload(payload, password: password, filePrefix: "enkelt-budsjett-export")
+    }
+
+    private func makeExportPayload(context: ModelContext) throws -> ExportPayload {
+        ExportPayload(
             exportedAt: .now,
             budgetMonths: try context.fetch(FetchDescriptor<BudgetMonth>()).map(BudgetMonthDTO.init),
             categories: try context.fetch(FetchDescriptor<Category>()).map(CategoryDTO.init),
@@ -100,21 +149,12 @@ final class SettingsViewModel: ObservableObject {
             challenges: try context.fetch(FetchDescriptor<Challenge>()).map(ChallengeDTO.init),
             preferences: try context.fetch(FetchDescriptor<UserPreference>()).map(UserPreferenceDTO.init)
         )
-
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        encoder.dateEncodingStrategy = .iso8601
-        let data = try encoder.encode(payload)
-
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyyMMdd_HHmmss"
-        let name = "enkelt-budsjett-export-\(formatter.string(from: .now)).json"
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
-        try data.write(to: url, options: .atomic)
-        return url
     }
 
     func deleteAllData(context: ModelContext) throws {
+        if PersistenceGate.isReadOnlyMode {
+            throw PersistenceWriteError.readOnlyMode
+        }
         try DemoDataSeeder.wipeAllData(context: context)
         try BootstrapService.ensurePreference(context: context)
         try BootstrapService.ensureCurrentBudgetMonthAndRecurring(context: context)
@@ -123,34 +163,48 @@ final class SettingsViewModel: ObservableObject {
     func importData(
         from url: URL,
         mode: DataImportMode,
-        context: ModelContext
+        context: ModelContext,
+        password: String?
     ) throws -> DataImportReport {
+        if PersistenceGate.isReadOnlyMode {
+            throw PersistenceWriteError.readOnlyMode
+        }
         let data = try Data(contentsOf: url)
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        let payload = try decoder.decode(ExportPayload.self, from: data)
+        let payload = try decodeImportPayload(from: data, password: password)
+        try preflightImport(payload: payload)
 
+        var backupFileName: String?
+        var backupPayloadForRollback: ExportPayload?
         if mode == .replace {
+            guard let password, password.count >= 8 else {
+                throw DataTransferError.passwordRequiredForReplaceBackup
+            }
+            let backupPayload = try makeExportPayload(context: context)
+            backupPayloadForRollback = backupPayload
+            let backupURL = try writeEncryptedPayload(
+                backupPayload,
+                password: password,
+                filePrefix: "enkelt-budsjett-auto-backup"
+            )
+            backupFileName = backupURL.lastPathComponent
             try DemoDataSeeder.wipeAllData(context: context)
         }
 
-        try upsertBudgetMonths(payload.budgetMonths, context: context)
-        try upsertCategories(payload.categories, context: context)
-        try upsertBudgetPlans(payload.plans, context: context)
-        try upsertBudgetGroupPlans(payload.groupPlans, context: context)
-        try upsertAccounts(payload.accounts, context: context)
-        try upsertBuckets(payload.buckets, context: context)
-        try upsertSnapshots(payload.snapshots, context: context)
-        try upsertFixedItems(payload.fixedItems, context: context)
-        try upsertFixedItemSkips(payload.fixedItemSkips, context: context)
-        try mergeTransactions(payload.transactions, context: context)
-        try mergeGoals(payload.goals, context: context)
-        try upsertChallenges(payload.challenges, context: context)
-        try upsertPreferences(payload.preferences, context: context)
-
-        try BootstrapService.ensurePreference(context: context)
-        try BootstrapService.ensureCurrentBudgetMonthAndRecurring(context: context)
-        try context.save()
+        do {
+            try applyImportPayload(payload, context: context)
+            try context.guardedSave(feature: "Import", operation: "commit_import")
+        } catch {
+            if mode == .replace, let backupPayloadForRollback {
+                do {
+                    try DemoDataSeeder.wipeAllData(context: context)
+                    try applyImportPayload(backupPayloadForRollback, context: context)
+                    try context.guardedSave(feature: "Import", operation: "rollback_restore")
+                } catch {
+                    throw DataTransferError.replaceFailedRollbackFailed
+                }
+            }
+            throw error
+        }
 
         return DataImportReport(
             mode: mode,
@@ -165,8 +219,139 @@ final class SettingsViewModel: ObservableObject {
             snapshots: payload.snapshots.count,
             goals: payload.goals.count,
             challenges: payload.challenges.count,
-            preferences: payload.preferences.count
+            preferences: payload.preferences.count,
+            backupFileName: backupFileName
         )
+    }
+
+    private func applyImportPayload(_ payload: ExportPayload, context: ModelContext) throws {
+        try upsertBudgetMonths(payload.budgetMonths, context: context)
+        try upsertCategories(payload.categories, context: context)
+        try upsertBudgetPlans(payload.plans, context: context)
+        try upsertBudgetGroupPlans(payload.groupPlans, context: context)
+        try upsertAccounts(payload.accounts, context: context)
+        try upsertBuckets(payload.buckets, context: context)
+        try upsertSnapshots(payload.snapshots, context: context)
+        try upsertFixedItems(payload.fixedItems, context: context)
+        try upsertFixedItemSkips(payload.fixedItemSkips, context: context)
+        try mergeTransactions(payload.transactions, context: context)
+        try mergeGoals(payload.goals, context: context)
+        try upsertChallenges(payload.challenges, context: context)
+        try upsertPreferences(payload.preferences, context: context)
+        try BootstrapService.ensurePreference(context: context)
+        try BootstrapService.ensureCurrentBudgetMonthAndRecurring(context: context)
+    }
+
+    private func preflightImport(payload: ExportPayload) throws {
+        let schema = Schema([
+            BudgetMonth.self,
+            Category.self,
+            BudgetPlan.self,
+            BudgetGroupPlan.self,
+            Transaction.self,
+            Account.self,
+            InvestmentBucket.self,
+            InvestmentSnapshot.self,
+            FixedItem.self,
+            FixedItemSkip.self,
+            Goal.self,
+            Challenge.self,
+            UserPreference.self
+        ])
+        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+        let container = try ModelContainer(for: schema, configurations: [configuration])
+        let context = container.mainContext
+        try applyImportPayload(payload, context: context)
+        try context.guardedSave(
+            feature: "Import",
+            operation: "preflight_validation",
+            enforceReadOnly: false
+        )
+    }
+
+    private func decodeImportPayload(from data: Data, password: String?) throws -> ExportPayload {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
+        if let plain = try? decoder.decode(ExportPayload.self, from: data) {
+            return plain
+        }
+
+        guard let envelope = try? decoder.decode(EncryptedExportEnvelope.self, from: data) else {
+            throw DataTransferError.encryptedPayloadInvalid
+        }
+        guard envelope.format == "enkelt-budsjett-export-encrypted-v1" else {
+            throw DataTransferError.encryptedPayloadInvalid
+        }
+        guard let password, !password.isEmpty else {
+            throw DataTransferError.passwordRequiredForEncryptedImport
+        }
+
+        do {
+            guard let salt = Data(base64Encoded: envelope.saltBase64),
+                  let sealedCombined = Data(base64Encoded: envelope.sealedBoxBase64) else {
+                throw DataTransferError.encryptedPayloadInvalid
+            }
+            let key = deriveKey(password: password, salt: salt)
+            let box = try AES.GCM.SealedBox(combined: sealedCombined)
+            let decrypted = try AES.GCM.open(box, using: key)
+            return try decoder.decode(ExportPayload.self, from: decrypted)
+        } catch let error as DataTransferError {
+            throw error
+        } catch {
+            throw DataTransferError.encryptedPayloadWrongPassword
+        }
+    }
+
+    private func writeEncryptedPayload(
+        _ payload: ExportPayload,
+        password: String,
+        filePrefix: String
+    ) throws -> URL {
+        guard password.count >= 8 else {
+            throw DataTransferError.passwordTooShort
+        }
+
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.dateEncodingStrategy = .iso8601
+
+        let plainData = try encoder.encode(payload)
+        let salt = randomBytes(count: 16)
+        let key = deriveKey(password: password, salt: salt)
+        let sealed = try AES.GCM.seal(plainData, using: key)
+        guard let combined = sealed.combined else {
+            throw DataTransferError.encryptedPayloadInvalid
+        }
+
+        let envelope = EncryptedExportEnvelope(
+            format: "enkelt-budsjett-export-encrypted-v1",
+            exportedAt: payload.exportedAt,
+            saltBase64: salt.base64EncodedString(),
+            sealedBoxBase64: combined.base64EncodedString()
+        )
+        let encryptedData = try encoder.encode(envelope)
+
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd_HHmmss"
+        let fileName = "\(filePrefix)-\(formatter.string(from: .now)).sbx"
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+        try encryptedData.write(to: url, options: .atomic)
+        return url
+    }
+
+    private func deriveKey(password: String, salt: Data) -> SymmetricKey {
+        let material = SymmetricKey(data: Data(password.utf8))
+        return HKDF<SHA256>.deriveKey(
+            inputKeyMaterial: material,
+            salt: salt,
+            info: Data("enkelt-budsjett-export-v1".utf8),
+            outputByteCount: 32
+        )
+    }
+
+    private func randomBytes(count: Int) -> Data {
+        Data((0..<count).map { _ in UInt8.random(in: 0...255) })
     }
 
     private func upsertBudgetMonths(_ rows: [BudgetMonthDTO], context: ModelContext) throws {
@@ -618,6 +803,13 @@ private struct ExportPayload: Codable {
     let goals: [GoalDTO]
     let challenges: [ChallengeDTO]
     let preferences: [UserPreferenceDTO]
+}
+
+private struct EncryptedExportEnvelope: Codable {
+    let format: String
+    let exportedAt: Date
+    let saltBase64: String
+    let sealedBoxBase64: String
 }
 
 private struct BudgetMonthDTO: Codable {

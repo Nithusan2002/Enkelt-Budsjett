@@ -11,6 +11,7 @@ struct FixedItemsView: View {
     @State private var editorItem: FixedItem?
     @State private var showAddSheet = false
     @State private var saveErrorMessage: String?
+    private var isReadOnlyMode: Bool { PersistenceGate.isReadOnlyMode }
 
     var body: some View {
         List {
@@ -26,6 +27,7 @@ struct FixedItemsView: View {
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(AppTheme.primary)
+                        .disabled(isReadOnlyMode)
                     }
                     .padding(.vertical, 8)
                 }
@@ -46,13 +48,17 @@ struct FixedItemsView: View {
                                 Toggle("", isOn: Binding(
                                     get: { item.isActive },
                                     set: { value in
+                                        guard !isReadOnlyMode else {
+                                            saveErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+                                            return
+                                        }
                                         let previousValue = item.isActive
                                         item.isActive = value
                                         do {
-                                            try modelContext.save()
+                                            try modelContext.guardedSave(feature: "FixedItems", operation: "toggle_fixed_item")
                                         } catch {
                                             item.isActive = previousValue
-                                            saveErrorMessage = "Kunne ikke oppdatere fast post."
+                                            saveErrorMessage = (error as? LocalizedError)?.errorDescription ?? "Kunne ikke oppdatere fast post."
                                         }
                                     }
                                 ))
@@ -73,10 +79,15 @@ struct FixedItemsView: View {
                 } label: {
                     Label("Legg til", systemImage: "plus")
                 }
+                .disabled(isReadOnlyMode)
             }
         }
         .sheet(isPresented: $showAddSheet) {
             FixedItemEditorSheet(categories: categories) { draft, createCurrentMonth in
+                guard !isReadOnlyMode else {
+                    saveErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+                    return
+                }
                 let item = FixedItem(
                     title: draft.title,
                     amount: draft.amount,
@@ -90,9 +101,9 @@ struct FixedItemsView: View {
                 )
                 modelContext.insert(item)
                 do {
-                    try modelContext.save()
+                    try modelContext.guardedSave(feature: "FixedItems", operation: "create_fixed_item")
                 } catch {
-                    saveErrorMessage = "Kunne ikke opprette fast post."
+                    saveErrorMessage = (error as? LocalizedError)?.errorDescription ?? "Kunne ikke opprette fast post."
                     return
                 }
 
@@ -113,6 +124,10 @@ struct FixedItemsView: View {
                 categories: categories,
                 existing: item
             ) { draft, createCurrentMonth in
+                guard !isReadOnlyMode else {
+                    saveErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+                    return
+                }
                 item.title = draft.title
                 item.amount = draft.amount
                 item.categoryID = draft.categoryID
@@ -123,9 +138,9 @@ struct FixedItemsView: View {
                 item.isActive = draft.isActive
                 item.autoCreate = draft.autoCreate
                 do {
-                    try modelContext.save()
+                    try modelContext.guardedSave(feature: "FixedItems", operation: "update_fixed_item")
                 } catch {
-                    saveErrorMessage = "Kunne ikke lagre endringer i fast post."
+                    saveErrorMessage = (error as? LocalizedError)?.errorDescription ?? "Kunne ikke lagre endringer i fast post."
                 }
             }
         }
@@ -145,6 +160,10 @@ struct FixedItemsView: View {
     }
 
     private func deleteItems(at offsets: IndexSet) {
+        guard !isReadOnlyMode else {
+            saveErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+            return
+        }
         for index in offsets {
             let item = fixedItems[index]
 
@@ -159,9 +178,9 @@ struct FixedItemsView: View {
             modelContext.delete(item)
         }
         do {
-            try modelContext.save()
+            try modelContext.guardedSave(feature: "FixedItems", operation: "delete_fixed_items")
         } catch {
-            saveErrorMessage = "Kunne ikke slette fast post."
+            saveErrorMessage = (error as? LocalizedError)?.errorDescription ?? "Kunne ikke slette fast post."
         }
     }
 }

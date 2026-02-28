@@ -57,25 +57,31 @@ final class AppRootViewModel: ObservableObject {
 
     private var lockEnabled = false
     private var bootstrapTask: Task<Void, Never>?
+    private var phaseStartedAt = Date()
 
     func bootstrap(context: ModelContext) {
+        let bootstrapStartedAt = Date()
         bootstrapTask?.cancel()
         do {
-            bootstrapPhase = .loadingProfile
+            transition(to: .loadingProfile)
             try BootstrapService.ensurePreference(context: context)
 
-            bootstrapPhase = .applyingStartupRules
+            transition(to: .applyingStartupRules)
             if ProcessInfo.processInfo.arguments.contains("UITEST_SKIP_ONBOARDING") {
                 var descriptor = FetchDescriptor<UserPreference>()
                 descriptor.fetchLimit = 1
                 if let preference = try context.fetch(descriptor).first, !preference.onboardingCompleted {
                     preference.onboardingCompleted = true
                     preference.onboardingCurrentStep = 0
-                    try context.save()
+                    try context.guardedSave(
+                        feature: "Bootstrap",
+                        operation: "uitest_skip_onboarding",
+                        enforceReadOnly: false
+                    )
                 }
             }
 
-            bootstrapPhase = .warmingLocalData
+            transition(to: .warmingLocalData)
             bootstrapTask = Task { @MainActor [weak self] in
                 guard let self else { return }
                 guard !Task.isCancelled else { return }
@@ -83,17 +89,25 @@ final class AppRootViewModel: ObservableObject {
                     try BootstrapService.ensureCurrentBudgetMonthAndRecurring(context: context)
                     guard !Task.isCancelled else { return }
                     self.bootstrapErrorMessage = nil
-                    self.bootstrapPhase = .ready
+                    self.transition(to: .ready)
+                    let total = Date().timeIntervalSince(bootstrapStartedAt)
+                    PersistenceGate.recordInfo(
+                        feature: "Bootstrap",
+                        operation: "complete",
+                        message: "total_seconds=\(String(format: "%.3f", total))"
+                    )
                 } catch {
                     guard !Task.isCancelled else { return }
                     self.bootstrapErrorMessage = "Kunne ikke forberede lokale data."
-                    self.bootstrapPhase = .failed
+                    self.transition(to: .failed)
+                    PersistenceGate.recordError(feature: "Bootstrap", operation: "warm_local_data_failed", error: error)
                 }
             }
             bootstrapErrorMessage = nil
         } catch {
             bootstrapErrorMessage = "Kunne ikke laste lokale data."
-            bootstrapPhase = .failed
+            transition(to: .failed)
+            PersistenceGate.recordError(feature: "Bootstrap", operation: "startup_failed", error: error)
         }
     }
 
@@ -158,5 +172,19 @@ final class AppRootViewModel: ObservableObject {
                 }
             }
         }
+    }
+
+    private func transition(to newPhase: BootstrapPhase) {
+        let now = Date()
+        let duration = now.timeIntervalSince(phaseStartedAt)
+        if bootstrapPhase != newPhase {
+            PersistenceGate.recordInfo(
+                feature: "Bootstrap",
+                operation: "phase_\(bootstrapPhase)_duration",
+                message: "seconds=\(String(format: "%.3f", duration))"
+            )
+        }
+        bootstrapPhase = newPhase
+        phaseStartedAt = now
     }
 }

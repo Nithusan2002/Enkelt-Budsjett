@@ -6,6 +6,7 @@ struct GoalEditorView: View {
     @Environment(\.modelContext) private var modelContext
     let goal: Goal?
     @StateObject private var viewModel = GoalEditorViewModel()
+    private var isReadOnlyMode: Bool { PersistenceGate.isReadOnlyMode }
 
     var body: some View {
         NavigationStack {
@@ -30,14 +31,28 @@ struct GoalEditorView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Lagre") {
-                        viewModel.save(goal: goal, context: modelContext)
-                        dismiss()
+                        if viewModel.save(goal: goal, context: modelContext) {
+                            dismiss()
+                        }
                     }
                     .appCTAStyle()
-                    .disabled(!viewModel.canSave)
+                    .disabled(!viewModel.canSave || isReadOnlyMode)
                 }
             }
             .appKeyboardDismissToolbar()
+            .alert(
+                "Kunne ikke lagre",
+                isPresented: Binding(
+                    get: { viewModel.persistenceErrorMessage != nil },
+                    set: { if !$0 { viewModel.clearPersistenceError() } }
+                )
+            ) {
+                Button("OK", role: .cancel) {
+                    viewModel.clearPersistenceError()
+                }
+            } message: {
+                Text(viewModel.persistenceErrorMessage ?? "")
+            }
             .onAppear {
                 viewModel.onAppear(goal: goal)
             }

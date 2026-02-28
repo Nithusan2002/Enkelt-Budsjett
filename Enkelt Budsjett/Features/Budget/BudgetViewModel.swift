@@ -46,6 +46,14 @@ final class BudgetViewModel: ObservableObject {
     @Published var showGroupLimitsSheet = false
     @Published var persistenceErrorMessage: String?
 
+    private func setPersistenceError(_ error: Error, fallback: String) {
+        if let message = (error as? LocalizedError)?.errorDescription, !message.isEmpty {
+            persistenceErrorMessage = message
+        } else {
+            persistenceErrorMessage = fallback
+        }
+    }
+
     func periodKey() -> String {
         DateService.periodKey(from: selectedMonthDate)
     }
@@ -58,6 +66,9 @@ final class BudgetViewModel: ObservableObject {
         context: ModelContext,
         months: [BudgetMonth]
     ) {
+        if PersistenceGate.isReadOnlyMode {
+            return
+        }
         let currentKey = periodKey()
         if !months.contains(where: { $0.periodKey == currentKey }) {
             let bounds = DateService.monthBounds(for: selectedMonthDate)
@@ -80,9 +91,9 @@ final class BudgetViewModel: ObservableObject {
                 monthStart: bounds.start,
                 monthEnd: bounds.end
             )
-            try context.save()
+            try context.guardedSave(feature: "Budget", operation: "ensure_month_exists")
         } catch {
-            persistenceErrorMessage = "Kunne ikke oppdatere månedens data."
+            setPersistenceError(error, fallback: "Kunne ikke oppdatere månedens data.")
         }
     }
 
@@ -260,6 +271,10 @@ final class BudgetViewModel: ObservableObject {
         values: [BudgetGroup: Double?],
         existingPlans: [BudgetGroupPlan]
     ) {
+        guard !PersistenceGate.isReadOnlyMode else {
+            persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+            return
+        }
         for group in BudgetGroup.allCases {
             let key = "\(periodKey)|\(group.rawValue)"
             let existing = existingPlans.first(where: { $0.uniqueKey == key })
@@ -277,9 +292,9 @@ final class BudgetViewModel: ObservableObject {
             }
         }
         do {
-            try context.save()
+            try context.guardedSave(feature: "Budget", operation: "upsert_group_plans")
         } catch {
-            persistenceErrorMessage = "Kunne ikke lagre gruppegrenser."
+            setPersistenceError(error, fallback: "Kunne ikke lagre gruppegrenser.")
         }
     }
 
@@ -325,6 +340,10 @@ final class BudgetViewModel: ObservableObject {
         categoryID: String?,
         note: String
     ) {
+        guard !PersistenceGate.isReadOnlyMode else {
+            persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+            return
+        }
         let transaction = Transaction(
             date: date,
             amount: abs(amount),
@@ -334,21 +353,25 @@ final class BudgetViewModel: ObservableObject {
         )
         context.insert(transaction)
         do {
-            try context.save()
+            try context.guardedSave(feature: "Budget", operation: "add_transaction")
         } catch {
-            persistenceErrorMessage = "Kunne ikke lagre transaksjon."
+            setPersistenceError(error, fallback: "Kunne ikke lagre transaksjon.")
         }
     }
 
     func deleteTransaction(context: ModelContext, transaction: Transaction) {
+        guard !PersistenceGate.isReadOnlyMode else {
+            persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+            return
+        }
         do {
             if transaction.fixedItemID != nil {
                 try FixedItemsService.registerDeletionSkipIfNeeded(transaction: transaction, context: context)
             }
             context.delete(transaction)
-            try context.save()
+            try context.guardedSave(feature: "Budget", operation: "delete_transaction")
         } catch {
-            persistenceErrorMessage = "Kunne ikke slette transaksjon."
+            setPersistenceError(error, fallback: "Kunne ikke slette transaksjon.")
         }
     }
 

@@ -12,6 +12,7 @@ struct BudgetView: View {
     @StateObject private var viewModel = BudgetViewModel()
     @State private var showMonthPicker = false
     @State private var addTransactionInitialType: TransactionKind?
+    private var isReadOnlyMode: Bool { PersistenceGate.isReadOnlyMode }
 
     private var periodKey: String { viewModel.periodKey() }
     private var monthTransactions: [Transaction] {
@@ -130,7 +131,13 @@ struct BudgetView: View {
                 GroupListView(
                     rows: groupRows,
                     fixedByGroup: fixedByGroup,
-                    onSetLimits: { viewModel.showGroupLimitsSheet = true }
+                    onSetLimits: {
+                        if isReadOnlyMode {
+                            viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+                        } else {
+                            viewModel.showGroupLimitsSheet = true
+                        }
+                    }
                 )
             }
             .padding()
@@ -146,9 +153,17 @@ struct BudgetView: View {
                     addTransactionInitialType = .expense
                     viewModel.showAddTransaction = true
                 }
+                .disabled(isReadOnlyMode)
                 .padding(.horizontal, 16)
                 .padding(.bottom, 8)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+            if isReadOnlyMode {
+                Text("Skrivende handlinger er låst fordi appen kjører uten varig lagring.")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(AppTheme.textSecondary)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 8)
             }
         }
         .sheet(isPresented: $showMonthPicker) {

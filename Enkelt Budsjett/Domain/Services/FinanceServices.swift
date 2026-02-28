@@ -149,7 +149,7 @@ enum FixedItemsService {
         }
 
         if didChange {
-            try context.save()
+            try context.guardedSave(feature: "FixedItems", operation: "generate_for_month")
         }
     }
 
@@ -184,7 +184,7 @@ enum FixedItemsService {
             )
         )
         item.lastGeneratedPeriodKey = periodKey
-        try context.save()
+        try context.guardedSave(feature: "FixedItems", operation: "generate_current_month_for_item")
     }
 
     static func fixedTotalForMonth(
@@ -215,7 +215,7 @@ enum FixedItemsService {
         let existingSkips = try context.fetch(FetchDescriptor<FixedItemSkip>())
         if !existingSkips.contains(where: { $0.uniqueKey == uniqueKey }) {
             context.insert(FixedItemSkip(fixedItemID: fixedItemID, periodKey: periodKey))
-            try context.save()
+            try context.guardedSave(feature: "FixedItems", operation: "register_skip")
         }
     }
 
@@ -350,7 +350,7 @@ enum InvestmentService {
                 )
             )
         }
-        try context.save()
+        try context.guardedSave(feature: "Investments", operation: "upsert_snapshot")
     }
 
     static func filteredSnapshots(
@@ -510,10 +510,15 @@ enum ChallengeService {
 }
 
 enum BootstrapService {
+    private static let dedupeLastRunKey = "bootstrap_dedupe_last_run_at"
+    private static let dedupeInterval: TimeInterval = 60 * 60 * 24
+
     static func ensurePreference(context: ModelContext) throws {
         var didChange = false
+        let ranDeduplication = shouldRunDeduplication()
         do {
-            if try deduplicateKeyedModels(context: context) {
+            if ranDeduplication,
+               try deduplicateKeyedModels(context: context) {
                 didChange = true
             }
 
@@ -533,15 +538,40 @@ enum BootstrapService {
             }
 
             if didChange {
-                try context.save()
+                try context.guardedSave(
+                    feature: "Bootstrap",
+                    operation: "ensure_preference_changes",
+                    enforceReadOnly: false
+                )
+            }
+            if ranDeduplication {
+                markDeduplicationRun()
             }
         } catch {
             // Recovery path for broken/old local stores after schema changes.
             context.insert(UserPreference())
             _ = ensureDefaultCategories(context: context)
             _ = ensureCategoryGroups(context: context)
-            try context.save()
+            try context.guardedSave(
+                feature: "Bootstrap",
+                operation: "ensure_preference_recovery",
+                enforceReadOnly: false
+            )
+            if ranDeduplication {
+                markDeduplicationRun()
+            }
         }
+    }
+
+    private static func shouldRunDeduplication(now: Date = .now) -> Bool {
+        guard let lastRun = UserDefaults.standard.object(forKey: dedupeLastRunKey) as? Date else {
+            return true
+        }
+        return now.timeIntervalSince(lastRun) >= dedupeInterval
+    }
+
+    private static func markDeduplicationRun(now: Date = .now) {
+        UserDefaults.standard.set(now, forKey: dedupeLastRunKey)
     }
 
     @discardableResult
@@ -594,7 +624,11 @@ enum BootstrapService {
                     endDate: bounds.end
                 )
             )
-            try context.save()
+            try context.guardedSave(
+                feature: "Bootstrap",
+                operation: "ensure_current_month",
+                enforceReadOnly: false
+            )
         }
 
         try FixedItemsService.generateForMonth(
@@ -824,7 +858,7 @@ enum OnboardingService {
         preference.toneStyle = tone
         preference.onboardingCompleted = true
         preference.onboardingCurrentStep = 0
-        try context.save()
+        try context.guardedSave(feature: "Onboarding", operation: "complete")
     }
 
     private static func upsertActiveGoal(
@@ -918,7 +952,7 @@ enum OnboardingService {
             )
         }
 
-        try context.save()
+        try context.guardedSave(feature: "Onboarding", operation: "upsert_income_fixed_item")
         try FixedItemsService.generateForCurrentMonthForItem(context: context, fixedItemID: fixedID, now: now)
     }
 

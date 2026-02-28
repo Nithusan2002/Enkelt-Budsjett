@@ -4,6 +4,8 @@ import SwiftData
 
 @MainActor
 final class ChallengesViewModel: ObservableObject {
+    @Published var persistenceErrorMessage: String?
+
     func title(for type: ChallengeType) -> String {
         switch type {
         case .noCoffeeWeek: return "No-coffee-week"
@@ -15,18 +17,33 @@ final class ChallengesViewModel: ObservableObject {
 
     func pause(_ challenge: Challenge, context: ModelContext) {
         challenge.status = .paused
-        try? context.save()
+        do {
+            try context.guardedSave(feature: "Challenges", operation: "pause")
+            persistenceErrorMessage = nil
+        } catch {
+            persistenceErrorMessage = (error as? LocalizedError)?.errorDescription ?? "Kunne ikke lagre endringen."
+        }
     }
 
     func resume(_ challenge: Challenge, context: ModelContext) {
         challenge.status = .active
-        try? context.save()
+        do {
+            try context.guardedSave(feature: "Challenges", operation: "resume")
+            persistenceErrorMessage = nil
+        } catch {
+            persistenceErrorMessage = (error as? LocalizedError)?.errorDescription ?? "Kunne ikke lagre endringen."
+        }
     }
 
     func complete(_ challenge: Challenge, context: ModelContext) {
         challenge.status = .completed
         challenge.progress = 1
-        try? context.save()
+        do {
+            try context.guardedSave(feature: "Challenges", operation: "complete")
+            persistenceErrorMessage = nil
+        } catch {
+            persistenceErrorMessage = (error as? LocalizedError)?.errorDescription ?? "Kunne ikke lagre endringen."
+        }
     }
 
     func recalculate(_ challenge: Challenge, transactions: [Transaction], categories: [Category], preference: UserPreference?, context: ModelContext) {
@@ -36,6 +53,15 @@ final class ChallengesViewModel: ObservableObject {
             categories: categories,
             preference: preference
         )
-        try? context.save()
+        do {
+            try context.guardedSave(feature: "Challenges", operation: "recalculate")
+            persistenceErrorMessage = nil
+        } catch {
+            persistenceErrorMessage = (error as? LocalizedError)?.errorDescription ?? "Kunne ikke lagre endringen."
+        }
+    }
+
+    func clearPersistenceError() {
+        persistenceErrorMessage = nil
     }
 }
