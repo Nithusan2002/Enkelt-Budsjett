@@ -32,6 +32,13 @@ En offline-first iOS-app bygget i SwiftUI + SwiftData for:
 - Ingen tredjepartssporing i MVP.
 - Eksport og import av data (JSON) er tilgjengelig fra `Innstillinger > Data`.
 
+## App Store-klargjøring (juridisk)
+
+- Privacy manifest: `Enkelt Budsjett/PrivacyInfo.xcprivacy`
+- App Store Connect metadata: `AppStoreConnect-metadata.md`
+- Personverntekst (NO): `docs/legal/personvern-no.md`
+- Vilkår (NO): `docs/legal/vilkar-no.md`
+
 ## Demo-år (realistisk)
 
 - I Debug og TestFlight vises en egen seksjon i `Innstillinger > Demo`.
