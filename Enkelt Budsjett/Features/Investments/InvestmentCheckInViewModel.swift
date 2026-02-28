@@ -21,6 +21,13 @@ struct InvestmentWizardChangeRow: Identifiable {
     var delta: Double { newValue - previousValue }
 }
 
+struct InvestmentWizardBucketNavItem: Identifiable {
+    let id: String
+    let title: String
+    let isCurrent: Bool
+    let isCompleted: Bool
+}
+
 @MainActor
 final class InvestmentCheckInWizardViewModel: ObservableObject {
     @Published var selectedMonthDate: Date = DateService.monthBounds(for: .now).start
@@ -29,6 +36,7 @@ final class InvestmentCheckInWizardViewModel: ObservableObject {
 
     private(set) var buckets: [InvestmentBucket] = []
     private(set) var snapshots: [InvestmentSnapshot] = []
+    private var visitedBucketIDs: Set<String> = []
 
     var periodKey: String {
         DateService.periodKey(from: selectedMonthDate)
@@ -71,12 +79,27 @@ final class InvestmentCheckInWizardViewModel: ObservableObject {
         InvestmentService.snapshot(for: periodKey, snapshots: snapshots) != nil
     }
 
+    var existingSnapshotForSelectedPeriod: InvestmentSnapshot? {
+        InvestmentService.snapshot(for: periodKey, snapshots: snapshots)
+    }
+
     var effectiveValues: [String: Double] {
         var output: [String: Double] = [:]
         for bucket in buckets {
             output[bucket.id] = effectiveValue(for: bucket.id)
         }
         return output
+    }
+
+    var bucketNavigationItems: [InvestmentWizardBucketNavItem] {
+        buckets.enumerated().map { offset, bucket in
+            InvestmentWizardBucketNavItem(
+                id: bucket.id,
+                title: bucket.name,
+                isCurrent: offset == index,
+                isCompleted: visitedBucketIDs.contains(bucket.id) && isBucketCompleted(bucket.id)
+            )
+        }
     }
 
     var prevTotal: Double {
@@ -139,12 +162,16 @@ final class InvestmentCheckInWizardViewModel: ObservableObject {
         self.snapshots = InvestmentService.sortedSnapshots(snapshots)
         self.selectedMonthDate = DateService.monthBounds(for: resolvedMonth).start
         self.index = -1
+        self.visitedBucketIDs = []
         prepareInitialStepStates()
     }
 
     func start() {
         guard hasBuckets else { return }
         index = 0
+        if let firstID = buckets.first?.id {
+            visitedBucketIDs.insert(firstID)
+        }
     }
 
     func setSelectedMonth(_ date: Date) {
@@ -170,6 +197,9 @@ final class InvestmentCheckInWizardViewModel: ObservableObject {
 
         if index < buckets.count - 1 {
             index += 1
+            if index >= 0, index < buckets.count {
+                visitedBucketIDs.insert(buckets[index].id)
+            }
         } else {
             index = buckets.count
         }
@@ -178,6 +208,12 @@ final class InvestmentCheckInWizardViewModel: ObservableObject {
     func jumpToLastStep() {
         guard hasBuckets else { return }
         index = max(0, buckets.count - 1)
+    }
+
+    func jump(to bucketID: String) {
+        guard let bucketIndex = buckets.firstIndex(where: { $0.id == bucketID }) else { return }
+        index = bucketIndex
+        visitedBucketIDs.insert(bucketID)
     }
 
     func setMode(_ mode: InvestmentWizardInputMode, for bucketID: String) {
@@ -195,12 +231,28 @@ final class InvestmentCheckInWizardViewModel: ObservableObject {
         stepStates[bucketID] = state
     }
 
+    func addToInput(_ increment: Double, for bucketID: String) {
+        let current = effectiveValue(for: bucketID)
+        let updated = max(0, current + increment)
+        var state = stepStates[bucketID] ?? InvestmentWizardStepState()
+        state.mode = .changed
+        state.inputString = Self.formatInputAmount(updated)
+        stepStates[bucketID] = state
+    }
+
     func isNewType(_ bucketID: String) -> Bool {
         previousValues[bucketID] == nil
     }
 
     func previousValue(for bucketID: String) -> Double {
         previousValues[bucketID] ?? 0
+    }
+
+    func hasStoredDelta(for bucketID: String) -> Bool {
+        guard !existingPeriodValues.isEmpty else { return false }
+        let existing = existingPeriodValues[bucketID] ?? 0
+        let previous = previousValue(for: bucketID)
+        return abs(existing - previous) > 0.0001
     }
 
     func copyPreviousToChanged() {
@@ -311,6 +363,10 @@ final class InvestmentCheckInWizardViewModel: ObservableObject {
         }
 
         stepStates = newStates
+    }
+
+    private func isBucketCompleted(_ bucketID: String) -> Bool {
+        validationMessage(for: bucketID) == nil
     }
 
     private func valuesDictionary(from snapshot: InvestmentSnapshot?) -> [String: Double] {
