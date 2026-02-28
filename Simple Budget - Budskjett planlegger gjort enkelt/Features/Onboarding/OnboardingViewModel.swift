@@ -3,19 +3,24 @@ import Combine
 import SwiftData
 
 enum OnboardingStep: Int, CaseIterable {
-    case welcome
-    case focus
-    case firstWealth
-    case budget
     case goal
-    case habits
+    case minimumData
+    case template
     case summary
+    case firstAction
 }
 
 enum BudgetStarterPackage: String, CaseIterable {
-    case basic
+    case simple
+    case family
     case student
-    case trackingOnly
+    case none
+}
+
+enum OnboardingGoalChoice: String, CaseIterable {
+    case getOverview
+    case reduceSpending
+    case trackInvestments
 }
 
 @MainActor
@@ -23,54 +28,35 @@ final class OnboardingViewModel: ObservableObject {
     @Published var currentStep: OnboardingStep
     @Published var focus: OnboardingFocus
     @Published var tone: AppToneStyle
-    @Published var showDemo = false
 
-    @Published var goalAmountText = ""
-    @Published var goalDate = Calendar.current.date(byAdding: .month, value: 24, to: .now) ?? .now
-
-    @Published var firstWealthTotalText = ""
-    @Published var showBucketBreakdown = false
-    @Published var snapshotText: [String: String] = [
-        "Fond": "",
-        "Aksjer": "",
-        "BSU": "",
-        "Buffer": "",
-        "Krypto": ""
-    ]
-
-    @Published var budgetPackage: BudgetStarterPackage = .basic
+    @Published var selectedGoal: OnboardingGoalChoice
+    @Published var monthlyIncomeText = ""
+    @Published var payday = 25
     @Published var monthlyBudgetText = ""
+    @Published var budgetPackage: BudgetStarterPackage = .simple
 
-    @Published var reminderEnabled = true
-    @Published var reminderDay = 5
-    @Published var reminderTime = Calendar.current.date(bySettingHour: 18, minute: 0, second: 0, of: .now) ?? .now
-    @Published var faceIDEnabled = false
     @Published var errorMessage: String?
+
+    private var hasLoggedStart = false
+    private var viewedSteps = Set<OnboardingStep>()
 
     init(preference: UserPreference) {
         self.focus = preference.onboardingFocus
         self.tone = preference.toneStyle
-        self.currentStep = OnboardingStep(rawValue: preference.onboardingCurrentStep) ?? .welcome
-        self.reminderEnabled = preference.checkInReminderEnabled
-        self.reminderDay = preference.checkInReminderDay
-        self.reminderTime = Calendar.current.date(
-            bySettingHour: preference.checkInReminderHour,
-            minute: preference.checkInReminderMinute,
-            second: 0,
-            of: .now
-        ) ?? .now
-        self.faceIDEnabled = preference.faceIDLockEnabled
+        self.currentStep = OnboardingStep(rawValue: preference.onboardingCurrentStep) ?? .goal
+
+        switch preference.onboardingFocus {
+        case .budget:
+            self.selectedGoal = .reduceSpending
+        case .investments:
+            self.selectedGoal = .trackInvestments
+        case .both:
+            self.selectedGoal = .getOverview
+        }
     }
 
     var orderedSteps: [OnboardingStep] {
-        switch focus {
-        case .budget:
-            return [.welcome, .focus, .budget, .firstWealth, .goal, .habits, .summary]
-        case .investments:
-            return [.welcome, .focus, .firstWealth, .budget, .goal, .habits, .summary]
-        case .both:
-            return [.welcome, .focus, .firstWealth, .budget, .goal, .habits, .summary]
-        }
+        OnboardingStep.allCases
     }
 
     var currentStepIndex: Int {
@@ -90,6 +76,72 @@ final class OnboardingViewModel: ObservableObject {
         "Steg \(currentStepIndex) av \(totalSteps)"
     }
 
+    var primaryButtonTitle: String {
+        switch currentStep {
+        case .goal, .minimumData, .template:
+            return "Fortsett"
+        case .summary:
+            return "Fullfør oppsett"
+        case .firstAction:
+            return firstActionPrimaryButtonTitle
+        }
+    }
+
+    var secondaryButtonTitle: String? {
+        switch currentStep {
+        case .goal:
+            return "Hopp over"
+        case .firstAction:
+            return "Gå til oversikt"
+        default:
+            return nil
+        }
+    }
+
+    var isPrimaryDisabled: Bool {
+        switch currentStep {
+        case .minimumData:
+            return parseDouble(monthlyIncomeText) == nil
+        default:
+            return false
+        }
+    }
+
+    var firstActionPrimaryButtonTitle: String {
+        selectedGoal == .trackInvestments ? "Legg til første investering" : "Legg til første utgift"
+    }
+
+    func selectGoal(_ goal: OnboardingGoalChoice) {
+        selectedGoal = goal
+        switch goal {
+        case .getOverview:
+            focus = .both
+        case .reduceSpending:
+            focus = .budget
+        case .trackInvestments:
+            focus = .investments
+        }
+    }
+
+    func selectTemplate(_ template: BudgetStarterPackage) {
+        budgetPackage = template
+    }
+
+    func markCurrentStepSeen() {
+        if !hasLoggedStart {
+            logEvent("onboarding_started")
+            hasLoggedStart = true
+        }
+
+        guard !viewedSteps.contains(currentStep) else { return }
+        viewedSteps.insert(currentStep)
+        logEvent("onboarding_step_viewed_\(eventName(for: currentStep))")
+
+        if currentStep == .firstAction {
+            logEvent("onboarding_aha_seen")
+        }
+    }
+
     func next(preference: UserPreference, context: ModelContext) {
         do {
             try saveStepState(preference: preference, context: context)
@@ -98,90 +150,70 @@ final class OnboardingViewModel: ObservableObject {
             preference.onboardingCurrentStep = nextStep.rawValue
             try context.save()
             currentStep = nextStep
-            logEvent("onboarding_step_advanced")
+            markCurrentStepSeen()
         } catch {
             setError("Kunne ikke lagre fremdrift. Prøv igjen.")
         }
     }
 
-    func skipCurrent(preference: UserPreference, context: ModelContext) {
-        if currentStep == .welcome {
-            finish(preference: preference, context: context, forceReminderOff: true)
-            logEvent("onboarding_skipped_from_welcome")
-            return
-        }
-        if currentStep == .goal {
-            goalAmountText = ""
-            next(preference: preference, context: context)
-            logEvent("onboarding_goal_skipped")
-            return
-        }
-        if currentStep == .firstWealth {
-            firstWealthTotalText = ""
-            showBucketBreakdown = false
-            snapshotText = ["Fond": "", "Aksjer": "", "BSU": "", "Buffer": "", "Krypto": ""]
-            next(preference: preference, context: context)
-            logEvent("onboarding_first_wealth_skipped")
-            return
-        }
-        if currentStep == .habits {
-            reminderEnabled = false
-            next(preference: preference, context: context)
-            logEvent("onboarding_habits_continue_without_reminder")
-            return
-        }
-        if currentStep == .summary {
+    func primaryAction(preference: UserPreference, context: ModelContext) {
+        if currentStep == .firstAction {
             finish(preference: preference, context: context)
-            return
+        } else {
+            next(preference: preference, context: context)
         }
-        next(preference: preference, context: context)
-        logEvent("onboarding_step_skipped")
     }
 
-    func finish(preference: UserPreference, context: ModelContext, forceReminderOff: Bool = false) {
-        let selectedBuckets = ["Fond", "Aksjer", "BSU", "Buffer", "Krypto"]
-        let totalWealth = parseDouble(firstWealthTotalText)
-        let goalAmount = parseDouble(goalAmountText)
-        let selectedBudgetCategories = categories(for: budgetPackage)
-        let monthlyBudget = parseDouble(monthlyBudgetText)
-        let snapshotValues = snapshotText.reduce(into: [String: Double]()) { partialResult, entry in
-            partialResult[entry.key] = parseDouble(entry.value) ?? 0
+    func secondaryAction(preference: UserPreference, context: ModelContext) {
+        switch currentStep {
+        case .goal:
+            skipAll(preference: preference, context: context)
+        case .firstAction:
+            finish(preference: preference, context: context)
+        default:
+            break
         }
-        let snapshotInputProvided = totalWealth != nil || snapshotText.values.contains { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
-        let reminderHour = Calendar.current.component(.hour, from: reminderTime)
-        let reminderMinute = Calendar.current.component(.minute, from: reminderTime)
+    }
+
+    func skipAll(preference: UserPreference, context: ModelContext) {
+        monthlyIncomeText = ""
+        monthlyBudgetText = ""
+        budgetPackage = .none
+        logEvent("onboarding_abandoned")
+        finish(preference: preference, context: context)
+    }
+
+    func finish(preference: UserPreference, context: ModelContext) {
+        let monthlyBudget = parseDouble(monthlyBudgetText)
+        let monthlyIncome = parseDouble(monthlyIncomeText)
+        let selectedBudgetCategories = categories(for: budgetPackage)
 
         do {
             try OnboardingService.complete(
                 context: context,
                 preference: preference,
+                firstName: "",
                 focus: focus,
                 tone: tone,
-                firstWealthTotal: totalWealth,
-                goalAmount: goalAmount,
-                goalDate: goalAmount != nil ? goalDate : nil,
-                snapshotValues: snapshotValues,
-                snapshotInputProvided: snapshotInputProvided,
+                firstWealthTotal: nil,
+                goalAmount: nil,
+                goalDate: nil,
+                snapshotValues: [:],
+                snapshotInputProvided: false,
                 budgetCategories: selectedBudgetCategories,
-                monthlyBudget: budgetPackage == .trackingOnly ? nil : monthlyBudget,
-                budgetTrackOnly: budgetPackage == .trackingOnly,
-                reminderEnabled: forceReminderOff ? false : reminderEnabled,
-                reminderDay: reminderEnabled ? reminderDay : 5,
-                reminderHour: reminderEnabled ? reminderHour : 18,
-                reminderMinute: reminderEnabled ? reminderMinute : 0,
-                faceIDEnabled: faceIDEnabled,
-                selectedBuckets: selectedBuckets,
+                monthlyBudget: monthlyBudget,
+                monthlyIncome: monthlyIncome,
+                incomeDayOfMonth: payday,
+                budgetTrackOnly: budgetPackage == .none,
+                reminderEnabled: false,
+                reminderDay: 5,
+                reminderHour: 18,
+                reminderMinute: 0,
+                faceIDEnabled: false,
+                selectedBuckets: ["Fond", "Aksjer", "BSU", "Buffer", "Krypto"],
                 customBucketName: nil
             )
             logEvent("onboarding_completed")
-
-            Task { @MainActor [weak self] in
-                do {
-                    try await CheckInReminderService.syncFromPreference(preference)
-                } catch {
-                    self?.setError(error.localizedDescription)
-                }
-            }
         } catch {
             setError("Kunne ikke fullføre onboarding. Prøv igjen.")
         }
@@ -195,32 +227,69 @@ final class OnboardingViewModel: ObservableObject {
         }
     }
 
-    func titleForTone(_ value: AppToneStyle) -> String {
-        switch value {
-        case .calm: return "Rolig og nøktern"
-        case .warm: return "Varm motivasjon"
-        case .nudges: return "Korte nudges"
+    func title(for package: BudgetStarterPackage) -> String {
+        switch package {
+        case .simple: return "Enkel"
+        case .family: return "Familie"
+        case .student: return "Student"
+        case .none: return "Ingen mal nå"
         }
     }
 
-    func subtitleForTone(_ value: AppToneStyle) -> String {
-        switch value {
-        case .calm: return "Klar og rolig tekst uten ekstra dytt."
-        case .warm: return "Vennlig energi med fokus på små steg."
-        case .nudges: return "Ekstra korte påminnelser og raske tips."
+    func subtitle(for package: BudgetStarterPackage) -> String {
+        switch package {
+        case .simple: return "Mat, Bolig, Transport, Fritid, Sparing"
+        case .family: return "Mat, Bolig, Transport, Barn, Sparing"
+        case .student: return "Mat, Transport, Abonnement, Uteliv, Sparing"
+        case .none: return "Opprett kategorier manuelt senere"
         }
+    }
+
+    func title(for goal: OnboardingGoalChoice) -> String {
+        switch goal {
+        case .getOverview:
+            return "Få oversikt"
+        case .reduceSpending:
+            return "Redusere forbruk"
+        case .trackInvestments:
+            return "Følge investeringer"
+        }
+    }
+
+    func clearError() {
+        errorMessage = nil
     }
 
     private func saveStepState(preference: UserPreference, context: ModelContext) throws {
         preference.onboardingFocus = focus
         preference.toneStyle = tone
         preference.onboardingCurrentStep = currentStep.rawValue
-        preference.checkInReminderEnabled = reminderEnabled
-        preference.checkInReminderDay = max(1, min(28, reminderDay))
-        preference.checkInReminderHour = Calendar.current.component(.hour, from: reminderTime)
-        preference.checkInReminderMinute = Calendar.current.component(.minute, from: reminderTime)
-        preference.faceIDLockEnabled = faceIDEnabled
+        preference.checkInReminderEnabled = false
+        preference.faceIDLockEnabled = false
         try context.save()
+    }
+
+    private func categories(for package: BudgetStarterPackage) -> [String] {
+        switch package {
+        case .simple:
+            return ["Mat", "Bolig", "Transport", "Fritid", "Sparing"]
+        case .family:
+            return ["Mat", "Bolig", "Transport", "Barnehage", "Sparing"]
+        case .student:
+            return ["Mat", "Transport", "Abonnement", "Uteliv", "Sparing"]
+        case .none:
+            return []
+        }
+    }
+
+    private func eventName(for step: OnboardingStep) -> String {
+        switch step {
+        case .goal: return "goal"
+        case .minimumData: return "minimum_data"
+        case .template: return "template"
+        case .summary: return "summary"
+        case .firstAction: return "first_action"
+        }
     }
 
     private func parseDouble(_ text: String) -> Double? {
@@ -232,41 +301,6 @@ final class OnboardingViewModel: ObservableObject {
         return Double(normalized)
     }
 
-    func autoDistributeBuckets() {
-        guard let total = parseDouble(firstWealthTotalText), total > 0 else { return }
-        let distribution: [(name: String, weight: Double)] = [
-            ("Fond", 0.45),
-            ("Aksjer", 0.27),
-            ("BSU", 0.13),
-            ("Buffer", 0.08),
-            ("Krypto", 0.07)
-        ]
-
-        var assignedValues = distribution.map { Int((total * $0.weight).rounded()) }
-        let diff = Int(total.rounded()) - assignedValues.reduce(0, +)
-        if !assignedValues.isEmpty {
-            assignedValues[0] += diff
-        }
-
-        for (index, entry) in distribution.enumerated() {
-            snapshotText[entry.name] = formatWholeNumber(max(0, assignedValues[index]))
-        }
-        showBucketBreakdown = true
-    }
-
-    private func formatWholeNumber(_ value: Int) -> String {
-        let digits = String(value)
-        var result = ""
-        let reversed = Array(digits.reversed())
-        for (index, char) in reversed.enumerated() {
-            if index > 0 && index % 3 == 0 {
-                result.append(" ")
-            }
-            result.append(char)
-        }
-        return String(result.reversed())
-    }
-
     private func logEvent(_ event: String) {
         OnboardingEventLogger.log(event)
     }
@@ -274,36 +308,5 @@ final class OnboardingViewModel: ObservableObject {
     private func setError(_ message: String) {
         errorMessage = message
         logEvent("onboarding_error")
-    }
-
-    func clearError() {
-        errorMessage = nil
-    }
-
-    func title(for package: BudgetStarterPackage) -> String {
-        switch package {
-        case .basic: return "Basic (anbefalt)"
-        case .student: return "Student"
-        case .trackingOnly: return "Bare sporing"
-        }
-    }
-
-    func subtitle(for package: BudgetStarterPackage) -> String {
-        switch package {
-        case .basic: return "Mat, Transport, Fritid, Bolig, Sparing"
-        case .student: return "Mat, Transport, Abonnement, Uteliv, Sparing"
-        case .trackingOnly: return "Ingen grenser nå"
-        }
-    }
-
-    private func categories(for package: BudgetStarterPackage) -> [String] {
-        switch package {
-        case .basic:
-            return ["Mat", "Transport", "Fritid", "Bolig", "Sparing"]
-        case .student:
-            return ["Mat", "Transport", "Abonnement", "Uteliv", "Sparing"]
-        case .trackingOnly:
-            return []
-        }
     }
 }

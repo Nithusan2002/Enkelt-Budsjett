@@ -3,11 +3,13 @@ import SwiftData
 import Testing
 @testable import Simple_Budget___Budskjett_planlegger_gjort_enkelt
 
+private typealias Category = Simple_Budget___Budskjett_planlegger_gjort_enkelt.Category
+
 struct FeatureLogicTests {
 
     @Test
     @MainActor
-    func onboardingFinishCreatesSnapshotFromFirstWealthTotal() throws {
+    func onboardingCompleteIsIdempotentForIncomeItem() throws {
         let container = try makeInMemoryContainer()
         let context = container.mainContext
         let preference = UserPreference(onboardingCompleted: false)
@@ -15,31 +17,50 @@ struct FeatureLogicTests {
         try context.save()
 
         let viewModel = OnboardingViewModel(preference: preference)
-        viewModel.firstWealthTotalText = "120 000"
-        viewModel.snapshotText = ["Fond": "", "Aksjer": "", "IPS": "", "Krypto": ""]
-        viewModel.budgetPackage = .trackingOnly
+        viewModel.selectGoal(.reduceSpending)
+        viewModel.monthlyIncomeText = "50 000"
+        viewModel.monthlyBudgetText = "20 000"
+        viewModel.payday = 25
 
         viewModel.finish(preference: preference, context: context)
+        viewModel.finish(preference: preference, context: context)
 
-        let snapshots = try context.fetch(FetchDescriptor<InvestmentSnapshot>())
-        #expect(snapshots.count == 1)
-        #expect(snapshots.first?.totalValue == 120000)
-        #expect((snapshots.first?.bucketValues.count ?? -1) == 0)
+        let fixedItems = try context.fetch(FetchDescriptor<FixedItem>())
+        let transactions = try context.fetch(FetchDescriptor<Transaction>())
+
+        #expect(try context.fetch(FetchDescriptor<InvestmentSnapshot>()).isEmpty)
+        #expect(try context.fetch(FetchDescriptor<Goal>()).isEmpty)
+        #expect(fixedItems.filter { $0.id == "fixed_income_salary_onboarding" }.count == 1)
+        #expect(transactions.filter { $0.fixedItemID == "fixed_income_salary_onboarding" }.count == 1)
         #expect(preference.onboardingCompleted)
     }
 
     @Test
     @MainActor
-    func onboardingBudgetFocusChangesStepOrder() {
+    func onboardingFlowHasExactlyFiveSteps() {
         let preference = UserPreference(onboardingCompleted: false, onboardingFocus: .budget)
         let viewModel = OnboardingViewModel(preference: preference)
 
         let order = viewModel.orderedSteps
-        #expect(order.first == .welcome)
-        #expect(order[1] == .focus)
-        #expect(order[2] == .budget)
-        #expect(order[3] == .firstWealth)
-        #expect(order.last == .summary)
+        #expect(order.count == 5)
+        #expect(order.first == .goal)
+        #expect(order[1] == .minimumData)
+        #expect(order[2] == .template)
+        #expect(order[3] == .summary)
+        #expect(order.last == .firstAction)
+    }
+
+    @Test
+    @MainActor
+    func onboardingFinalActionTitleDependsOnGoal() {
+        let preference = UserPreference(onboardingCompleted: false)
+        let viewModel = OnboardingViewModel(preference: preference)
+
+        viewModel.selectGoal(.trackInvestments)
+        #expect(viewModel.firstActionPrimaryButtonTitle == "Legg til første investering")
+
+        viewModel.selectGoal(.getOverview)
+        #expect(viewModel.firstActionPrimaryButtonTitle == "Legg til første utgift")
     }
 
     @Test

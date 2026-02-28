@@ -646,6 +646,7 @@ enum OnboardingService {
     static func complete(
         context: ModelContext,
         preference: UserPreference,
+        firstName: String,
         focus: OnboardingFocus,
         tone: AppToneStyle,
         firstWealthTotal: Double?,
@@ -655,6 +656,8 @@ enum OnboardingService {
         snapshotInputProvided: Bool,
         budgetCategories: [String],
         monthlyBudget: Double?,
+        monthlyIncome: Double?,
+        incomeDayOfMonth: Int,
         budgetTrackOnly: Bool,
         reminderEnabled: Bool,
         reminderDay: Int,
@@ -695,7 +698,11 @@ enum OnboardingService {
 
         if let goalAmount, goalAmount > 0 {
             let resolvedDate = goalDate ?? Calendar.current.date(byAdding: .month, value: 24, to: .now) ?? .now
-            context.insert(Goal(targetAmount: goalAmount, targetDate: resolvedDate, includeAccounts: true))
+            upsertActiveGoal(
+                context: context,
+                targetAmount: goalAmount,
+                targetDate: resolvedDate
+            )
         }
 
         if snapshotInputProvided {
@@ -712,7 +719,12 @@ enum OnboardingService {
             }
             let breakdownTotal = values.reduce(0) { $0 + $1.amount }
             let total = breakdownTotal > 0 ? breakdownTotal : max(firstWealthTotal ?? 0, 0)
-            context.insert(InvestmentSnapshot(periodKey: key, capturedAt: .now, totalValue: total, bucketValues: values))
+            upsertSnapshot(
+                context: context,
+                periodKey: key,
+                totalValue: total,
+                values: values
+            )
         }
 
         let budgetCategoryIDs = budgetCategories.map { categoryID(for: $0) }
@@ -733,6 +745,22 @@ enum OnboardingService {
             }
         }
 
+        if let monthlyIncome, monthlyIncome > 0 {
+            insertCategoryIfMissing(
+                context: context,
+                id: "cat_income_salary",
+                name: "Lønn",
+                type: .income,
+                sortOrder: 70
+            )
+            try upsertIncomeFixedItem(
+                context: context,
+                monthlyIncome: monthlyIncome,
+                incomeDayOfMonth: incomeDayOfMonth
+            )
+        }
+
+        preference.firstName = firstName.trimmingCharacters(in: .whitespacesAndNewlines)
         preference.checkInReminderEnabled = reminderEnabled
         preference.checkInReminderDay = max(1, min(28, reminderDay))
         preference.checkInReminderHour = max(0, min(23, reminderHour))
@@ -743,6 +771,101 @@ enum OnboardingService {
         preference.onboardingCompleted = true
         preference.onboardingCurrentStep = 0
         try context.save()
+    }
+
+    private static func upsertActiveGoal(
+        context: ModelContext,
+        targetAmount: Double,
+        targetDate: Date
+    ) {
+        let goals = (try? context.fetch(FetchDescriptor<Goal>())) ?? []
+        if let activeGoal = goals.first(where: \.isActive) {
+            activeGoal.targetAmount = targetAmount
+            activeGoal.targetDate = targetDate
+            activeGoal.includeAccounts = true
+            activeGoal.scope = .wealth
+            activeGoal.isActive = true
+            return
+        }
+
+        context.insert(
+            Goal(
+                targetAmount: targetAmount,
+                targetDate: targetDate,
+                scope: .wealth,
+                includeAccounts: true,
+                isActive: true
+            )
+        )
+    }
+
+    private static func upsertSnapshot(
+        context: ModelContext,
+        periodKey: String,
+        totalValue: Double,
+        values: [InvestmentSnapshotValue]
+    ) {
+        let snapshots = (try? context.fetch(FetchDescriptor<InvestmentSnapshot>())) ?? []
+        if let existing = snapshots.first(where: { $0.periodKey == periodKey }) {
+            existing.capturedAt = .now
+            existing.totalValue = max(totalValue, 0)
+            existing.bucketValues = values
+            return
+        }
+
+        context.insert(
+            InvestmentSnapshot(
+                periodKey: periodKey,
+                capturedAt: .now,
+                totalValue: max(totalValue, 0),
+                bucketValues: values
+            )
+        )
+    }
+
+    private static func upsertIncomeFixedItem(
+        context: ModelContext,
+        monthlyIncome: Double,
+        incomeDayOfMonth: Int
+    ) throws {
+        let fixedID = "fixed_income_salary_onboarding"
+        let normalizedDay = max(1, min(28, incomeDayOfMonth))
+        let normalizedAmount = abs(monthlyIncome)
+        let now = Date()
+        let monthBounds = DateService.monthBounds(for: now)
+        let items = try context.fetch(FetchDescriptor<FixedItem>())
+
+        if let item = items.first(where: { $0.id == fixedID }) {
+            item.title = "Lønn"
+            item.amount = normalizedAmount
+            item.categoryID = "cat_income_salary"
+            item.kind = .income
+            item.dayOfMonth = normalizedDay
+            item.isActive = true
+            item.autoCreate = true
+            if item.startDate > monthBounds.start {
+                item.startDate = monthBounds.start
+            }
+            item.endDate = nil
+        } else {
+            context.insert(
+                FixedItem(
+                    id: fixedID,
+                    title: "Lønn",
+                    amount: normalizedAmount,
+                    categoryID: "cat_income_salary",
+                    kind: .income,
+                    dayOfMonth: normalizedDay,
+                    startDate: monthBounds.start,
+                    endDate: nil,
+                    isActive: true,
+                    autoCreate: true
+                )
+            )
+        }
+
+        try context.save()
+        try FixedItemsService.generateForCurrentMonthForItem(context: context, fixedItemID: fixedID, now: now)
     }
 
     private static func insertBucketIfMissing(context: ModelContext, name: String, sortOrder: Int) {
