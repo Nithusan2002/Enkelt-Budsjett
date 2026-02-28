@@ -57,24 +57,14 @@ struct OnboardingView: View {
 
     private var topBar: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if isHeroStep {
-                Text(viewModel.progressText)
-                    .appSecondaryStyle()
-                    .frame(maxWidth: .infinity, alignment: .center)
+            Text(viewModel.progressText)
+                .appSecondaryStyle()
+                .frame(maxWidth: .infinity, alignment: .center)
 
-                ProgressView(value: viewModel.progressFraction)
-                    .tint(AppTheme.primary)
-                    .frame(maxWidth: 220)
-                    .frame(maxWidth: .infinity, alignment: .center)
-            } else {
-                HStack {
-                    Text(viewModel.progressText)
-                        .appSecondaryStyle()
-                    Spacer()
-                }
-                ProgressView(value: viewModel.progressFraction)
-                    .tint(AppTheme.primary)
-            }
+            ProgressView(value: viewModel.progressFraction)
+                .tint(AppTheme.primary)
+                .frame(maxWidth: 220)
+                .frame(maxWidth: .infinity, alignment: .center)
         }
         .padding(.horizontal)
     }
