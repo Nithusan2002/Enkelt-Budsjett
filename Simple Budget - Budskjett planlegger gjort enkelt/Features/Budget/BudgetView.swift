@@ -678,6 +678,7 @@ private struct AddTransactionSheet: View {
     @State private var date: Date = .now
     @State private var amountText: String = ""
     @State private var selectedType: TransactionKind?
+    @State private var expenseMode: ExpenseEntryMode = .spending
     @State private var selectedCategoryID: String?
     @State private var note: String = ""
     @State private var attemptedSave = false
@@ -687,10 +688,12 @@ private struct AddTransactionSheet: View {
     @FocusState private var amountFocused: Bool
 
     @AppStorage("budget.last_category.expense") private var lastExpenseCategoryID: String = ""
+    @AppStorage("budget.last_category.savings") private var lastSavingsCategoryID: String = ""
     @AppStorage("budget.last_category.income") private var lastIncomeCategoryID: String = ""
 
-    private var kind: TransactionKind {
-        selectedType ?? .expense
+    private var transactionKindForSave: TransactionKind {
+        guard selectedType == .expense else { return .income }
+        return expenseMode == .saving ? .manualSaving : .expense
     }
 
     private var availableCategories: [Category] {
@@ -698,10 +701,17 @@ private struct AddTransactionSheet: View {
         switch selectedType {
         case .expense:
             return categories
-                .filter { ($0.type == .expense || $0.type == .savings) && $0.isActive }
+                .filter {
+                    if expenseMode == .saving {
+                        return $0.type == .savings && $0.isActive
+                    }
+                    return $0.type == .expense && $0.isActive
+                }
                 .sorted { $0.sortOrder < $1.sortOrder }
         case .income:
-            return categories.filter { $0.type == .income }.sorted { $0.sortOrder < $1.sortOrder }
+            return categories
+                .filter { $0.type == .income && $0.isActive }
+                .sorted { $0.sortOrder < $1.sortOrder }
         default:
             return []
         }
@@ -732,9 +742,21 @@ private struct AddTransactionSheet: View {
                                 Divider()
                                     .overlay(AppTheme.divider)
 
-                                Text(selectedType == .expense ? "Ny utgift" : "Ny inntekt")
+                                Text(entryHeading)
                                     .font(.headline.weight(.semibold))
                                     .foregroundStyle(AppTheme.textPrimary)
+
+                                if selectedType == .expense {
+                                    Picker("Utgiftstype", selection: $expenseMode) {
+                                        ForEach(ExpenseEntryMode.allCases) { mode in
+                                            Text(mode.title).tag(mode)
+                                        }
+                                    }
+                                    .pickerStyle(.segmented)
+
+                                    Text(expenseMode == .saving ? "Viser kun sparekategorier." : "Viser kun utgiftskategorier.")
+                                        .appSecondaryStyle()
+                                }
 
                                 if availableCategories.isEmpty {
                                     Text("Ingen kategorier for valgt type.")
@@ -821,7 +843,7 @@ private struct AddTransactionSheet: View {
                     Button("Lagre") {
                         attemptedSave = true
                         guard isValid else { return }
-                        onSave(date, parsedAmount, kind, selectedCategoryID, note)
+                        onSave(date, parsedAmount, transactionKindForSave, selectedCategoryID, note)
                         persistLastCategoryIfNeeded()
                         amountFocused = false
                         let haptic = UIImpactFeedbackGenerator(style: .light)
@@ -882,8 +904,26 @@ private struct AddTransactionSheet: View {
             }
             .onAppear {
                 if selectedType == nil, let initialType {
-                    selectedType = initialType
+                    switch initialType {
+                    case .income:
+                        selectedType = .income
+                        expenseMode = .spending
+                    case .manualSaving:
+                        selectedType = .expense
+                        expenseMode = .saving
+                    case .expense:
+                        selectedType = .expense
+                        expenseMode = .spending
+                    case .refund, .transfer:
+                        selectedType = .expense
+                        expenseMode = .spending
+                    }
                 }
+                preselectCategoryForCurrentType()
+            }
+            .onChange(of: expenseMode) { _, _ in
+                guard selectedType == .expense else { return }
+                clearSelectionIfInvalidForType()
                 preselectCategoryForCurrentType()
             }
             .sheet(isPresented: $showCategoryPicker) {
@@ -913,15 +953,28 @@ private struct AddTransactionSheet: View {
         return availableCategories.first(where: { $0.id == selectedCategoryID })
     }
 
+    private var entryHeading: String {
+        guard let selectedType else { return "Ny transaksjon" }
+        switch selectedType {
+        case .expense:
+            return expenseMode == .saving ? "Ny sparing" : "Ny utgift"
+        case .income:
+            return "Ny inntekt"
+        default:
+            return "Ny transaksjon"
+        }
+    }
+
     private func preselectCategoryForCurrentType() {
         if availableCategories.isEmpty {
             selectedCategoryID = nil
             return
         }
-        switch kind {
+        switch selectedType ?? .expense {
         case .expense:
-            if availableCategories.contains(where: { $0.id == lastExpenseCategoryID }) {
-                selectedCategoryID = lastExpenseCategoryID
+            let lastCategoryID = expenseMode == .saving ? lastSavingsCategoryID : lastExpenseCategoryID
+            if availableCategories.contains(where: { $0.id == lastCategoryID }) {
+                selectedCategoryID = lastCategoryID
             } else if let first = availableCategories.first {
                 selectedCategoryID = first.id
             }
@@ -947,9 +1000,13 @@ private struct AddTransactionSheet: View {
 
     private func persistLastCategoryIfNeeded() {
         guard let selectedCategoryID else { return }
-        if kind == .expense {
-            lastExpenseCategoryID = selectedCategoryID
-        } else if kind == .income {
+        if selectedType == .expense {
+            if expenseMode == .saving {
+                lastSavingsCategoryID = selectedCategoryID
+            } else {
+                lastExpenseCategoryID = selectedCategoryID
+            }
+        } else if selectedType == .income {
             lastIncomeCategoryID = selectedCategoryID
         }
     }
@@ -967,10 +1024,12 @@ private struct AddTransactionSheet: View {
         let isSelected = selectedType == type
         return Button {
             selectedType = type
+            if type == .income {
+                expenseMode = .spending
+            }
             attemptedSave = false
             clearSelectionIfInvalidForType()
             preselectCategoryForCurrentType()
-            amountFocused = true
         } label: {
             VStack(spacing: 8) {
                 Image(systemName: systemImage)
@@ -1051,6 +1110,20 @@ private struct AddTransactionSheet: View {
         if key.contains("spar") { return "banknote.fill" }
         if key.contains("inntekt") || key.contains("lonn") { return "arrow.down.circle.fill" }
         return "tag.fill"
+    }
+}
+
+private enum ExpenseEntryMode: String, CaseIterable, Identifiable {
+    case spending
+    case saving
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .spending: return "Forbruk"
+        case .saving: return "Sparing"
+        }
     }
 }
 
