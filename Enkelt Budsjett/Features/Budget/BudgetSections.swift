@@ -10,7 +10,7 @@ struct BudgetBottomAddTransactionButton: View {
             HStack(spacing: 10) {
                 Image(systemName: "plus")
                     .font(.title3.weight(.bold))
-                Text("Legg til transaksjon")
+                Text("Legg til utgift")
                     .font(.title3.weight(.semibold))
                     .lineLimit(1)
             }
@@ -25,7 +25,7 @@ struct BudgetBottomAddTransactionButton: View {
             .shadow(color: .black.opacity(0.22), radius: 12, x: 0, y: 6)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Legg til transaksjon")
+        .accessibilityLabel("Legg til utgift")
     }
 }
 
@@ -169,7 +169,6 @@ struct BudgetHeroCardView: View {
     let trackedActual: Double
     let expenseTotal: Double
     let planned: Double
-    let monthDate: Date
     let overBudgetCount: Int
     let isOverBudgetFilterActive: Bool
     let onToggleOverBudget: () -> Void
@@ -178,46 +177,34 @@ struct BudgetHeroCardView: View {
         hasPlannedBudget ? trackedActual : expenseTotal
     }
 
-    private var usedPercent: Double {
-        guard planned > 0 else { return 0 }
-        return min(max(trackedActual / planned, 0), 1)
-    }
-
-    private var projectedMonthEnd: Double {
-        let calendar = Calendar.current
-        let now = Date()
-        guard calendar.isDate(now, equalTo: monthDate, toGranularity: .month) else {
-            return spentSoFar
-        }
-        let daysInMonth = calendar.range(of: .day, in: .month, for: now)?.count ?? 30
-        let dayOfMonth = max(calendar.component(.day, from: now), 1)
-        let pace = spentSoFar / Double(dayOfMonth)
-        return max(0, pace * Double(daysInMonth))
+    private var statusTone: Color {
+        if !hasPlannedBudget { return AppTheme.textSecondary }
+        return remaining < 0 ? AppTheme.warning : AppTheme.positive
     }
 
     private var statusText: String {
         guard hasPlannedBudget else {
-            return "Ingen grense satt ennå. Du kan fortsatt spore forbruket."
+            return "Ingen grenser satt ennå. Sett grenser når du vil styre per kategori."
         }
         if remaining >= 0 {
-            return "Du ligger innenfor med \(formatNOK(remaining)) igjen."
+            return "Du har \(formatNOK(remaining)) igjen av budsjettet."
         }
-        return "Du ligger \(formatNOK(abs(remaining))) over plan."
+        return "Du har brukt \(formatNOK(abs(remaining))) over budsjett."
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if hasPlannedBudget {
-                Text("Igjen denne måneden")
+                Text("Gjenstår denne måneden")
                     .appSecondaryStyle()
                 Text(formatNOK(remaining))
                     .appBigNumberStyle()
-                    .foregroundStyle(remaining < 0 ? AppTheme.negative : AppTheme.textPrimary)
-                Text(statusText)
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(remaining < 0 ? AppTheme.warning : AppTheme.positive)
+                    .foregroundStyle(remaining < 0 ? AppTheme.warning : AppTheme.textPrimary)
 
-                let progress = clampedProgress(value: usedPercent, total: 1)
+                Text("Brukt \(formatNOK(spentSoFar)) av \(formatNOK(planned))")
+                    .appSecondaryStyle()
+
+                let progress = clampedProgress(value: spentSoFar, total: planned)
                 ProgressView(value: progress.value, total: progress.total)
                     .tint(remaining < 0 ? AppTheme.warning : AppTheme.secondary)
             } else {
@@ -226,21 +213,11 @@ struct BudgetHeroCardView: View {
                 Text(formatNOK(expenseTotal))
                     .appBigNumberStyle()
                     .foregroundStyle(AppTheme.textPrimary)
-                Text(statusText)
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(AppTheme.textSecondary)
             }
 
-            HStack(spacing: 10) {
-                BudgetQuickMetricView(
-                    title: "Brukt hittil",
-                    value: formatNOK(spentSoFar)
-                )
-                BudgetQuickMetricView(
-                    title: "Forventet ved månedsslutt",
-                    value: formatNOK(projectedMonthEnd)
-                )
-            }
+            Text(statusText)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(statusTone)
 
             if overBudgetCount > 0 {
                 Button {
@@ -249,7 +226,7 @@ struct BudgetHeroCardView: View {
                     Text(
                         isOverBudgetFilterActive
                             ? "Vis alle kategorier"
-                            : "Over budsjett i \(overBudgetCount) kategorier"
+                            : "Se \(overBudgetCount) kategori(er) over budsjett"
                     )
                         .font(.footnote.weight(.semibold))
                         .padding(.horizontal, 10)
@@ -273,33 +250,11 @@ struct BudgetHeroCardView: View {
 
 }
 
-struct BudgetQuickMetricView: View {
-    let title: String
-    let value: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(AppTheme.textSecondary)
-                .lineLimit(2)
-            Text(value)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(AppTheme.textPrimary)
-                .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(10)
-        .background(AppTheme.background, in: RoundedRectangle(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(AppTheme.divider, lineWidth: 1))
-    }
-}
-
 struct GroupListView: View {
     let rows: [BudgetGroupRow]
     let fixedByGroup: [String: Double]
+    let hasPlannedBudget: Bool
+    let hasTransactions: Bool
     let onSetLimits: () -> Void
 
     var body: some View {
@@ -308,7 +263,7 @@ struct GroupListView: View {
                 Text("Kategorier")
                     .appCardTitleStyle()
                 Spacer()
-                Button("Sett grenser") {
+                Button(hasPlannedBudget ? "Juster grenser" : "Sett grenser") {
                     onSetLimits()
                 }
                 .font(.footnote.weight(.semibold))
@@ -316,8 +271,13 @@ struct GroupListView: View {
                 .foregroundStyle(AppTheme.primary)
             }
 
+            if !hasPlannedBudget {
+                Text("Ingen grenser satt ennå. Du kan fortsatt følge forbruket, og legge til grenser når du vil.")
+                    .appSecondaryStyle()
+            }
+
             if rows.isEmpty {
-                Text("Legg til en transaksjon for å starte sporing.")
+                Text(hasTransactions ? "Ingen aktive kategorier å vise." : "Legg til første utgift for å starte sporing.")
                     .appSecondaryStyle()
             }
 

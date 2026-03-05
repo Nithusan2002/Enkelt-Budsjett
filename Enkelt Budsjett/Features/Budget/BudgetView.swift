@@ -96,7 +96,6 @@ struct BudgetView: View {
                     trackedActual: summary.trackedActual,
                     expenseTotal: summary.expenseTotal,
                     planned: summary.planned,
-                    monthDate: viewModel.selectedMonthDate,
                     overBudgetCount: overBudgetCount,
                     isOverBudgetFilterActive: viewModel.selectedFilter == .overLimit,
                     onToggleOverBudget: {
@@ -115,7 +114,7 @@ struct BudgetView: View {
                         Text("Se detaljer")
                             .appBodyStyle()
                         Spacer()
-                        Text("Historikk og ekstra innsikt")
+                        Text("Faste poster, inntekter og sparing")
                             .appSecondaryStyle()
                         Image(systemName: "chevron.right")
                             .font(.caption.weight(.semibold))
@@ -130,6 +129,8 @@ struct BudgetView: View {
                 GroupListView(
                     rows: groupRows,
                     fixedByGroup: fixedByGroup,
+                    hasPlannedBudget: hasPlannedBudget,
+                    hasTransactions: !monthTransactions.isEmpty,
                     onSetLimits: {
                         if isReadOnlyMode {
                             viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription

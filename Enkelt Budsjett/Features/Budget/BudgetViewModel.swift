@@ -328,7 +328,7 @@ final class BudgetViewModel: ObservableObject {
     ) -> [Transaction] {
         let ids = Set(categoriesForGroup(group, categories: categories).map(\.id))
         return transactions
-            .filter { DateService.periodKey(from: $0.date) == periodKey && ($0.categoryID.map(ids.contains) == true) }
+            .filter { DateService.periodKey(from: $0.date) == periodKey && (($0.categoryID != nil && ids.contains($0.categoryID!))) }
             .sorted { $0.date > $1.date }
     }
 
