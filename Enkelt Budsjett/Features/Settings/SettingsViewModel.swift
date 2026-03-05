@@ -35,21 +35,15 @@ struct DataImportReport {
 }
 
 enum DataTransferError: LocalizedError {
-    case passwordTooShort
     case passwordRequiredForEncryptedImport
-    case passwordRequiredForReplaceBackup
     case encryptedPayloadInvalid
     case encryptedPayloadWrongPassword
     case replaceFailedRollbackFailed
 
     var errorDescription: String? {
         switch self {
-        case .passwordTooShort:
-            return "Velg et passord med minst 8 tegn."
         case .passwordRequiredForEncryptedImport:
-            return "Denne filen er kryptert. Skriv inn passord for å importere."
-        case .passwordRequiredForReplaceBackup:
-            return "Erstatt alt krever passord for automatisk kryptert backup."
+            return "Denne filen er kryptert og kan ikke importeres (eksporter på nytt uten kryptering)."
         case .encryptedPayloadInvalid:
             return "Filen kunne ikke leses som gyldig eksportformat."
         case .encryptedPayloadWrongPassword:
@@ -124,12 +118,9 @@ final class SettingsViewModel: ObservableObject {
         try await CheckInReminderService.syncFromPreference(preference)
     }
 
-    func exportData(context: ModelContext, password: String) throws -> URL {
-        guard password.count >= 8 else {
-            throw DataTransferError.passwordTooShort
-        }
+    func exportData(context: ModelContext) throws -> URL {
         let payload = try makeExportPayload(context: context)
-        return try writeEncryptedPayload(payload, password: password, filePrefix: "enkelt-budsjett-export")
+        return try writePlainPayload(payload, filePrefix: "enkelt-budsjett-export")
     }
 
     private func makeExportPayload(context: ModelContext) throws -> ExportPayload {
@@ -176,16 +167,9 @@ final class SettingsViewModel: ObservableObject {
         var backupFileName: String?
         var backupPayloadForRollback: ExportPayload?
         if mode == .replace {
-            guard let password, password.count >= 8 else {
-                throw DataTransferError.passwordRequiredForReplaceBackup
-            }
             let backupPayload = try makeExportPayload(context: context)
             backupPayloadForRollback = backupPayload
-            let backupURL = try writeEncryptedPayload(
-                backupPayload,
-                password: password,
-                filePrefix: "enkelt-budsjett-auto-backup"
-            )
+            let backupURL = try writePlainPayload(backupPayload, filePrefix: "enkelt-budsjett-auto-backup")
             backupFileName = backupURL.lastPathComponent
             try DemoDataSeeder.wipeAllData(context: context)
         }
@@ -303,40 +287,16 @@ final class SettingsViewModel: ObservableObject {
         }
     }
 
-    private func writeEncryptedPayload(
-        _ payload: ExportPayload,
-        password: String,
-        filePrefix: String
-    ) throws -> URL {
-        guard password.count >= 8 else {
-            throw DataTransferError.passwordTooShort
-        }
-
+    private func writePlainPayload(_ payload: ExportPayload, filePrefix: String) throws -> URL {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
-
-        let plainData = try encoder.encode(payload)
-        let salt = randomBytes(count: 16)
-        let key = deriveKey(password: password, salt: salt)
-        let sealed = try AES.GCM.seal(plainData, using: key)
-        guard let combined = sealed.combined else {
-            throw DataTransferError.encryptedPayloadInvalid
-        }
-
-        let envelope = EncryptedExportEnvelope(
-            format: "enkelt-budsjett-export-encrypted-v1",
-            exportedAt: payload.exportedAt,
-            saltBase64: salt.base64EncodedString(),
-            sealedBoxBase64: combined.base64EncodedString()
-        )
-        let encryptedData = try encoder.encode(envelope)
-
+        let data = try encoder.encode(payload)
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyyMMdd_HHmmss"
-        let fileName = "\(filePrefix)-\(formatter.string(from: .now)).sbx"
+        let fileName = "\(filePrefix)-\(formatter.string(from: .now)).json"
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
-        try encryptedData.write(to: url, options: .atomic)
+        try data.write(to: url, options: .atomic)
         return url
     }
 
