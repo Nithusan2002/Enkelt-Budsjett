@@ -36,7 +36,11 @@ struct Simple_Budget___Budskjett_planlegger_gjort_enkeltApp: App {
         if ProcessInfo.processInfo.arguments.contains("UITEST_IN_MEMORY_STORE") {
             let memory = ModelConfiguration(isStoredInMemoryOnly: true)
             activeStoreMode = .memoryOnly
-            return try! ModelContainer(for: schema, configurations: [memory])
+            do {
+                return try ModelContainer(for: schema, configurations: [memory])
+            } catch {
+                fatalError("Kunne ikke opprette in-memory store for UI-test: \(error)")
+            }
         }
 
         let storeURL = localStoreURL()
@@ -75,7 +79,11 @@ struct Simple_Budget___Budskjett_planlegger_gjort_enkeltApp: App {
                     // Siste nødnett: la appen starte i-memory.
                     let memory = ModelConfiguration(isStoredInMemoryOnly: true)
                     activeStoreMode = .memoryOnly
-                    return try! ModelContainer(for: schema, configurations: [memory])
+                    do {
+                        return try ModelContainer(for: schema, configurations: [memory])
+                    } catch {
+                        fatalError("Kunne ikke opprette nødfall-minnestore. Appen kan ikke starte: \(error)")
+                    }
                 }
             }
         }
