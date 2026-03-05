@@ -105,11 +105,9 @@ struct SettingsView: View {
             .sheet(isPresented: $showReminderSheet) {
             ReminderSettingsSheet(
                 enabled: pref.checkInReminderEnabled,
-                day: pref.checkInReminderDay,
-                hour: pref.checkInReminderHour,
-                minute: pref.checkInReminderMinute
-            ) { enabled, day, hour, minute in
-                applyReminderSettings(enabled: enabled, day: day, hour: hour, minute: minute)
+                day: pref.checkInReminderDay
+            ) { enabled, day in
+                applyReminderSettings(enabled: enabled, day: day)
             }
             .presentationDetents([.medium])
             .presentationDragIndicator(.visible)
@@ -621,13 +619,9 @@ struct SettingsView: View {
         .contentShape(Rectangle())
     }
 
-    private func reminderTimeText() -> String {
-        String(format: "%02d:%02d", pref.checkInReminderHour, pref.checkInReminderMinute)
-    }
-
     private func reminderSummaryText() -> String {
         guard pref.checkInReminderEnabled else { return "Av" }
-        return "På · \(pref.checkInReminderDay). kl \(reminderTimeText())"
+        return "På · \(pref.checkInReminderDay). kl 12:00"
     }
 
     private func bucketSummaryText() -> String {
@@ -636,15 +630,15 @@ struct SettingsView: View {
         return "\(activeCount) aktive"
     }
 
-    private func applyReminderSettings(enabled: Bool, day: Int, hour: Int, minute: Int) {
+    private func applyReminderSettings(enabled: Bool, day: Int) {
         guard !isReadOnlyMode else {
             settingsErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
             return
         }
         pref.checkInReminderEnabled = enabled
         pref.checkInReminderDay = max(1, min(28, day))
-        pref.checkInReminderHour = max(0, min(23, hour))
-        pref.checkInReminderMinute = max(0, min(59, minute))
+        pref.checkInReminderHour = 12
+        pref.checkInReminderMinute = 0
         persistSettingsChanges(syncReminder: true)
     }
 
@@ -752,24 +746,16 @@ private struct ReminderSettingsSheet: View {
 
     @State private var enabled: Bool
     @State private var selectedDay: Int
-    @State private var time: Date
 
-    let onSave: (Bool, Int, Int, Int) -> Void
+    let onSave: (Bool, Int) -> Void
 
     init(
         enabled: Bool,
         day: Int,
-        hour: Int,
-        minute: Int,
-        onSave: @escaping (Bool, Int, Int, Int) -> Void
+        onSave: @escaping (Bool, Int) -> Void
     ) {
         self._enabled = State(initialValue: enabled)
         self._selectedDay = State(initialValue: max(1, min(28, day)))
-
-        var components = DateComponents()
-        components.hour = max(0, min(23, hour))
-        components.minute = max(0, min(59, minute))
-        self._time = State(initialValue: Calendar.current.date(from: components) ?? .now)
         self.onSave = onSave
     }
 
@@ -781,8 +767,8 @@ private struct ReminderSettingsSheet: View {
 
                 if enabled {
                     Stepper("Dag i måneden: \(selectedDay)", value: $selectedDay, in: 1...28)
-                    DatePicker("Klokkeslett", selection: $time, displayedComponents: [.hourAndMinute])
-                        .datePickerStyle(.compact)
+                    Text("Påminnelsen sendes alltid kl 12:00.")
+                        .appSecondaryStyle()
 
                     Text("iOS kan be om varslingstillatelse hvis den ikke allerede er gitt.")
                         .appSecondaryStyle()
@@ -803,9 +789,7 @@ private struct ReminderSettingsSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Lagre") {
-                        let hour = Calendar.current.component(.hour, from: time)
-                        let minute = Calendar.current.component(.minute, from: time)
-                        onSave(enabled, selectedDay, hour, minute)
+                        onSave(enabled, selectedDay)
                         dismiss()
                     }
                 }
