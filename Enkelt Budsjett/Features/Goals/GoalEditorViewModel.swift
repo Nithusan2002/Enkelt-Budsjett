@@ -10,7 +10,7 @@ final class GoalEditorViewModel: ObservableObject {
 
     func onAppear(goal: Goal?) {
         if let goal, goal.targetAmount > 0 {
-            targetAmountText = formatInputAmount(goal.targetAmount)
+            targetAmountText = AppAmountInput.format(goal.targetAmount)
         } else {
             targetAmountText = ""
         }
@@ -51,24 +51,6 @@ final class GoalEditorViewModel: ObservableObject {
     }
 
     private var parsedTargetAmount: Double? {
-        parseInputAmount(targetAmountText)
-    }
-
-    private func parseInputAmount(_ text: String) -> Double? {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
-        let normalized = trimmed
-            .replacingOccurrences(of: " ", with: "")
-            .replacingOccurrences(of: ",", with: ".")
-        return Double(normalized)
-    }
-
-    private func formatInputAmount(_ value: Double) -> String {
-        let formatter = NumberFormatter()
-        formatter.locale = Locale(identifier: "nb_NO")
-        formatter.numberStyle = .decimal
-        formatter.minimumFractionDigits = 0
-        formatter.maximumFractionDigits = 2
-        return formatter.string(from: NSNumber(value: value)) ?? ""
+        AppAmountInput.parse(targetAmountText)
     }
 }

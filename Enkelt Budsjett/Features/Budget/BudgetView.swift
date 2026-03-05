@@ -951,7 +951,7 @@ private struct AddTransactionSheet: View {
                 .presentationDragIndicator(.visible)
             }
             .onChange(of: amountText) { _, newValue in
-                let formatted = formatAmountInputLive(newValue)
+                let formatted = AppAmountInput.formatLive(newValue)
                 if formatted != newValue {
                     amountText = formatted
                 }
@@ -960,7 +960,7 @@ private struct AddTransactionSheet: View {
     }
 
     private var parsedAmount: Double {
-        parseInputAmount(amountText) ?? 0
+        AppAmountInput.parse(amountText) ?? 0
     }
 
     private var selectedCategory: Category? {
@@ -1235,68 +1235,6 @@ private struct CategoryPickerSheet: View {
     }
 }
 
-private func parseInputAmount(_ text: String) -> Double? {
-    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !trimmed.isEmpty else { return nil }
-    let withoutWhitespace = trimmed.components(separatedBy: .whitespacesAndNewlines).joined()
-    let normalized = withoutWhitespace
-        .replacingOccurrences(of: "\u{00A0}", with: "")
-        .replacingOccurrences(of: "\u{202F}", with: "")
-        .replacingOccurrences(of: ",", with: ".")
-    return Double(normalized)
-}
-
-private func formatInputAmount(_ value: Double) -> String {
-    let formatter = NumberFormatter()
-    formatter.locale = Locale(identifier: "nb_NO")
-    formatter.numberStyle = .decimal
-    formatter.minimumFractionDigits = 0
-    formatter.maximumFractionDigits = 2
-    return formatter.string(from: NSNumber(value: value)) ?? ""
-}
-
-private func formatAmountInputLive(_ rawText: String) -> String {
-    let trimmed = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !trimmed.isEmpty else { return "" }
-
-    let filtered = trimmed.filter { $0.isNumber || $0 == "," || $0 == "." }
-    let separatorIndex = filtered.firstIndex(where: { $0 == "," || $0 == "." })
-
-    let integerPartRaw: String
-    let fractionRaw: String
-    let hasSeparator: Bool
-    let endsWithSeparator: Bool
-
-    if let separatorIndex {
-        integerPartRaw = String(filtered[..<separatorIndex])
-        let after = filtered.index(after: separatorIndex)
-        if after < filtered.endIndex {
-            fractionRaw = String(filtered[after...]).filter(\.isNumber)
-        } else {
-            fractionRaw = ""
-        }
-        hasSeparator = true
-        endsWithSeparator = separatorIndex == filtered.index(before: filtered.endIndex)
-    } else {
-        integerPartRaw = filtered.filter(\.isNumber)
-        fractionRaw = ""
-        hasSeparator = false
-        endsWithSeparator = false
-    }
-
-    let integerDigits = integerPartRaw.filter(\.isNumber)
-    let integerValue = Double(integerDigits) ?? 0
-    let formattedInteger = formatInputAmount(integerValue)
-
-    if hasSeparator {
-        let fraction = String(fractionRaw.prefix(2))
-        if endsWithSeparator || !fraction.isEmpty {
-            return "\(formattedInteger),\(fraction)"
-        }
-    }
-    return formattedInteger
-}
-
 private struct GroupRowView: View {
     let row: BudgetGroupRow
     let fixedSpent: Double
@@ -1413,7 +1351,7 @@ private struct SetGroupLimitsSheet: View {
         BudgetGroup.allCases.contains { group in
             let text = values[group, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
             if text.isEmpty { return false }
-            return (parseInputAmount(text) ?? 0) > 0
+            return (AppAmountInput.parse(text) ?? 0) > 0
         }
     }
 
@@ -1472,7 +1410,7 @@ private struct SetGroupLimitsSheet: View {
                         let previous = viewModel.copyPreviousMonthGroupPlans(periodKey: periodKey, groupPlans: groupPlans)
                         for group in BudgetGroup.allCases {
                             if let value = previous[group] ?? nil, value > 0 {
-                                values[group] = formatInputAmount(value)
+                                values[group] = AppAmountInput.format(value)
                             } else {
                                 values[group] = ""
                             }
@@ -1498,7 +1436,7 @@ private struct SetGroupLimitsSheet: View {
                             if raw.isEmpty {
                                 parsed[group] = nil
                             } else {
-                                let value = parseInputAmount(raw) ?? 0
+                                let value = AppAmountInput.parse(raw) ?? 0
                                 parsed[group] = value > 0 ? value : nil
                             }
                         }
@@ -1518,7 +1456,7 @@ private struct SetGroupLimitsSheet: View {
                 let current = groupPlans.filter { $0.monthPeriodKey == periodKey }
                 for group in BudgetGroup.allCases {
                     if let existing = current.first(where: { $0.groupKey == group.rawValue }), existing.plannedAmount > 0 {
-                        values[group] = formatInputAmount(existing.plannedAmount)
+                        values[group] = AppAmountInput.format(existing.plannedAmount)
                     } else {
                         values[group] = ""
                     }
@@ -1531,7 +1469,7 @@ private struct SetGroupLimitsSheet: View {
         Binding(
             get: { values[group, default: ""] },
             set: { newValue in
-                values[group] = formatAmountInputLive(newValue)
+                values[group] = AppAmountInput.formatLive(newValue)
             }
         )
     }
@@ -1539,7 +1477,7 @@ private struct SetGroupLimitsSheet: View {
     private func parsedValue(for group: BudgetGroup) -> Double? {
         let raw = values[group, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
         guard !raw.isEmpty else { return nil }
-        return parseInputAmount(raw)
+        return AppAmountInput.parse(raw)
     }
 
 }
