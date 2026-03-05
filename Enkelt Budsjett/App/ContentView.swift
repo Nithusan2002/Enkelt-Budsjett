@@ -30,7 +30,9 @@ private enum PreviewData {
             UserPreference.self
         ])
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
-        let container = try! ModelContainer(for: schema, configurations: [configuration])
+        guard let container = try? ModelContainer(for: schema, configurations: [configuration]) else {
+            fatalError("Kunne ikke opprette preview-container")
+        }
         let context = container.mainContext
 
         context.insert(UserPreference())
