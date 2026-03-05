@@ -20,7 +20,7 @@ Practical guide for AI assistants working on this codebase. Read this before mak
 ```
 Enkelt Budsjett/
 ├── App/                        # Entry point, root navigation, app state
-│   ├── *App.swift              # SwiftData container setup, CloudKit fallback logic
+│   ├── Simple_Budget_..._App.swift  # SwiftData container setup, CloudKit fallback logic
 │   ├── AppRootView.swift       # Tab/nav shell
 │   ├── AppRootViewModel.swift
 │   ├── ContentView.swift
@@ -62,7 +62,7 @@ docs/legal/                     # Norwegian privacy policy & terms
 **Pattern:** MVVM, one ViewModel per feature screen.
 
 - **Views** are pure SwiftUI; keep logic out of them.
-- **ViewModels** hold `@Observable` state and call Domain services.
+- **ViewModels** are marked `@MainActor` and hold `@Observable` state; they call Domain services.
 - **Domain/Services** contain business logic that has no UI dependency.
 - **SwiftData models** are passed through the environment via `@Query` or fetched inside ViewModels.
 
@@ -90,7 +90,7 @@ docs/legal/                     # Norwegian privacy policy & terms
 | `InvestmentSnapshot` | Monthly portfolio value snapshots |
 | `Goal` | Wealth goals |
 | `Challenge` | Financial challenges |
-| `UserPreference` | Singleton: app-wide preferences |
+| `UserPreference` | Singleton: app-wide preferences — always query with `.first`; create one if absent |
 
 ### Persistence Strategy
 
@@ -139,6 +139,7 @@ For unit tests, create an in-memory SwiftData container:
 
 ```swift
 let config = ModelConfiguration(isStoredInMemoryOnly: true)
+// Include all @Model types needed by the test, not just UserPreference
 let container = try ModelContainer(for: UserPreference.self, configurations: config)
 ```
 
@@ -177,6 +178,7 @@ xcodebuild archive -scheme "Enkelt Budsjett"
 
 **Demo data** (Debug / TestFlight only): Settings → Demo → "Load demo (3 år realistisk)"
 This seeds 36 months of realistic Norwegian student-budget data via `DemoDataSeeder`.
+The seeder UI is gated behind a `#if DEBUG` preprocessor check — never expose it in release builds.
 
 ---
 
@@ -241,5 +243,5 @@ Leveranse: implementer + test + commit
 | `Domain/Services/PersistenceGate.swift` | Use `safeSave()` for all writes |
 | `Shared/Utils/AppTheme.swift` | Colors and theming |
 | `Shared/Utils/UIFormatting.swift` | Currency, date, percentage formatters |
-| `App/*App.swift` | CloudKit fallback and container bootstrap |
+| `App/Simple_Budget_..._App.swift` | CloudKit fallback and container bootstrap |
 | `AGENTS.md` | Norwegian-language agent workflow details |
