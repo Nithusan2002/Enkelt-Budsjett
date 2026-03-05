@@ -790,14 +790,12 @@ enum OnboardingService {
         selectedBuckets: [String],
         customBucketName: String?
     ) throws {
-        if let customBucketName, !customBucketName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            let name = customBucketName.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !selectedBuckets.contains(name) {
-                insertBucketIfMissing(context: context, name: name, sortOrder: selectedBuckets.count + 1)
-            }
-        }
+        let onboardingBucketNames = resolvedOnboardingBucketNames(
+            selectedBuckets: selectedBuckets,
+            customBucketName: customBucketName
+        )
 
-        for (index, name) in selectedBuckets.enumerated() {
+        for (index, name) in onboardingBucketNames.enumerated() {
             insertBucketIfMissing(context: context, name: name, sortOrder: index + 1)
         }
 
@@ -832,7 +830,7 @@ enum OnboardingService {
 
         if snapshotInputProvided {
             let key = DateService.periodKey(from: .now)
-            let values: [InvestmentSnapshotValue] = selectedBuckets.compactMap { name in
+            let values: [InvestmentSnapshotValue] = onboardingBucketNames.compactMap { name in
                 let bucketID = "bucket_" + name.lowercased().replacingOccurrences(of: " ", with: "_")
                 let typed = snapshotValues[name] ?? 0
                 if typed <= 0 { return nil }
@@ -905,6 +903,23 @@ enum OnboardingService {
         preference.onboardingCompleted = true
         preference.onboardingCurrentStep = 0
         try context.guardedSave(feature: "Onboarding", operation: "complete")
+    }
+
+    private static func resolvedOnboardingBucketNames(
+        selectedBuckets: [String],
+        customBucketName: String?
+    ) -> [String] {
+        var names = selectedBuckets.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        if let customBucketName {
+            let normalizedCustomName = customBucketName.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !normalizedCustomName.isEmpty && !names.contains(normalizedCustomName) {
+                names.append(normalizedCustomName)
+            }
+        }
+
+        return names
     }
 
     private static func upsertActiveGoal(

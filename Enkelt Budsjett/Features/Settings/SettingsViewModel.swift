@@ -497,21 +497,44 @@ final class SettingsViewModel {
     }
 
     private func mergeGoals(_ rows: [GoalDTO], context: ModelContext) throws {
-        let existing = try context.fetch(FetchDescriptor<Goal>())
+        var existing = try context.fetch(FetchDescriptor<Goal>())
         var fingerprints = Set(existing.map(goalFingerprint))
         for row in rows {
+            if row.isActive {
+                let fingerprint = goalFingerprint(row)
+                let targetGoal = existing.first(where: { goalFingerprint($0) == fingerprint })
+                    ?? existing.first(where: \.isActive)
+
+                if let targetGoal {
+                    targetGoal.targetAmount = row.targetAmount
+                    targetGoal.targetDate = row.targetDate
+                    targetGoal.scope = GoalScope(rawValue: row.scope) ?? .wealth
+                    targetGoal.includeAccounts = row.includeAccounts
+                    targetGoal.isActive = true
+                    targetGoal.createdAt = row.createdAt
+
+                    for goal in existing where goal.persistentModelID != targetGoal.persistentModelID && goal.isActive {
+                        goal.isActive = false
+                    }
+
+                    fingerprints = Set(existing.map(goalFingerprint))
+                    continue
+                }
+            }
+
             let fingerprint = goalFingerprint(row)
             if fingerprints.contains(fingerprint) { continue }
-            context.insert(
-                Goal(
-                    targetAmount: row.targetAmount,
-                    targetDate: row.targetDate,
-                    scope: GoalScope(rawValue: row.scope) ?? .wealth,
-                    includeAccounts: row.includeAccounts,
-                    isActive: row.isActive,
-                    createdAt: row.createdAt
-                )
+
+            let goal = Goal(
+                targetAmount: row.targetAmount,
+                targetDate: row.targetDate,
+                scope: GoalScope(rawValue: row.scope) ?? .wealth,
+                includeAccounts: row.includeAccounts,
+                isActive: row.isActive,
+                createdAt: row.createdAt
             )
+            context.insert(goal)
+            existing.append(goal)
             fingerprints.insert(fingerprint)
         }
     }

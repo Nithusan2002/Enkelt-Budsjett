@@ -121,6 +121,42 @@ struct SettingsImportTests {
         #expect(importedCategory?.groupKey == BudgetGroup.hverdags.rawValue)
     }
 
+    @Test
+    @MainActor
+    func settingsImportMergeKeepsExactlyOneActiveGoal() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+        let settingsVM = SettingsViewModel()
+        let calendar = Calendar.current
+
+        context.insert(
+            Goal(
+                targetAmount: 200_000,
+                targetDate: calendar.date(from: DateComponents(year: 2026, month: 12, day: 31)) ?? .now,
+                scope: .wealth,
+                includeAccounts: true,
+                isActive: true,
+                createdAt: calendar.date(from: DateComponents(year: 2026, month: 3, day: 1, hour: 8)) ?? .now
+            )
+        )
+        try context.save()
+
+        let importURL = try makeGoalImportFile(
+            targetAmount: 350_000,
+            targetDate: calendar.date(from: DateComponents(year: 2027, month: 6, day: 30)) ?? .now,
+            createdAt: calendar.date(from: DateComponents(year: 2026, month: 3, day: 2, hour: 9)) ?? .now
+        )
+
+        _ = try settingsVM.importData(from: importURL, mode: .merge, context: context, password: nil)
+
+        let goals = try context.fetch(FetchDescriptor<Goal>())
+        let activeGoals = goals.filter(\.isActive)
+
+        #expect(activeGoals.count == 1)
+        #expect(activeGoals.first?.targetAmount == 350_000)
+        #expect(activeGoals.first?.targetDate == calendar.date(from: DateComponents(year: 2027, month: 6, day: 30)))
+    }
+
     private func makeLegacyImportFile() throws -> URL {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
@@ -153,6 +189,39 @@ struct SettingsImportTests {
 
         let data = try JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys])
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("legacy-settings-import-\(UUID().uuidString).json")
+        try data.write(to: url, options: .atomic)
+        return url
+    }
+
+    private func makeGoalImportFile(targetAmount: Double, targetDate: Date, createdAt: Date) throws -> URL {
+        let payload = ExportPayload(
+            exportedAt: Date(timeIntervalSince1970: 1_772_323_200),
+            budgetMonths: [],
+            categories: [],
+            plans: [],
+            groupPlans: [],
+            transactions: [],
+            fixedItems: [],
+            fixedItemSkips: [],
+            accounts: [],
+            buckets: [],
+            snapshots: [],
+            goals: [
+                GoalDTO(
+                    targetAmount: targetAmount,
+                    targetDate: targetDate,
+                    scope: GoalScope.wealth.rawValue,
+                    includeAccounts: true,
+                    isActive: true,
+                    createdAt: createdAt
+                )
+            ],
+            challenges: [],
+            preferences: []
+        )
+
+        let data = try JSONEncoder.settingsDataEncoder().encode(payload)
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("goal-settings-import-\(UUID().uuidString).json")
         try data.write(to: url, options: .atomic)
         return url
     }
