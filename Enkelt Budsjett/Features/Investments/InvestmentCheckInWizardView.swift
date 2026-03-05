@@ -238,7 +238,6 @@ private struct WizardIntroView: View {
             .padding(.horizontal)
             .padding(.top, 8)
             .padding(.bottom, 4)
-            .background(.ultraThinMaterial)
         }
     }
 }
@@ -412,7 +411,6 @@ private struct WizardBucketStepView: View {
             .padding(.horizontal)
             .padding(.top, 8)
             .padding(.bottom, 4)
-            .background(.ultraThinMaterial)
         }
         .onChange(of: mode) { _, newValue in
             guard newValue == .changed else { return }
@@ -636,7 +634,6 @@ private struct WizardSummaryView: View {
             .padding(.horizontal)
             .padding(.top, 8)
             .padding(.bottom, 4)
-            .background(.ultraThinMaterial)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Oppsummering")

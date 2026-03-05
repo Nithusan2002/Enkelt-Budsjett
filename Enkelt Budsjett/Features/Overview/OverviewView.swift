@@ -168,21 +168,13 @@ struct OverviewView: View {
                     .foregroundStyle(heroChange.kr >= 0 ? AppTheme.positive : AppTheme.negative)
             }
 
-            HStack(spacing: 10) {
-                if shouldShowPrimaryCTA {
-                    Button(latestSnapshot == nil ? "Ny innsjekk" : "Oppdater formue nå") {
-                        showCheckIn = true
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(AppTheme.primary)
-                    .appCTAStyle()
+            if shouldShowPrimaryCTA {
+                Button(latestSnapshot == nil ? "Ny innsjekk" : "Oppdater formue nå") {
+                    showCheckIn = true
                 }
-
-                Button("Åpne investeringer") {
-                    openInvestments(focus: .development)
-                }
-                .buttonStyle(.bordered)
+                .buttonStyle(.borderedProminent)
                 .tint(AppTheme.primary)
+                .appCTAStyle()
             }
 
             Divider()
