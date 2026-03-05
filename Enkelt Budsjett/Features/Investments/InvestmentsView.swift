@@ -1192,6 +1192,12 @@ private struct BucketQuickUpdateSheet: View {
                     .textFieldStyle(.appInput)
                     .multilineTextAlignment(.trailing)
                     .monospacedDigit()
+                    .onChange(of: amountText) { _, newValue in
+                        let formatted = AppAmountInput.formatLive(newValue)
+                        if formatted != newValue {
+                            amountText = formatted
+                        }
+                    }
                 }
             }
             .navigationTitle("Oppdater beholdning")
@@ -1227,7 +1233,11 @@ private struct BucketQuickUpdateSheet: View {
                 Text(saveErrorMessage ?? "")
             }
             .onAppear {
-                amountText = ""
+                amountText = latestSnapshot
+                    .flatMap { snapshot in
+                        snapshot.bucketValues.first(where: { $0.bucketID == bucket.id })?.amount
+                    }
+                    .map { AppAmountInput.format($0) } ?? ""
             }
         }
     }
