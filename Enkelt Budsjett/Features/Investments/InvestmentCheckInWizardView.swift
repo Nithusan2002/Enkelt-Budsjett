@@ -550,67 +550,65 @@ private struct WizardSummaryView: View {
     let saveDisabled: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Oppsummering")
-                .font(.title3.weight(.semibold))
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Oppsummering")
+                    .font(.title3.weight(.semibold))
 
-            Text("Gjelder: \(periodText)")
-                .appSecondaryStyle()
-            if let lastSavedAt {
-                Text("Sist lagret: \(formatDateTime(lastSavedAt))")
-                    .font(.footnote)
-                    .foregroundStyle(AppTheme.textSecondary)
-            }
-
-            row("Forrige total", value: formatNOK(previousTotal))
-            row("Ny total", value: formatNOK(newTotal))
-            row("Total endring fra forrige måned", value: deltaText)
-
-            if changedCount == 0 {
-                Text("Ingen endringer – total forblir \(formatNOK(newTotal)).")
-                    .appBodyStyle()
-                    .foregroundStyle(AppTheme.textSecondary)
-            } else {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Endret i \(changedCount) typer")
-                        .font(.footnote.weight(.semibold))
+                Text("Gjelder: \(periodText)")
+                    .appSecondaryStyle()
+                if let lastSavedAt {
+                    Text("Sist lagret: \(formatDateTime(lastSavedAt))")
+                        .font(.footnote)
                         .foregroundStyle(AppTheme.textSecondary)
-                    ForEach(changedRows) { row in
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(row.bucketName)
-                                .font(.footnote.weight(.semibold))
-                            HStack {
-                                Text("Ny verdi")
-                                    .font(.caption)
-                                    .foregroundStyle(AppTheme.textSecondary)
-                                Spacer()
-                                Text(formatNOK(row.newValue))
-                                    .font(.footnote)
-                                    .monospacedDigit()
-                            }
-                            HStack {
-                                Text("Endring")
-                                    .font(.caption)
-                                    .foregroundStyle(AppTheme.textSecondary)
-                                Spacer()
-                                Text(signedAmountText(row.delta))
-                                    .font(.footnote.weight(.semibold))
-                                    .monospacedDigit()
-                                    .foregroundStyle(row.delta >= 0 ? AppTheme.positive : AppTheme.negative)
-                            }
-                        }
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel("\(row.bucketName). Ny verdi \(formatNOK(row.newValue)). Endring \(signedAmountText(row.delta)).")
-                    }
                 }
-                .padding(10)
-                .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 12))
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.divider, lineWidth: 1))
-            }
 
-            Spacer()
-        }
-        .padding()
+                row("Forrige total", value: formatNOK(previousTotal))
+                row("Ny total", value: formatNOK(newTotal))
+                row("Total endring fra forrige måned", value: deltaText)
+
+                if changedCount == 0 {
+                    Text("Ingen endringer – total forblir \(formatNOK(newTotal)).")
+                        .appBodyStyle()
+                        .foregroundStyle(AppTheme.textSecondary)
+                } else {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Endret i \(changedCount) typer")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(AppTheme.textSecondary)
+                        ForEach(changedRows) { row in
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(row.bucketName)
+                                    .font(.footnote.weight(.semibold))
+                                HStack {
+                                    Text("Ny verdi")
+                                        .font(.caption)
+                                        .foregroundStyle(AppTheme.textSecondary)
+                                    Spacer()
+                                    Text(formatNOK(row.newValue))
+                                        .font(.footnote)
+                                        .monospacedDigit()
+                                }
+                                HStack {
+                                    Text("Endring")
+                                        .font(.caption)
+                                        .foregroundStyle(AppTheme.textSecondary)
+                                    Spacer()
+                                    Text(signedAmountText(row.delta))
+                                        .font(.footnote.weight(.semibold))
+                                        .monospacedDigit()
+                                        .foregroundStyle(row.delta >= 0 ? AppTheme.positive : AppTheme.negative)
+                                }
+                            }
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel("\(row.bucketName). Ny verdi \(formatNOK(row.newValue)). Endring \(signedAmountText(row.delta)).")
+                        }
+                    }
+                    .padding(10)
+                    .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.divider, lineWidth: 1))
+                }
+            }
         .safeAreaInset(edge: .bottom) {
             HStack(spacing: 10) {
                 Button("Tilbake") {
