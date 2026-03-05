@@ -13,9 +13,20 @@ final class Simple_Budget___Budskjett_planlegger_gjort_enkeltUITests: XCTestCase
         app = nil
     }
 
+    private func launchApp() {
+        app.launch()
+        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 5))
+    }
+
+    private func openTab(_ title: String) {
+        let tabButton = app.tabBars.buttons[title]
+        XCTAssertTrue(tabButton.waitForExistence(timeout: 5))
+        tabButton.tap()
+    }
+
     @MainActor
     func testMainTabsAreVisible() throws {
-        app.launch()
+        launchApp()
 
         XCTAssertTrue(app.tabBars.buttons["Budsjett"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.tabBars.buttons["Investeringer"].exists)
@@ -36,9 +47,9 @@ final class Simple_Budget___Budskjett_planlegger_gjort_enkeltUITests: XCTestCase
 
     @MainActor
     func testSettingsShowsDataAndDeleteConfirmation() throws {
-        app.launch()
+        launchApp()
 
-        app.tabBars.buttons["Innstillinger"].tap()
+        openTab("Innstillinger")
 
         XCTAssertTrue(app.staticTexts["Trygg lagring"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Data"].exists)
@@ -49,5 +60,40 @@ final class Simple_Budget___Budskjett_planlegger_gjort_enkeltUITests: XCTestCase
 
         XCTAssertTrue(app.alerts["Slett alle data?"].waitForExistence(timeout: 3))
         app.alerts["Slett alle data?"].buttons["Avbryt"].tap()
+    }
+
+    @MainActor
+    func testBudgetShowsEmptyStateOnFreshStore() throws {
+        launchApp()
+        openTab("Budsjett")
+
+        XCTAssertTrue(app.navigationBars["Budsjett"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Sett grenser"].exists)
+        XCTAssertTrue(app.staticTexts["Ingen grenser satt ennå. Du kan fortsatt følge forbruket, og legge til grenser når du vil."].exists)
+        XCTAssertTrue(app.staticTexts["Legg til første utgift for å starte sporing."].exists)
+    }
+
+    @MainActor
+    func testInvestmentsShowsEmptyStateOnFreshStore() throws {
+        launchApp()
+        openTab("Investeringer")
+
+        XCTAssertTrue(app.navigationBars["Investeringer"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Ingen aktive beholdninger ennå."].exists)
+        XCTAssertTrue(app.buttons["Legg til type"].exists)
+        XCTAssertTrue(app.staticTexts["Legg inn første snapshot (tar 20 sek)"].exists)
+        XCTAssertTrue(app.buttons["Ny innsjekk"].exists)
+    }
+
+    @MainActor
+    func testOverviewShowsEmptyStatePromptsOnFreshStore() throws {
+        launchApp()
+        openTab("Oversikt")
+
+        XCTAssertTrue(app.navigationBars["Oversikt"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Ny innsjekk"].exists)
+        XCTAssertTrue(app.staticTexts["Legg inn én måned til for å se utvikling."].exists)
+        XCTAssertTrue(app.staticTexts["Legg inn første tall for å se fordeling."].exists)
+        XCTAssertTrue(app.staticTexts["Sett formuemål"].exists)
     }
 }
