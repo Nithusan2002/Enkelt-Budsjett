@@ -8,7 +8,7 @@ struct SettingsImportTests {
     @Test
     @MainActor
     func settingsImportMergeIsIdempotentForBucketsGoalsAndPreference() throws {
-        let container = try makeInMemoryContainer()
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
         let context = container.mainContext
         let settingsVM = SettingsViewModel()
         let calendar = Calendar.current
@@ -74,7 +74,7 @@ struct SettingsImportTests {
     @Test
     @MainActor
     func settingsImportReplaceRemovesPostExportDataAndReportsBackupFile() throws {
-        let container = try makeInMemoryContainer()
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
         let context = container.mainContext
         let settingsVM = SettingsViewModel()
 
@@ -107,7 +107,7 @@ struct SettingsImportTests {
     @Test
     @MainActor
     func settingsImportDecodesLegacyCategoryPayloadWithoutGroupKey() throws {
-        let container = try makeInMemoryContainer()
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
         let context = container.mainContext
         let settingsVM = SettingsViewModel()
         let importURL = try makeLegacyImportFile()
@@ -119,27 +119,6 @@ struct SettingsImportTests {
         #expect(report.categories == 1)
         #expect(importedCategory != nil)
         #expect(importedCategory?.groupKey == BudgetGroup.hverdags.rawValue)
-    }
-
-    @MainActor
-    private func makeInMemoryContainer() throws -> ModelContainer {
-        let schema = Schema([
-            BudgetMonth.self,
-            Category.self,
-            BudgetPlan.self,
-            BudgetGroupPlan.self,
-            Transaction.self,
-            Account.self,
-            InvestmentBucket.self,
-            InvestmentSnapshot.self,
-            FixedItem.self,
-            FixedItemSkip.self,
-            Goal.self,
-            Challenge.self,
-            UserPreference.self
-        ])
-        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
-        return try ModelContainer(for: schema, configurations: [configuration])
     }
 
     private func makeLegacyImportFile() throws -> URL {
