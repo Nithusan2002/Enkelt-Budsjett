@@ -285,7 +285,7 @@ enum SavingsService {
             return transactions
                 .filter {
                     $0.kind == .manualSaving ||
-                    ($0.categoryID != nil && savingsIDs.contains($0.categoryID!))
+                    ($0.categoryID.map(savingsIDs.contains) == true)
                 }
                 .reduce(0) { $0 + abs($1.amount) }
         }
@@ -517,7 +517,7 @@ enum ChallengeService {
             computed = amount / target
         case .savingsCategory:
             let amount = periodTransactions
-                .filter { $0.kind == .manualSaving || ($0.categoryID != nil && savingsIDs.contains($0.categoryID!)) }
+                .filter { $0.kind == .manualSaving || ($0.categoryID.map(savingsIDs.contains) == true) }
                 .reduce(0) { $0 + abs($1.amount) }
             let target = max(challenge.targetAmount ?? 0, 1)
             computed = amount / target

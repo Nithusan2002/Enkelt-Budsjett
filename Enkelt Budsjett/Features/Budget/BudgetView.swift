@@ -59,7 +59,7 @@ struct BudgetView: View {
             .map { category in
                 let amount = (grouped[category.id] ?? [])
                     .filter { tx in
-                        (tx.kind == .manualSaving || (tx.categoryID != nil && savingsCategoryIDs.contains(tx.categoryID!)))
+                        tx.kind == .manualSaving || (tx.categoryID.map(savingsCategoryIDs.contains) == true)
                     }
                     .reduce(0) { $0 + abs($1.amount) }
                 return BudgetSavingsRow(id: category.id, title: category.name, amount: amount)
