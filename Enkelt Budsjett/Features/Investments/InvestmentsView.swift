@@ -644,25 +644,12 @@ struct InvestmentsView: View {
     ) -> [InvestmentSnapshot] {
         switch filter {
         case .all:
-            return history
-        case .threeMonths, .twelveMonths:
-            let months = filter == .threeMonths ? 3 : 12
-            let calendar = Calendar.current
-            let monthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: .now)) ?? .now
-            let start = calendar.date(byAdding: .month, value: -(months - 1), to: monthStart) ?? monthStart
-            return history.filter { snapshot in
-                guard let snapshotDate = periodKeyToDate(snapshot.periodKey) else { return false }
-                return snapshotDate >= start
-            }
+            return InvestmentsHistoryHelper.filteredHistorySnapshots(history, months: nil)
+        case .threeMonths:
+            return InvestmentsHistoryHelper.filteredHistorySnapshots(history, months: 3)
+        case .twelveMonths:
+            return InvestmentsHistoryHelper.filteredHistorySnapshots(history, months: 12)
         }
-    }
-
-    private func periodKeyToDate(_ periodKey: String) -> Date? {
-        let parts = periodKey.split(separator: "-")
-        guard parts.count == 2,
-              let year = Int(parts[0]),
-              let month = Int(parts[1]) else { return nil }
-        return Calendar.current.date(from: DateComponents(year: year, month: month, day: 1))
     }
 
 }
@@ -789,7 +776,10 @@ private struct BucketDetailView: View {
     }
 
     private var filtered: [InvestmentSnapshot] {
-        InvestmentService.filteredSnapshots(range: normalizedRange(selectedRange), snapshots: sorted)
+        InvestmentService.filteredSnapshots(
+            range: InvestmentsBucketChartHelper.normalizedRange(selectedRange),
+            snapshots: sorted
+        )
     }
 
     private var visibleHistory: [InvestmentSnapshot] {
@@ -799,9 +789,7 @@ private struct BucketDetailView: View {
 
     private var selectedSnapshot: InvestmentSnapshot? {
         guard let selectedPointDate else { return nil }
-        return filtered.min(by: {
-            abs($0.capturedAt.timeIntervalSince(selectedPointDate)) < abs($1.capturedAt.timeIntervalSince(selectedPointDate))
-        })
+        return InvestmentsBucketChartHelper.nearestSnapshot(to: selectedPointDate, in: filtered)
     }
 
     private var changeText: String {
@@ -861,16 +849,16 @@ private struct BucketDetailView: View {
                                 Button {
                                     selectedRange = range
                                 } label: {
-                                    if normalizedRange(selectedRange) == range {
-                                        Label(rangeTitle(range), systemImage: "checkmark")
+                                    if InvestmentsBucketChartHelper.normalizedRange(selectedRange) == range {
+                                        Label(InvestmentsBucketChartHelper.rangeTitle(range), systemImage: "checkmark")
                                     } else {
-                                        Text(rangeTitle(range))
+                                        Text(InvestmentsBucketChartHelper.rangeTitle(range))
                                     }
                                 }
                             }
                         } label: {
                             HStack(spacing: 6) {
-                                Text(rangeTitle(normalizedRange(selectedRange)))
+                                Text(InvestmentsBucketChartHelper.rangeTitle(InvestmentsBucketChartHelper.normalizedRange(selectedRange)))
                                     .font(.subheadline.weight(.semibold))
                                 Image(systemName: "chevron.down")
                                     .font(.caption.weight(.semibold))
@@ -929,14 +917,14 @@ private struct BucketDetailView: View {
                             }
                         }
                         .frame(height: 210)
-                        .chartXScale(domain: chartDateDomain(for: filtered))
+                        .chartXScale(domain: InvestmentsBucketChartHelper.chartDateDomain(for: filtered))
                         .chartXAxis {
-                            AxisMarks(values: xAxisDates(for: filtered, range: selectedRange)) { value in
+                            AxisMarks(values: InvestmentsBucketChartHelper.xAxisDates(for: filtered, range: selectedRange)) { value in
                                 AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                                     .foregroundStyle(AppTheme.divider.opacity(0.35))
                                 AxisValueLabel {
                                     if let date = value.as(Date.self) {
-                                        Text(monthLabel(date))
+                                        Text(InvestmentsBucketChartHelper.monthLabel(date))
                                     }
                                 }
                                 .foregroundStyle(AppTheme.textSecondary)
@@ -948,7 +936,7 @@ private struct BucketDetailView: View {
                                     .foregroundStyle(AppTheme.divider.opacity(0.45))
                                 AxisValueLabel {
                                     if let amount = value.as(Double.self) {
-                                        Text(compactNOK(amount))
+                                        Text(InvestmentsBucketChartHelper.compactNOK(amount))
                                     }
                                 }
                                 .foregroundStyle(AppTheme.textSecondary)
@@ -966,9 +954,7 @@ private struct BucketDetailView: View {
                                                 let origin = geometry[plotFrame].origin
                                                 let relativeX = value.location.x - origin.x
                                                 if let date: Date = proxy.value(atX: relativeX),
-                                                   let nearest = filtered.min(by: {
-                                                       abs($0.capturedAt.timeIntervalSince(date)) < abs($1.capturedAt.timeIntervalSince(date))
-                                                   }) {
+                                                   let nearest = InvestmentsBucketChartHelper.nearestSnapshot(to: date, in: filtered) {
                                                     if selectedPointPeriodKey != nearest.periodKey {
                                                         UIImpactFeedbackGenerator(style: .light).impactOccurred()
                                                     }
@@ -1056,88 +1042,6 @@ private struct BucketDetailView: View {
 
     private var rangeOptions: [GraphViewRange] {
         [.yearToDate, .oneYear, .twoYears, .threeYears, .fiveYears, .max]
-    }
-
-    private func normalizedRange(_ range: GraphViewRange) -> GraphViewRange {
-        range == .last12Months ? .oneYear : range
-    }
-
-    private func rangeTitle(_ range: GraphViewRange) -> String {
-        switch normalizedRange(range) {
-        case .yearToDate:
-            return "I år"
-        case .oneYear:
-            return "1 år"
-        case .twoYears:
-            return "2 år"
-        case .threeYears:
-            return "3 år"
-        case .fiveYears:
-            return "5 år"
-        case .max:
-            return "Maks"
-        case .last12Months:
-            return "1 år"
-        }
-    }
-
-    private func chartDateDomain(for snapshots: [InvestmentSnapshot]) -> ClosedRange<Date> {
-        guard let first = snapshots.first?.capturedAt,
-              let last = snapshots.last?.capturedAt else {
-            let now = Date()
-            return now ... now
-        }
-        return first ... last
-    }
-
-    private func xAxisDates(for snapshots: [InvestmentSnapshot], range: GraphViewRange) -> [Date] {
-        let dates = snapshots.map(\.capturedAt)
-        guard !dates.isEmpty else { return [] }
-
-        let targetCount: Int
-        switch normalizedRange(range) {
-        case .yearToDate:
-            targetCount = 4
-        case .oneYear:
-            targetCount = 6
-        case .twoYears:
-            targetCount = 6
-        case .threeYears:
-            targetCount = 7
-        case .fiveYears:
-            targetCount = 7
-        case .max:
-            targetCount = 8
-        case .last12Months:
-            targetCount = 6
-        }
-
-        if dates.count <= targetCount { return dates }
-        let step = max(1, dates.count / targetCount)
-        var selected = stride(from: 0, to: dates.count, by: step).map { dates[$0] }
-        if selected.last != dates.last, let last = dates.last {
-            selected.append(last)
-        }
-        return selected
-    }
-
-    private func monthLabel(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "nb_NO")
-        formatter.dateFormat = "MMM yy"
-        return formatter.string(from: date).capitalized
-    }
-
-    private func compactNOK(_ value: Double) -> String {
-        let absValue = abs(value)
-        let sign = value < 0 ? "-" : ""
-        if absValue >= 1_000_000 {
-            return "\(sign)\((absValue / 1_000_000).formatted(.number.precision(.fractionLength(1))))m"
-        }
-        if absValue >= 1_000 {
-            return "\(sign)\((absValue / 1_000).formatted(.number.precision(.fractionLength(0))))k"
-        }
-        return "\(sign)\(Int(absValue.rounded()))"
     }
 }
 
