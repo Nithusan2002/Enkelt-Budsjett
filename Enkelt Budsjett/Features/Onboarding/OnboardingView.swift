@@ -383,7 +383,10 @@ private enum OnboardingPreviewData {
             UserPreference.self
         ])
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
-        return try! ModelContainer(for: schema, configurations: [configuration])
+        guard let container = try? ModelContainer(for: schema, configurations: [configuration]) else {
+            fatalError("Kunne ikke opprette preview-container for OnboardingView")
+        }
+        return container
     }()
 
     static let preference: UserPreference = {
