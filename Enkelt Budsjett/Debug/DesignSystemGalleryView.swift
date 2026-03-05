@@ -127,8 +127,6 @@ struct DesignSystemGalleryView: View {
                     .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
                     .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
                 }
-
-                SporOkonomiBrandShowcase()
             }
             .padding()
         }
