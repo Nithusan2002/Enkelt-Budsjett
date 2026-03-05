@@ -17,6 +17,12 @@ struct GoalEditorView: View {
                         .textFieldStyle(.appInput)
                         .multilineTextAlignment(.trailing)
                         .monospacedDigit()
+                        .onChange(of: viewModel.targetAmountText) { _, newValue in
+                            let formatted = AppAmountInput.formatLive(newValue)
+                            if formatted != newValue {
+                                viewModel.targetAmountText = formatted
+                            }
+                        }
                     DatePicker("Måldato", selection: $viewModel.targetDate, displayedComponents: .date)
                         .appBodyStyle()
                 }

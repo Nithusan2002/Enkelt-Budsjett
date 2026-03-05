@@ -34,18 +34,24 @@ struct FixedItemsView: View {
             } else {
                 Section("Faste poster") {
                     ForEach(fixedItems) { item in
-                        Button {
-                            editorItem = item
-                        } label: {
-                            HStack {
+                        HStack(spacing: 12) {
+                            Button {
+                                editorItem = item
+                            } label: {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(item.title)
                                         .appBodyStyle()
                                     Text("\(formatNOK(item.amount)) • \(item.dayOfMonth). hver måned")
                                         .appSecondaryStyle()
                                 }
-                                Spacer()
-                                Toggle("", isOn: Binding(
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Rediger \(item.title)")
+
+                            Toggle(
+                                "Aktiv",
+                                isOn: Binding(
                                     get: { item.isActive },
                                     set: { value in
                                         guard !isReadOnlyMode else {
@@ -61,11 +67,11 @@ struct FixedItemsView: View {
                                             saveErrorMessage = (error as? LocalizedError)?.errorDescription ?? "Kunne ikke oppdatere fast post."
                                         }
                                     }
-                                ))
-                                .labelsHidden()
-                            }
+                                )
+                            )
+                            .labelsHidden()
+                            .accessibilityLabel("\(item.title), aktiv")
                         }
-                        .buttonStyle(.plain)
                     }
                     .onDelete(perform: deleteItems)
                 }
@@ -196,7 +202,7 @@ private struct FixedItemDraft {
     var isActive: Bool = true
     var autoCreate: Bool = true
 
-    var amount: Double { max(parseFixedItemAmount(amountText) ?? 0, 0) }
+    var amount: Double { max(AppAmountInput.parse(amountText) ?? 0, 0) }
 }
 
 private struct FixedItemEditorSheet: View {
@@ -314,7 +320,7 @@ private struct FixedItemEditorSheet: View {
                             .multilineTextAlignment(.trailing)
                             .accessibilityLabel("Beløp i kroner")
                             .onChange(of: draft.amountText) { _, value in
-                                let formatted = formatFixedItemAmountInputLive(value)
+                                let formatted = AppAmountInput.formatLive(value)
                                 if formatted != value {
                                     draft.amountText = formatted
                                 }
@@ -427,7 +433,7 @@ private struct FixedItemEditorSheet: View {
             .onAppear {
                 if let existing {
                     draft.title = existing.title
-                    draft.amountText = formatFixedItemInputAmount(existing.amount)
+                    draft.amountText = AppAmountInput.format(existing.amount)
                     draft.categoryID = existing.categoryID
                     draft.kind = existing.kind
                     draft.dayOfMonth = existing.dayOfMonth
@@ -549,67 +555,4 @@ private struct FixedItemCategoryPickerSheet: View {
             .searchable(text: $searchText, prompt: "Søk kategori")
         }
     }
-}
-
-private func parseFixedItemAmount(_ text: String) -> Double? {
-    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !trimmed.isEmpty else { return nil }
-    let normalized = trimmed
-        .replacingOccurrences(of: " ", with: "")
-        .replacingOccurrences(of: "\u{00A0}", with: "")
-        .replacingOccurrences(of: "\u{202F}", with: "")
-        .replacingOccurrences(of: ",", with: ".")
-    return Double(normalized)
-}
-
-private func formatFixedItemInputAmount(_ value: Double) -> String {
-    let formatter = NumberFormatter()
-    formatter.locale = Locale(identifier: "nb_NO")
-    formatter.numberStyle = .decimal
-    formatter.minimumFractionDigits = 0
-    formatter.maximumFractionDigits = 2
-    return formatter.string(from: NSNumber(value: value)) ?? ""
-}
-
-private func formatFixedItemAmountInputLive(_ rawText: String) -> String {
-    let trimmed = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !trimmed.isEmpty else { return "" }
-
-    let filtered = trimmed.filter { $0.isNumber || $0 == "," || $0 == "." }
-    guard !filtered.isEmpty else { return "" }
-    let separatorIndex = filtered.firstIndex(where: { $0 == "," || $0 == "." })
-
-    let integerPartRaw: String
-    let fractionRaw: String
-    let hasSeparator: Bool
-    let endsWithSeparator: Bool
-
-    if let separatorIndex {
-        integerPartRaw = String(filtered[..<separatorIndex])
-        let after = filtered.index(after: separatorIndex)
-        if after < filtered.endIndex {
-            fractionRaw = String(filtered[after...]).filter(\.isNumber)
-        } else {
-            fractionRaw = ""
-        }
-        hasSeparator = true
-        endsWithSeparator = separatorIndex == filtered.index(before: filtered.endIndex)
-    } else {
-        integerPartRaw = filtered.filter(\.isNumber)
-        fractionRaw = ""
-        hasSeparator = false
-        endsWithSeparator = false
-    }
-
-    let integerDigits = integerPartRaw.filter(\.isNumber)
-    let integerValue = Double(integerDigits) ?? 0
-    let formattedInteger = formatFixedItemInputAmount(integerValue)
-
-    if hasSeparator {
-        let fraction = String(fractionRaw.prefix(2))
-        if endsWithSeparator || !fraction.isEmpty {
-            return "\(formattedInteger),\(fraction)"
-        }
-    }
-    return formattedInteger
 }

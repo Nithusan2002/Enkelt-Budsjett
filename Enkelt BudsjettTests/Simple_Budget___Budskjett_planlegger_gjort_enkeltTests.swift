@@ -31,6 +31,21 @@ struct Simple_Budget___Budskjett_planlegger_gjort_enkeltTests {
         #expect(monthly > 0)
     }
 
+    @Test @MainActor func goalEditorSavesWealthGoalsIncludingAccounts() async throws {
+        let schema = Schema([Goal.self])
+        let container = try ModelContainer(for: schema, configurations: [ModelConfiguration(isStoredInMemoryOnly: true)])
+        let context = container.mainContext
+        let viewModel = GoalEditorViewModel()
+
+        viewModel.targetAmountText = "250 000"
+        let didSave = viewModel.save(goal: nil, context: context)
+        let goals = try context.fetch(FetchDescriptor<Goal>())
+
+        #expect(didSave)
+        #expect(goals.count == 1)
+        #expect(goals.first?.includeAccounts == true)
+    }
+
     @Test @MainActor func aggregatesBudgetByGroupAndSummary() async throws {
         let viewModel = BudgetViewModel()
         let periodKey = "2026-02"

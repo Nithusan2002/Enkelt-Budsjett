@@ -340,10 +340,13 @@ private struct WizardBucketStepView: View {
                         .background(AppTheme.primary.opacity(0.12), in: Capsule())
                 }
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(bucketName). Forrige \(formatNOK(previousValue)).")
 
             Text("Forrige: \(formatNOK(previousValue))")
                 .appBodyStyle()
                 .foregroundStyle(AppTheme.textSecondary)
+                .accessibilityHidden(true)
 
             if shouldShowDeltaChip {
                 HStack(spacing: 6) {
@@ -355,6 +358,7 @@ private struct WizardBucketStepView: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
                 .background((currentValue >= previousValue ? AppTheme.positive : AppTheme.negative).opacity(0.12), in: Capsule())
+                .accessibilityElement(children: .combine)
             }
 
             HStack(spacing: 10) {
@@ -424,8 +428,6 @@ private struct WizardBucketStepView: View {
                 amountFieldFocused = true
             }
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(bucketName). Forrige \(formatNOK(previousValue)). Status: \(statusTextForAccessibility).")
     }
 
     private var shouldShowDeltaChip: Bool {

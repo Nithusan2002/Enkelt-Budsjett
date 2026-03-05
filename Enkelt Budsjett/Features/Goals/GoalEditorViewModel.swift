@@ -31,10 +31,10 @@ final class GoalEditorViewModel: ObservableObject {
         if let goal {
             goal.targetAmount = targetAmount
             goal.targetDate = targetDate
-            goal.includeAccounts = false
+            goal.includeAccounts = true
             goal.isActive = true
         } else {
-            context.insert(Goal(targetAmount: targetAmount, targetDate: targetDate, includeAccounts: false))
+            context.insert(Goal(targetAmount: targetAmount, targetDate: targetDate, includeAccounts: true))
         }
         do {
             try context.guardedSave(feature: "Goals", operation: "save_goal")
