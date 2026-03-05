@@ -75,4 +75,50 @@ struct OnboardingFeatureTests {
         viewModel.selectGoal(.reduceSpending)
         #expect(viewModel.isPrimaryDisabled == true)
     }
+
+    @Test
+    @MainActor
+    func onboardingCompleteIncludesCustomBucketInFirstSnapshot() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+        let preference = UserPreference(onboardingCompleted: false)
+        context.insert(preference)
+        try context.save()
+
+        try OnboardingService.complete(
+            context: context,
+            preference: preference,
+            firstName: "Nora",
+            focus: .investments,
+            tone: .calm,
+            firstWealthTotal: nil,
+            goalAmount: nil,
+            goalDate: nil,
+            snapshotValues: [
+                "Fond": 150_000,
+                "Eiendom": 500_000
+            ],
+            snapshotInputProvided: true,
+            budgetCategories: [],
+            monthlyBudget: nil,
+            monthlyIncome: nil,
+            incomeDayOfMonth: 25,
+            budgetTrackOnly: true,
+            reminderEnabled: false,
+            reminderDay: 5,
+            reminderHour: 18,
+            reminderMinute: 0,
+            faceIDEnabled: false,
+            selectedBuckets: ["Fond"],
+            customBucketName: "Eiendom"
+        )
+
+        let buckets = try context.fetch(FetchDescriptor<InvestmentBucket>())
+        let snapshots = try context.fetch(FetchDescriptor<InvestmentSnapshot>())
+
+        #expect(buckets.contains(where: { $0.name == "Eiendom" }))
+        #expect(snapshots.count == 1)
+        #expect(snapshots[0].bucketValues.contains(where: { $0.bucketID == "bucket_eiendom" && $0.amount == 500_000 }))
+        #expect(snapshots[0].bucketValues.contains(where: { $0.bucketID == "bucket_fond" && $0.amount == 150_000 }))
+    }
 }
