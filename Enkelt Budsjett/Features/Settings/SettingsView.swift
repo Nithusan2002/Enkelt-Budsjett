@@ -26,13 +26,10 @@ struct SettingsView: View {
     @State private var showDemoWipeConfirm = false
     @State private var showImportModeDialog = false
     @State private var showImportPicker = false
-    @State private var showExportPasswordPrompt = false
-    @State private var showImportPasswordPrompt = false
     @State private var showImportError = false
     @State private var showImportSuccess = false
     @State private var pendingImportMode: DataImportMode = .merge
     @State private var pendingImportURL: URL?
-    @State private var transferPassword = ""
     @State private var importMessage = ""
     @State private var settingsErrorMessage: String?
     @State private var demoLoadMessage = ""
@@ -119,17 +116,6 @@ struct SettingsView: View {
             } message: {
             Text(exportMessage.isEmpty ? "Prøv igjen litt senere." : exportMessage)
             }
-            .alert("Passordbeskyttet eksport", isPresented: $showExportPasswordPrompt) {
-            SecureField("Passord (minst 8 tegn)", text: $transferPassword)
-            Button("Avbryt", role: .cancel) {
-                transferPassword = ""
-            }
-            Button("Eksporter") {
-                performExport()
-            }
-            } message: {
-            Text("Eksportfilen krypteres med passordet før deling.")
-            }
             .confirmationDialog("Importer data", isPresented: $showImportModeDialog, titleVisibility: .visible) {
             Button("Slå sammen med eksisterende data") {
                 pendingImportMode = .merge
@@ -149,18 +135,6 @@ struct SettingsView: View {
                 allowsMultipleSelection: false
             ) { result in
                 handleImport(result)
-            }
-            .alert("Passord for import", isPresented: $showImportPasswordPrompt) {
-            SecureField("Passord (tomt hvis ukryptert fil)", text: $transferPassword)
-            Button("Avbryt", role: .cancel) {
-                transferPassword = ""
-                pendingImportURL = nil
-            }
-            Button("Importer") {
-                performImport()
-            }
-            } message: {
-            Text("Krypterte filer krever passord. Ved ‘Erstatt alt’ brukes passordet også for automatisk backup.")
             }
             .alert("Kunne ikke importere data", isPresented: $showImportError) {
             Button("OK", role: .cancel) { }
@@ -365,15 +339,13 @@ struct SettingsView: View {
             }
 
             Button {
-                transferPassword = ""
-                showExportPasswordPrompt = true
+                performExport()
             } label: {
                 settingsRow(title: "Eksporter data", value: "", showsChevron: true)
             }
             .buttonStyle(.plain)
 
             Button {
-                transferPassword = ""
                 showImportModeDialog = true
             } label: {
                 settingsRow(title: "Importer data", value: "", showsChevron: true)
@@ -381,7 +353,7 @@ struct SettingsView: View {
             .buttonStyle(.plain)
             .disabled(isReadOnlyMode)
 
-            Text("Eksport oppretter en kryptert fil. Import kan slå sammen eller erstatte lokale data.")
+            Text("Eksport oppretter en JSON-fil. Import kan slå sammen eller erstatte lokale data.")
                 .appSecondaryStyle()
 
             if isReadOnlyMode {
@@ -480,17 +452,10 @@ struct SettingsView: View {
     }
 
     private func performExport() {
-        let trimmedPassword = transferPassword.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedPassword.isEmpty else {
-            exportMessage = "Skriv inn passord for eksport."
-            showExportError = true
-            return
-        }
         do {
-            let url = try viewModel.exportData(context: modelContext, password: trimmedPassword)
+            let url = try viewModel.exportData(context: modelContext)
             shareItem = ShareURL(url)
             sharedExportURL = url
-            transferPassword = ""
             exportMessage = ""
             DispatchQueue.main.asyncAfter(deadline: .now() + 600) {
                 if sharedExportURL == url {
@@ -543,8 +508,7 @@ struct SettingsView: View {
 
         guard let url = urls.first else { return }
         pendingImportURL = url
-        transferPassword = ""
-        showImportPasswordPrompt = true
+        performImport()
     }
 
     private func performImport() {
@@ -561,18 +525,14 @@ struct SettingsView: View {
                 url.stopAccessingSecurityScopedResource()
             }
             pendingImportURL = nil
-            transferPassword = ""
         }
-
-        let trimmedPassword = transferPassword.trimmingCharacters(in: .whitespacesAndNewlines)
-        let password = trimmedPassword.isEmpty ? nil : trimmedPassword
 
         do {
             let report = try viewModel.importData(
                 from: url,
                 mode: pendingImportMode,
                 context: modelContext,
-                password: password
+                password: nil
             )
             importMessage = importSuccessText(report)
             showImportSuccess = true
@@ -983,7 +943,7 @@ private struct PrivacyInfoView: View {
         List {
             Text("Appen lagrer data lokalt på enheten din.")
             Text("Ingen sporing eller tredjepartsannonser brukes i MVP.")
-            Text("Du kan eksportere en kryptert datafil fra Innstillinger > Data.")
+            Text("Du kan eksportere en datafil fra Innstillinger > Data.")
             Text("Du kan også slette alle lokale data fra Innstillinger > Data.")
         }
         .navigationTitle("Personvern")
