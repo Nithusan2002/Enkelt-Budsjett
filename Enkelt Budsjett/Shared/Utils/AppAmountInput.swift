@@ -4,7 +4,8 @@ enum AppAmountInput {
     static func parse(_ text: String) -> Double? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
-        let withoutWhitespace = trimmed.components(separatedBy: .whitespacesAndNewlines).joined()
+        let withoutCurrency = trimmed.replacingOccurrences(of: "kr", with: "", options: .caseInsensitive)
+        let withoutWhitespace = withoutCurrency.components(separatedBy: .whitespacesAndNewlines).joined()
         let normalized = withoutWhitespace
             .replacingOccurrences(of: "\u{00A0}", with: "")
             .replacingOccurrences(of: "\u{202F}", with: "")
@@ -25,7 +26,10 @@ enum AppAmountInput {
         let trimmed = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return "" }
 
-        let filtered = trimmed.filter { $0.isNumber || $0 == "," || $0 == "." }
+        let filtered = trimmed
+            .replacingOccurrences(of: "kr", with: "", options: .caseInsensitive)
+            .filter { $0.isNumber || $0 == "," || $0 == "." }
+        guard !filtered.isEmpty else { return "" }
         let separatorIndex = filtered.firstIndex(where: { $0 == "," || $0 == "." })
 
         let integerPartRaw: String

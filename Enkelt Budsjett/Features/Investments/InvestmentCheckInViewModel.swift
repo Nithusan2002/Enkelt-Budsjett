@@ -309,48 +309,15 @@ final class InvestmentCheckInWizardViewModel: ObservableObject {
     }
 
     static func parseAmount(_ text: String) -> Double? {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
-
-        let normalized = trimmed
-            .replacingOccurrences(of: " ", with: "")
-            .replacingOccurrences(of: "kr", with: "", options: .caseInsensitive)
-            .replacingOccurrences(of: ",", with: ".")
-
-        guard let value = Double(normalized) else { return nil }
-        return value
+        AppAmountInput.parse(text)
     }
 
     static func formatInputAmount(_ value: Double) -> String {
-        let formatter = NumberFormatter()
-        formatter.locale = Locale(identifier: "nb_NO")
-        formatter.numberStyle = .decimal
-        formatter.groupingSeparator = " "
-        formatter.maximumFractionDigits = 2
-        formatter.minimumFractionDigits = value.truncatingRemainder(dividingBy: 1) == 0 ? 0 : 2
-        return formatter.string(from: NSNumber(value: value)) ?? "\(value)"
+        AppAmountInput.format(value)
     }
 
     static func formatAmountInputLive(_ rawText: String) -> String {
-        let cleaned = rawText
-            .replacingOccurrences(of: "kr", with: "", options: .caseInsensitive)
-            .replacingOccurrences(of: " ", with: "")
-            .replacingOccurrences(of: ",", with: ".")
-
-        if cleaned.isEmpty { return "" }
-
-        let parts = cleaned.split(separator: ".", maxSplits: 1, omittingEmptySubsequences: false)
-        let integerPart = String(parts.first ?? "")
-        let decimalPart = parts.count > 1 ? String(parts[1]).prefix(2) : ""
-
-        let integerValue = Double(integerPart) ?? 0
-        let formattedInteger = formatInputAmount(integerValue)
-
-        if parts.count > 1 {
-            return "\(formattedInteger),\(decimalPart)"
-        }
-
-        return formattedInteger
+        AppAmountInput.formatLive(rawText)
     }
 
     private func prepareInitialStepStates() {

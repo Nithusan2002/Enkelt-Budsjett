@@ -8,6 +8,21 @@ struct SavingsAndChallengeTests {
 
     @Test
     @MainActor
+    func appAmountInputParsesKrPrefixAndCommaDecimals() {
+        #expect(AppAmountInput.parse("kr 12 345,67") == 12_345.67)
+        #expect(AppAmountInput.parse("12\u{00A0}345,67") == 12_345.67)
+    }
+
+    @Test
+    @MainActor
+    func appAmountInputFormatsLiveInputWithGroupingAndDecimals() {
+        #expect(AppAmountInput.formatLive("12345") == "12 345")
+        #expect(AppAmountInput.formatLive("kr 12345,6") == "12 345,6")
+        #expect(AppAmountInput.formatLive("12345,678") == "12 345,67")
+    }
+
+    @Test
+    @MainActor
     func savedYearToDateSavingsOnlyIgnoresIncomeAndExpense() {
         let now = Calendar.current.date(from: DateComponents(year: 2026, month: 6, day: 15)) ?? .now
         let monthStart = Calendar.current.date(from: DateComponents(year: 2026, month: 6, day: 1)) ?? now
