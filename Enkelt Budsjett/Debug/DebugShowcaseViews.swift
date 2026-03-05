@@ -184,7 +184,7 @@ struct DemoDataDebugView: View {
 
     var body: some View {
         List {
-            Section("Handlinger") {
+            Section {
                 Button("Last inn demo (3 år realistisk)") {
                     runDemoSeed()
                 }
@@ -194,6 +194,8 @@ struct DemoDataDebugView: View {
                     showResetConfirm = true
                 }
                 .disabled(PersistenceGate.isReadOnlyMode)
+            } header: {
+                Text("Handlinger")
             } footer: {
                 Text(PersistenceGate.isReadOnlyMode
                      ? "Skrivende handlinger er låst fordi appen kjører uten varig lagring."
