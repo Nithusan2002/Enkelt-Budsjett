@@ -10,7 +10,7 @@ struct BudgetBottomAddTransactionButton: View {
             HStack(spacing: 10) {
                 Image(systemName: "plus")
                     .font(.title3.weight(.bold))
-                Text("Legg til utgift")
+                Text("Legg til transaksjon")
                     .font(.title3.weight(.semibold))
                     .lineLimit(1)
             }
@@ -25,7 +25,7 @@ struct BudgetBottomAddTransactionButton: View {
             .shadow(color: .black.opacity(0.22), radius: 12, x: 0, y: 6)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Legg til utgift")
+        .accessibilityLabel("Legg til transaksjon")
     }
 }
 
