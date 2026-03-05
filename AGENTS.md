@@ -28,6 +28,26 @@ Mål: høy fart, tydelig kvalitet, små trygge leveranser.
 - Ett tema per commit.
 - Bruk presis commit-melding med scope (feat/fix/refactor/test/docs).
 
+## AI-sikker arbeidsflyt
+- Skriv tester før implementasjon når oppgaven endrer forretningslogikk, dato-regler, import/eksport, onboarding, mål/challenges eller faste poster.
+- Ved bugfix: skriv først en test som reproducerer feilen, og verifiser at den feiler før koden endres når det er praktisk mulig.
+- Be AI bygge mot eksplisitte akseptansekriterier og tester, ikke mot vag tekst som "gjør dette ferdig".
+- Ikke aksepter løsninger som kun gjør tester grønne ved å hardkode verdier, omgå logikk eller sette flagg ukritisk.
+- Ikke endre eksisterende tester for å få grønt uten en konkret forklaring på hvorfor testen var feil eller utdatert.
+- Foretrekk minimal implementasjon som får testene til å passere, og refaktorer først etter grønn status.
+- For kritiske flyter skal det finnes minst én realistisk smoke-, integrasjons- eller ende-til-ende-verifisering i tillegg til enhetstester.
+
+Praktisk regel:
+- Red: test beskriver ønsket oppførsel og feiler.
+- Green: implementer minste endring som gjør testen grønn.
+- Refactor: rydd kode uten å endre oppførsel.
+
+Standardformulering til AI ved logikkarbeid:
+- "Skriv først tester som beskriver ønsket oppførsel."
+- "Implementer deretter minimal kode for å få testene grønne."
+- "Ikke endre eksisterende tester uten å forklare hvorfor."
+- "Hvis testen er feil, stopp og forklar det før du endrer den."
+
 ## Agentprofiler
 
 ### 1) Designer-agent
