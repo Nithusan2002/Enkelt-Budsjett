@@ -977,7 +977,7 @@ struct FeatureLogicTests {
         try context.save()
 
         let exportURL = try settingsVM.exportData(context: context)
-        _ = try settingsVM.importData(from: exportURL, mode: .replace, context: context)
+        _ = try settingsVM.importData(from: exportURL, mode: .replace, context: context, password: nil)
 
         let categories = try context.fetch(FetchDescriptor<Category>())
         let preferences = try context.fetch(FetchDescriptor<UserPreference>())
@@ -1013,7 +1013,7 @@ struct FeatureLogicTests {
         try context.save()
 
         let exportURL = try settingsVM.exportData(context: context)
-        _ = try settingsVM.importData(from: exportURL, mode: .merge, context: context)
+        _ = try settingsVM.importData(from: exportURL, mode: .merge, context: context, password: nil)
 
         let transactions = try context.fetch(FetchDescriptor<Transaction>())
         let matching = transactions.filter {
