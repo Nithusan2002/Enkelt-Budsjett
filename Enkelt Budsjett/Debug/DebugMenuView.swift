@@ -24,12 +24,14 @@ struct DebugMenuView: View {
                 }
             }
 
-            Section("Data") {
+            Section {
                 NavigationLink {
                     DemoDataDebugView()
                 } label: {
                     Label("Demo-data", systemImage: "shippingbox")
                 }
+            } header: {
+                Text("Data")
             } footer: {
                 Text("Interne utviklerverktøy for rask UI-iterasjon, demo-data og visuell QA.")
             }
