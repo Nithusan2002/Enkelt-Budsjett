@@ -1332,7 +1332,7 @@ private struct BucketQuickUpdateSheet: View {
         if isReadOnlyMode {
             throw PersistenceWriteError.readOnlyMode
         }
-        guard let amount = parseInputAmount(amountText) else {
+        guard let amount = AppAmountInput.parse(amountText) else {
             throw BucketQuickUpdateError.invalidAmount
         }
         let periodKey = DateService.periodKey(from: .now)
@@ -1355,15 +1355,6 @@ private struct BucketQuickUpdateSheet: View {
         } catch {
             throw BucketQuickUpdateError.saveFailed
         }
-    }
-
-    private func parseInputAmount(_ text: String) -> Double? {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
-        let normalized = trimmed
-            .replacingOccurrences(of: " ", with: "")
-            .replacingOccurrences(of: ",", with: ".")
-        return Double(normalized)
     }
 }
 
