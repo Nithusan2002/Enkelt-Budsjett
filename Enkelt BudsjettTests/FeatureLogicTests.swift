@@ -128,6 +128,41 @@ struct FeatureLogicTests {
 
     @Test
     @MainActor
+    func challengeSavingsDefinitionCountsTransactionsAcrossYearBoundary() {
+        let startDate = Calendar.current.date(from: DateComponents(year: 2025, month: 12, day: 15, hour: 8)) ?? .now
+        let endDate = Calendar.current.date(from: DateComponents(year: 2026, month: 1, day: 15, hour: 23, minute: 59)) ?? .now
+        let now = Calendar.current.date(from: DateComponents(year: 2026, month: 1, day: 10, hour: 12)) ?? .now
+
+        let challenge = Challenge(
+            type: .save1000In30Days,
+            startDate: startDate,
+            endDate: endDate,
+            targetAmount: 1_500,
+            measurementMode: .savingsDefinition
+        )
+        let preference = UserPreference(savingsDefinition: .savingsCategoryOnly)
+        let categories = [
+            Category(id: "cat_savings", name: "Sparing", type: .savings, sortOrder: 1)
+        ]
+        let transactions = [
+            Transaction(date: Calendar.current.date(from: DateComponents(year: 2025, month: 12, day: 20)) ?? startDate, amount: 1_000, kind: .manualSaving),
+            Transaction(date: Calendar.current.date(from: DateComponents(year: 2026, month: 1, day: 5)) ?? now, amount: 500, kind: .manualSaving)
+        ]
+
+        let progress = ChallengeService.recalculate(
+            challenge: challenge,
+            transactions: transactions,
+            categories: categories,
+            preference: preference,
+            now: now
+        )
+
+        #expect(progress == 1)
+        #expect(challenge.status == .completed)
+    }
+
+    @Test
+    @MainActor
     func budgetTrackedImpactCountsManualSaving() {
         let transaction = Transaction(
             date: .now,
@@ -503,6 +538,40 @@ struct FeatureLogicTests {
 
     @Test
     @MainActor
+    func fixedItemStartingAtNoonOnLastDayIsGeneratedForCurrentMonth() throws {
+        let container = try makeInMemoryContainer()
+        let context = container.mainContext
+        let now = Calendar.current.date(from: DateComponents(year: 2026, month: 1, day: 10, hour: 9)) ?? .now
+        let lastDayAtNoon = Calendar.current.date(from: DateComponents(year: 2026, month: 1, day: 31, hour: 12)) ?? now
+
+        let category = Category(id: "cat_food", name: "Mat", type: .expense, sortOrder: 1)
+        context.insert(category)
+        let fixedItem = FixedItem(
+            id: "fixed_last_day_noon",
+            title: "Siste dag",
+            amount: 399,
+            categoryID: category.id,
+            kind: .expense,
+            dayOfMonth: 31,
+            startDate: lastDayAtNoon,
+            isActive: true,
+            autoCreate: true
+        )
+        context.insert(fixedItem)
+        try context.save()
+
+        try FixedItemsService.generateForCurrentMonthForItem(
+            context: context,
+            fixedItemID: fixedItem.id,
+            now: now
+        )
+
+        let transactions = try context.fetch(FetchDescriptor<Transaction>())
+        #expect(transactions.contains(where: { $0.fixedItemID == fixedItem.id }))
+    }
+
+    @Test
+    @MainActor
     func fixedItemsClampDayToLastDayOfMonth() throws {
         let container = try makeInMemoryContainer()
         let context = container.mainContext
@@ -737,6 +806,27 @@ struct FeatureLogicTests {
 
     @Test
     @MainActor
+    func investmentsHeroUsesReminderClockTimeForSameDayCheckInText() {
+        let viewModel = InvestmentsViewModel()
+        let preference = UserPreference(
+            checkInReminderEnabled: true,
+            checkInReminderDay: 5,
+            checkInReminderHour: 19,
+            checkInReminderMinute: 0
+        )
+        let now = Calendar.current.date(from: DateComponents(year: 2026, month: 3, day: 5, hour: 13, minute: 0)) ?? .now
+
+        let hero = viewModel.heroData(
+            snapshots: [],
+            preference: preference,
+            now: now
+        )
+
+        #expect(hero.nextCheckInText == "Neste: i dag")
+    }
+
+    @Test
+    @MainActor
     func settingsImportReplaceRestoresExportedCategoryAndPreference() throws {
         let container = try makeInMemoryContainer()
         let context = container.mainContext
@@ -809,6 +899,66 @@ struct FeatureLogicTests {
             $0.note == "Testimport"
         }
         #expect(matching.count == 1)
+    }
+
+    @Test
+    @MainActor
+    func challengeSavingsDefinitionCountsOnlyChallengePeriodAcrossYearBoundary() {
+        let calendar = Calendar.current
+        let startDate = calendar.date(from: DateComponents(year: 2025, month: 12, day: 15)) ?? .now
+        let endDate = calendar.date(from: DateComponents(year: 2026, month: 1, day: 15)) ?? .now
+        let now = calendar.date(from: DateComponents(year: 2026, month: 1, day: 10)) ?? .now
+
+        let challenge = Challenge(
+            type: .save1000In30Days,
+            startDate: startDate,
+            endDate: endDate,
+            targetAmount: 4_000,
+            targetDays: 31,
+            status: .active,
+            progress: 0,
+            measurementMode: .savingsDefinition,
+            manualProgress: 0
+        )
+        let preference = UserPreference(savingsDefinition: .incomeMinusExpense)
+        let transactions = [
+            Transaction(date: calendar.date(from: DateComponents(year: 2025, month: 11, day: 30)) ?? startDate, amount: 9_000, kind: .income),
+            Transaction(date: calendar.date(from: DateComponents(year: 2025, month: 12, day: 20)) ?? startDate, amount: 5_000, kind: .income),
+            Transaction(date: calendar.date(from: DateComponents(year: 2026, month: 1, day: 5)) ?? startDate, amount: 1_000, kind: .expense),
+            Transaction(date: calendar.date(from: DateComponents(year: 2026, month: 1, day: 20)) ?? endDate, amount: 500, kind: .expense)
+        ]
+
+        let progress = ChallengeService.recalculate(
+            challenge: challenge,
+            transactions: transactions,
+            categories: [],
+            preference: preference,
+            now: now
+        )
+
+        #expect(progress == 1)
+        #expect(challenge.status == .completed)
+    }
+
+    @Test
+    @MainActor
+    func investmentsHeroMovesToNextMonthAfterReminderTimeHasPassedSameDay() {
+        let viewModel = InvestmentsViewModel()
+        let now = Calendar.current.date(from: DateComponents(year: 2026, month: 3, day: 5, hour: 20, minute: 30)) ?? .now
+        let preference = UserPreference(
+            checkInReminderEnabled: true,
+            checkInReminderDay: 5,
+            checkInReminderHour: 8,
+            checkInReminderMinute: 0
+        )
+
+        let hero = viewModel.heroData(
+            snapshots: [],
+            preference: preference,
+            now: now
+        )
+
+        #expect(hero.nextCheckInText == "Neste: om 31 dager")
     }
 
     private func makeInMemoryContainer() throws -> ModelContainer {

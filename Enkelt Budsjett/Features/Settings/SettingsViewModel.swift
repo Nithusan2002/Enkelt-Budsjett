@@ -1,5 +1,4 @@
 import Foundation
-import Combine
 import SwiftData
 import CryptoKit
 
@@ -54,9 +53,10 @@ enum DataTransferError: LocalizedError {
     }
 }
 
+@Observable
 @MainActor
-final class SettingsViewModel: ObservableObject {
-    @Published var preferencePersistenceErrorMessage: String?
+final class SettingsViewModel {
+    var preferencePersistenceErrorMessage: String?
 
     func shouldShowDemoTools() -> Bool {
 #if DEBUG
@@ -308,10 +308,6 @@ final class SettingsViewModel: ObservableObject {
             info: Data("enkelt-budsjett-export-v1".utf8),
             outputByteCount: 32
         )
-    }
-
-    private func randomBytes(count: Int) -> Data {
-        Data((0..<count).map { _ in UInt8.random(in: 0...255) })
     }
 
     private func upsertBudgetMonths(_ rows: [BudgetMonthDTO], context: ModelContext) throws {

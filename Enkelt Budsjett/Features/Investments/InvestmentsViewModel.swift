@@ -112,9 +112,13 @@ final class InvestmentsViewModel: ObservableObject {
         let previous = previousSnapshot(snapshots)
         let change = monthChange(current: latest, previous: previous)
         let day = max(1, min(28, preference?.checkInReminderDay ?? 5))
+        let hour = max(0, min(23, preference?.checkInReminderHour ?? 19))
+        let minute = max(0, min(59, preference?.checkInReminderMinute ?? 0))
         let reminderEnabled = preference?.checkInReminderEnabled ?? true
         let lastText = latest.map { "Siste: \(formattedMonthDay($0.capturedAt))" } ?? "Siste: Ikke satt"
-        let nextText = reminderEnabled ? "Neste: \(daysUntilNextCheckIn(day: day, now: now))" : "Neste: Ikke satt"
+        let nextText = reminderEnabled
+            ? "Neste: \(daysUntilNextCheckIn(day: day, hour: hour, minute: minute, now: now))"
+            : "Neste: Ikke satt"
         let reminderText = reminderEnabled ? "Påminnelse: På" : "Påminnelse: Av"
         return InvestmentHeroData(
             total: latest?.totalValue ?? 0,
@@ -465,14 +469,18 @@ final class InvestmentsViewModel: ObservableObject {
         formatDate(date)
     }
 
-    private func daysUntilNextCheckIn(day: Int, now: Date) -> String {
+    private func daysUntilNextCheckIn(day: Int, hour: Int, minute: Int, now: Date) -> String {
         let cal = Calendar.current
+        let nowDay = cal.startOfDay(for: now)
         var components = cal.dateComponents([.year, .month], from: now)
         components.day = day
-        components.hour = 12
+        components.hour = hour
+        components.minute = minute
         let candidate = cal.date(from: components) ?? now
-        let next = candidate >= now ? candidate : cal.date(byAdding: .month, value: 1, to: candidate) ?? candidate
-        let days = max(0, cal.dateComponents([.day], from: cal.startOfDay(for: now), to: cal.startOfDay(for: next)).day ?? 0)
+        let next = candidate >= now
+            ? candidate
+            : (cal.date(byAdding: .month, value: 1, to: candidate) ?? candidate)
+        let days = max(0, cal.dateComponents([.day], from: nowDay, to: cal.startOfDay(for: next)).day ?? 0)
         if days == 0 { return "i dag" }
         if days == 1 { return "i morgen" }
         return "om \(days) dager"

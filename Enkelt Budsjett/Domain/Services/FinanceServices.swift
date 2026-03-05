@@ -39,7 +39,8 @@ enum DateService {
 
     static func monthBounds(for date: Date) -> (start: Date, end: Date) {
         let start = calendar.date(from: calendar.dateComponents([.year, .month], from: date)) ?? date
-        let end = calendar.date(byAdding: DateComponents(month: 1, day: -1), to: start) ?? date
+        let nextMonthStart = calendar.date(byAdding: .month, value: 1, to: start) ?? start
+        let end = calendar.date(byAdding: .second, value: -1, to: nextMonthStart) ?? nextMonthStart
         return (start, end)
     }
 
@@ -266,24 +267,56 @@ enum FixedItemsService {
 }
 
 enum SavingsService {
-    static func savedYearToDate(definition: SavingsDefinition, transactions: [Transaction], categories: [Category], now: Date = .now) -> Double {
-        let cal = Calendar.current
-        let year = cal.component(.year, from: now)
-
-        let ytd = transactions.filter {
-            cal.component(.year, from: $0.date) == year && $0.date <= now
-        }
+    static func savedInPeriod(
+        definition: SavingsDefinition,
+        transactions: [Transaction],
+        categories: [Category]
+    ) -> Double {
         switch definition {
         case .incomeMinusExpense:
-            let income = ytd.filter { $0.kind == .income }.reduce(0) { $0 + $1.amount }
-            let expense = ytd.reduce(0) { $0 + max(BudgetService.budgetImpact($1), 0) }
+            let income = transactions
+                .filter { $0.kind == .income }
+                .reduce(0) { $0 + $1.amount }
+            let expense = transactions
+                .reduce(0) { $0 + max(BudgetService.budgetImpact($1), 0) }
             return income - expense
         case .savingsCategoryOnly:
             let savingsIDs = Set(categories.filter { $0.type == .savings }.map(\.id))
-            return ytd
-                .filter { $0.kind == .manualSaving || ($0.categoryID != nil && savingsIDs.contains($0.categoryID!)) }
+            return transactions
+                .filter {
+                    $0.kind == .manualSaving ||
+                    ($0.categoryID != nil && savingsIDs.contains($0.categoryID!))
+                }
                 .reduce(0) { $0 + abs($1.amount) }
         }
+    }
+
+    static func savedYearToDate(definition: SavingsDefinition, transactions: [Transaction], categories: [Category], now: Date = .now) -> Double {
+        let cal = Calendar.current
+        let yearStart = cal.date(from: cal.dateComponents([.year], from: now)) ?? now
+        return savedInRange(
+            definition: definition,
+            transactions: transactions,
+            categories: categories,
+            start: yearStart,
+            end: now
+        )
+    }
+
+    static func savedInRange(
+        definition: SavingsDefinition,
+        transactions: [Transaction],
+        categories: [Category],
+        start: Date,
+        end: Date
+    ) -> Double {
+        guard end >= start else { return 0 }
+        let rangeTransactions = transactions.filter { $0.date >= start && $0.date <= end }
+        return savedInPeriod(
+            definition: definition,
+            transactions: rangeTransactions,
+            categories: categories
+        )
     }
 }
 
@@ -490,11 +523,13 @@ enum ChallengeService {
             computed = amount / target
         case .savingsDefinition:
             let definition = preference?.savingsDefinition ?? .incomeMinusExpense
-            let amount = SavingsService.savedYearToDate(
+            let rangeEnd = min(challenge.endDate, now)
+            let amount = SavingsService.savedInRange(
                 definition: definition,
-                transactions: periodTransactions,
+                transactions: transactions,
                 categories: categories,
-                now: now
+                start: challenge.startDate,
+                end: rangeEnd
             )
             let target = max(challenge.targetAmount ?? 0, 1)
             computed = amount / target
@@ -767,6 +802,8 @@ enum OnboardingService {
         }
 
         insertBaseCategoriesIfMissing(context: context)
+        let existingCategories = (try? context.fetch(FetchDescriptor<Category>())) ?? []
+        var existingCategoryIDs = Set(existingCategories.map(\.id))
 
         let monthKey = DateService.periodKey(from: .now)
         let existingMonths = try context.fetch(FetchDescriptor<BudgetMonth>())
@@ -818,16 +855,24 @@ enum OnboardingService {
         let budgetCategoryIDs = budgetCategories.map { categoryID(for: $0) }
         for (index, id) in budgetCategoryIDs.enumerated() {
             let type: CategoryType = id.hasPrefix("cat_savings") ? .savings : .expense
-            insertCategoryIfMissing(context: context, id: id, name: budgetCategories[index], type: type, sortOrder: 10 + index)
+            insertCategoryIfMissing(
+                context: context,
+                id: id,
+                name: budgetCategories[index],
+                type: type,
+                sortOrder: 10 + index,
+                existingCategoryIDs: &existingCategoryIDs
+            )
         }
 
         if !budgetTrackOnly, let monthlyBudget, monthlyBudget > 0, !budgetCategoryIDs.isEmpty {
             let monthKey = DateService.periodKey(from: .now)
             let perCategory = monthlyBudget / Double(budgetCategoryIDs.count)
+            let existingPlans = (try? context.fetch(FetchDescriptor<BudgetPlan>())) ?? []
+            var existingPlanKeys = Set(existingPlans.map(\.uniqueKey))
             for id in budgetCategoryIDs {
                 let planKey = "\(monthKey)|\(id)"
-                let existingPlans = (try? context.fetch(FetchDescriptor<BudgetPlan>())) ?? []
-                if !existingPlans.contains(where: { $0.uniqueKey == planKey }) {
+                if existingPlanKeys.insert(planKey).inserted {
                     context.insert(BudgetPlan(monthPeriodKey: monthKey, categoryID: id, plannedAmount: perCategory))
                 }
             }
@@ -839,7 +884,8 @@ enum OnboardingService {
                 id: "cat_income_salary",
                 name: "Lønn",
                 type: .income,
-                sortOrder: 70
+                sortOrder: 70,
+                existingCategoryIDs: &existingCategoryIDs
             )
             try upsertIncomeFixedItem(
                 context: context,
@@ -1010,9 +1056,15 @@ enum OnboardingService {
         return "cat_" + lower.replacingOccurrences(of: " ", with: "_")
     }
 
-    private static func insertCategoryIfMissing(context: ModelContext, id: String, name: String, type: CategoryType, sortOrder: Int) {
-        let existing = (try? context.fetch(FetchDescriptor<Category>())) ?? []
-        if !existing.contains(where: { $0.id == id }) {
+    private static func insertCategoryIfMissing(
+        context: ModelContext,
+        id: String,
+        name: String,
+        type: CategoryType,
+        sortOrder: Int,
+        existingCategoryIDs: inout Set<String>
+    ) {
+        if existingCategoryIDs.insert(id).inserted {
             context.insert(Category(id: id, name: name, type: type, sortOrder: sortOrder))
         }
     }

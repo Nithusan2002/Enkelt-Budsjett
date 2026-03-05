@@ -609,6 +609,7 @@ private struct WizardSummaryView: View {
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.divider, lineWidth: 1))
                 }
             }
+        }
         .safeAreaInset(edge: .bottom) {
             HStack(spacing: 10) {
                 Button("Tilbake") {

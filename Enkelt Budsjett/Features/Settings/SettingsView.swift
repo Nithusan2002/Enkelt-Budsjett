@@ -9,7 +9,7 @@ struct SettingsView: View {
     @Query private var preferences: [UserPreference]
     @Query(sort: \InvestmentBucket.sortOrder) private var investmentBuckets: [InvestmentBucket]
     @AppStorage("app_appearance_mode") private var appAppearanceModeRawValue = AppAppearancePreference.followSystem.rawValue
-    @StateObject private var viewModel = SettingsViewModel()
+    @State private var viewModel = SettingsViewModel()
 
     @State private var showReminderSheet = false
     @State private var showGoalSheet = false
@@ -32,14 +32,32 @@ struct SettingsView: View {
     @State private var pendingImportURL: URL?
     @State private var importMessage = ""
     @State private var settingsErrorMessage: String?
+    @State private var ensuredPreference: UserPreference?
     @State private var demoLoadMessage = ""
     @State private var demoToastMessage: String?
 
-    private var pref: UserPreference { viewModel.preference(from: preferences, context: modelContext) }
+    private var pref: UserPreference {
+        if let existing = preferences.first ?? ensuredPreference {
+            return existing
+        }
+        assertionFailure("Preference should be available before settings form is rendered.")
+        return UserPreference()
+    }
     private var isReadOnlyMode: Bool { PersistenceGate.isReadOnlyMode }
 
     var body: some View {
-        configuredForm
+        Group {
+            if preferences.first == nil && ensuredPreference == nil {
+                ProgressView("Laster inn innstillinger…")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .background(AppTheme.background)
+                    .onAppear {
+                        ensurePreference()
+                    }
+            } else {
+                configuredForm
+            }
+        }
     }
 
     private var baseForm: some View {
@@ -53,6 +71,12 @@ struct SettingsView: View {
             }
             destructiveSection
             aboutSection
+        }
+        .onAppear {
+            ensurePreference()
+        }
+        .onChange(of: preferences.count) { _, _ in
+            ensurePreference()
         }
     }
 
@@ -473,6 +497,15 @@ struct SettingsView: View {
         try? FileManager.default.removeItem(at: url)
         sharedExportURL = nil
         shareItem = nil
+    }
+
+    private func ensurePreference() {
+        if let existing = preferences.first {
+            ensuredPreference = existing
+            return
+        }
+        guard ensuredPreference == nil else { return }
+        ensuredPreference = viewModel.preference(from: preferences, context: modelContext)
     }
 
     private func persistSettingsChanges(syncReminder: Bool) {
@@ -941,10 +974,20 @@ private struct BucketTypesSettingsSheet: View {
 private struct PrivacyInfoView: View {
     var body: some View {
         List {
-            Text("Appen lagrer data lokalt på enheten din.")
-            Text("Ingen sporing eller tredjepartsannonser brukes i MVP.")
-            Text("Du kan eksportere en datafil fra Innstillinger > Data.")
-            Text("Du kan også slette alle lokale data fra Innstillinger > Data.")
+            Section {
+                Text("Enkelt Budsjett lagrer budsjettdata, transaksjoner, mål og innstillinger lokalt på enheten via SwiftData.")
+                Text("Ingen tredjepartssporing eller annonse-SDK-er brukes.")
+            }
+            Section("iCloud-synk") {
+                Text("Hvis iCloud-synk er aktivert på enheten, synkroniseres data via CloudKit i din Apple-konto. Du styrer dette selv i iOS-innstillinger.")
+            }
+            Section("Dine data") {
+                Text("Du kan eksportere alle data som en JSON-fil fra Innstillinger → Data.")
+                Text("Du kan slette alle lokale data fra Innstillinger → Farlige handlinger.")
+            }
+            Section("Kontakt") {
+                Text("hei@simplebudget.app")
+            }
         }
         .navigationTitle("Personvern")
     }
@@ -953,9 +996,17 @@ private struct PrivacyInfoView: View {
 private struct TermsInfoView: View {
     var body: some View {
         List {
-            Text("Enkelt Budsjett leveres uten garantier i MVP-fasen.")
-            Text("Du er ansvarlig for egne data og sikker lagring av eksportfiler.")
-            Text("Appen tilbyr planlegging og oversikt, ikke økonomisk rådgivning.")
+            Section {
+                Text("Enkelt Budsjett gir ikke økonomisk rådgivning. Appen er et planleggings- og oversiktsverktøy.")
+                Text("Du er ansvarlig for egne økonomiske beslutninger.")
+            }
+            Section("Data og sikkerhet") {
+                Text("Du er ansvarlig for sikker oppbevaring av eksportfiler og eventuelle passord.")
+                Text("Appen leveres uten garantier.")
+            }
+            Section("Kontakt") {
+                Text("hei@simplebudget.app")
+            }
         }
         .navigationTitle("Vilkår")
     }
