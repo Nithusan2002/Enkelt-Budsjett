@@ -72,7 +72,9 @@ final class SettingsViewModel {
         if PersistenceGate.isReadOnlyMode {
             throw PersistenceWriteError.readOnlyMode
         }
-        return try DemoDataSeeder.seedRealisticYear(context: context, year: year)
+        let report = try DemoDataSeeder.seedRealisticYear(context: context, year: year)
+        try ensureLocalAuthPreference(context: context)
+        return report
     }
 
     func wipeAllDataForDemo(context: ModelContext) throws {
@@ -82,6 +84,7 @@ final class SettingsViewModel {
         try DemoDataSeeder.wipeAllData(context: context)
         try BootstrapService.ensurePreference(context: context)
         try BootstrapService.ensureCurrentBudgetMonthAndRecurring(context: context)
+        try ensureLocalAuthPreference(context: context)
     }
 
     func preference(from preferences: [UserPreference], context: ModelContext) -> UserPreference {
@@ -132,6 +135,19 @@ final class SettingsViewModel {
         try DemoDataSeeder.wipeAllData(context: context)
         try BootstrapService.ensurePreference(context: context)
         try BootstrapService.ensureCurrentBudgetMonthAndRecurring(context: context)
+        try ensureLocalAuthPreference(context: context)
+    }
+
+    private func ensureLocalAuthPreference(context: ModelContext) throws {
+        let preferences = try context.fetch(FetchDescriptor<UserPreference>())
+        guard let preference = preferences.first else { return }
+        guard preference.authSessionModeRaw != AuthSessionMode.local.rawValue else { return }
+        preference.authSessionModeRaw = AuthSessionMode.local.rawValue
+        preference.authProviderRaw = nil
+        preference.authUserID = nil
+        preference.authEmail = nil
+        preference.authDisplayName = nil
+        try context.guardedSave(feature: "Settings", operation: "normalize_demo_auth", enforceReadOnly: false)
     }
 
     func importData(

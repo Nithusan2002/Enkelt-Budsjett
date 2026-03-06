@@ -370,6 +370,7 @@ enum DemoDataSeeder {
         context.insert(
             UserPreference(
                 singletonKey: "main",
+                authSessionModeRaw: AuthSessionMode.local.rawValue,
                 savingsDefinition: .incomeMinusExpense,
                 yearStartRule: "calendarYear",
                 checkInReminderEnabled: true,
