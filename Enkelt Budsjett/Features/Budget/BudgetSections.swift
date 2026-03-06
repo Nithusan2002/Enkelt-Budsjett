@@ -16,7 +16,7 @@ struct BudgetBottomAddTransactionButton: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
-            .foregroundStyle(.white)
+            .foregroundStyle(AppTheme.onPrimary)
             .background(AppTheme.primary, in: Capsule())
             .overlay(
                 Capsule()
