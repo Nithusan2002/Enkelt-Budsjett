@@ -1,14 +1,15 @@
 {
-  "version": 1,
-  "name": "student_realistic_no_v1",
+  "version": 2,
+  "name": "young-adult_realistic_no_v2",
   "expenseCategories": [
     { "id": "cat_rent", "name": "Husleie", "sortOrder": 1 },
-    { "id": "cat_food", "name": "Mat", "sortOrder": 2 },
+    { "id": "cat_food", "name": "Dagligvarer", "sortOrder": 2 },
     { "id": "cat_transport", "name": "Transport", "sortOrder": 3 },
-    { "id": "cat_subscriptions", "name": "Abonnement", "sortOrder": 4 },
-    { "id": "cat_nightlife", "name": "Uteliv", "sortOrder": 5 },
-    { "id": "cat_shopping", "name": "Shopping", "sortOrder": 6 },
-    { "id": "cat_misc", "name": "Diverse", "sortOrder": 7 }
+    { "id": "cat_subscriptions", "name": "Mobil og abonnement", "sortOrder": 4 },
+    { "id": "cat_eating_out", "name": "Mat ute og kaffe", "sortOrder": 5 },
+    { "id": "cat_shopping", "name": "Klær og shopping", "sortOrder": 6 },
+    { "id": "cat_health", "name": "Helse og apotek", "sortOrder": 7 },
+    { "id": "cat_misc", "name": "Diverse", "sortOrder": 8 }
   ],
   "incomeCategories": [
     { "id": "cat_income_salary", "name": "Lønn", "sortOrder": 101 },
