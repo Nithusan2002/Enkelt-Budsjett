@@ -959,7 +959,7 @@ private struct PrivacyInfoView: View {
     var body: some View {
         List {
             Section {
-                Text("Enkelt Budsjett lagrer budsjettdata, transaksjoner, mål og innstillinger lokalt på enheten via SwiftData.")
+                Text("Spor økonomi lagrer budsjettdata, transaksjoner, mål og innstillinger lokalt på enheten via SwiftData.")
                 Text("Ingen tredjepartssporing eller annonse-SDK-er brukes.")
             }
             Section("iCloud-synk") {
@@ -981,7 +981,7 @@ private struct TermsInfoView: View {
     var body: some View {
         List {
             Section {
-                Text("Enkelt Budsjett gir ikke økonomisk rådgivning. Appen er et planleggings- og oversiktsverktøy.")
+                Text("Spor økonomi gir ikke økonomisk rådgivning. Appen er et planleggings- og oversiktsverktøy.")
                 Text("Du er ansvarlig for egne økonomiske beslutninger.")
             }
             Section("Data og sikkerhet") {
@@ -1005,7 +1005,7 @@ private struct AboutAppView: View {
 
     var body: some View {
         List {
-            Text("Enkelt Budsjett")
+            Text("Spor økonomi")
                 .appCardTitleStyle()
             Text(versionText)
                 .appSecondaryStyle()
