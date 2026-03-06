@@ -295,6 +295,26 @@ struct RecurringAndDemoTests {
 
     @Test
     @MainActor
+    func demoSeedCreatesFixedItemsForRecurringCosts() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+
+        _ = try DemoDataSeeder.seedRealisticYear(context: context, year: 2026)
+
+        let fixedItems = try context.fetch(FetchDescriptor<FixedItem>())
+        let titles = Set(fixedItems.map(\.title))
+
+        #expect(fixedItems.count >= 5)
+        #expect(fixedItems.allSatisfy(\.isActive))
+        #expect(titles.contains("Husleie"))
+        #expect(titles.contains("Mobilabonnement"))
+        #expect(titles.contains("Månedskort"))
+        #expect(titles.contains("Spotify"))
+        #expect(titles.contains("iCloud+"))
+    }
+
+    @Test
+    @MainActor
     func demoSeedIsIdempotentWhenRunTwice() throws {
         let container = try TestModelContainerFactory.makeInMemoryContainer()
         let context = container.mainContext
