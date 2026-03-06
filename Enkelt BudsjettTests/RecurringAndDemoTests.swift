@@ -275,6 +275,26 @@ struct RecurringAndDemoTests {
 
     @Test
     @MainActor
+    func demoSeedCreatesMoreThanOneSavingsCategoryInTransactions() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+
+        _ = try DemoDataSeeder.seedRealisticYear(context: context, year: 2026)
+
+        let transactions = try context.fetch(FetchDescriptor<Transaction>())
+        let savingsCategoryIDs = Set(
+            transactions
+                .filter { $0.kind == .manualSaving }
+                .compactMap(\.categoryID)
+        )
+
+        #expect(savingsCategoryIDs.contains("cat_savings_account"))
+        #expect(savingsCategoryIDs.contains("cat_savings_investing"))
+        #expect(savingsCategoryIDs.count >= 3)
+    }
+
+    @Test
+    @MainActor
     func demoSeedIsIdempotentWhenRunTwice() throws {
         let container = try TestModelContainerFactory.makeInMemoryContainer()
         let context = container.mainContext

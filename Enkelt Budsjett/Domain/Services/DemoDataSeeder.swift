@@ -139,13 +139,14 @@ enum DemoDataSeeder {
         profile: DemoProfile
     ) throws {
         let base: [String: Double] = [
-            "cat_rent": 7500,
-            "cat_food": 3200,
-            "cat_transport": 620,
-            "cat_subscriptions": 290,
-            "cat_nightlife": 900,
-            "cat_shopping": 700,
-            "cat_misc": 550
+            "cat_rent": 7800,
+            "cat_food": 3400,
+            "cat_transport": 760,
+            "cat_subscriptions": 620,
+            "cat_eating_out": 1100,
+            "cat_shopping": 850,
+            "cat_health": 320,
+            "cat_misc": 650
         ]
 
         for year in years {
@@ -169,13 +170,14 @@ enum DemoDataSeeder {
         profile: DemoProfile
     ) throws {
         let categoryBase: [String: Double] = [
-            "cat_rent": 7500,
-            "cat_food": 3200,
-            "cat_transport": 620,
-            "cat_subscriptions": 290,
-            "cat_nightlife": 900,
-            "cat_shopping": 700,
-            "cat_misc": 550
+            "cat_rent": 7800,
+            "cat_food": 3400,
+            "cat_transport": 760,
+            "cat_subscriptions": 620,
+            "cat_eating_out": 1100,
+            "cat_shopping": 850,
+            "cat_health": 320,
+            "cat_misc": 650
         ]
 
         var groupBase: [String: Double] = [:]
@@ -211,6 +213,11 @@ enum DemoDataSeeder {
         categories: [String: Category],
         profile: DemoProfile
     ) throws {
+        let groceryStores = ["KIWI", "REMA 1000", "Coop Extra", "Meny"]
+        let diningNotes = ["Kafé", "Lunsj ute", "Takeaway", "Sushi", "Burger"]
+        let shoppingNotes = ["Klær", "Sport Outlet", "Normal", "Apotekvarer", "Interiør"]
+        let miscNotes = ["Diverse", "Vipps venn", "Småkjøp", "Gave", "Bokhandel"]
+
         for year in years {
             for month in 1...12 {
                 let factor = profile.monthlyFactor(for: month)
@@ -228,57 +235,75 @@ enum DemoDataSeeder {
                     insertTx(context, year, month, day: 20, amount: 900, kind: .income, categoryID: "cat_income_gifts_received", note: "Penger mottatt")
                 }
 
-                // Fast utgift
-                insertTx(context, year, month, day: 1, amount: roundToNearestTen(7300 * factor), kind: .expense, categoryID: "cat_rent", note: "Husleie")
+                // Faste utgifter
+                insertTx(context, year, month, day: 1, amount: roundToNearestTen(7600 * factor), kind: .expense, categoryID: "cat_rent", note: "Husleie")
+                insertTx(context, year, month, day: 2, amount: 349, kind: .expense, categoryID: "cat_subscriptions", note: "Mobilabonnement")
+                insertTx(context, year, month, day: 5, amount: 149, kind: .expense, categoryID: "cat_subscriptions", note: "Spotify")
+                insertTx(context, year, month, day: 18, amount: 129, kind: .expense, categoryID: "cat_subscriptions", note: "iCloud")
 
-                // Mat: 10-15 kjøp
-                let foodCount = 10 + (month % 6)
+                // Mat i butikk: 12-17 kjøp
+                let foodCount = 12 + (month % 6)
                 for idx in 0..<foodCount {
                     let day = 2 + ((idx * 2 + month) % 26)
                     let amount = roundToNearestTen(110 + Double((idx * 37 + month * 11) % 260) * (month >= 6 && month <= 8 ? 0.9 : 1.0))
-                    insertTx(context, year, month, day: day, amount: amount, kind: .expense, categoryID: "cat_food", note: idx % 2 == 0 ? "KIWI" : "REMA")
+                    let note = groceryStores[(idx + month) % groceryStores.count]
+                    insertTx(context, year, month, day: day, amount: amount, kind: .expense, categoryID: "cat_food", note: note)
                 }
 
-                // Abonnement
-                insertTx(context, year, month, day: 3, amount: 79, kind: .expense, categoryID: "cat_subscriptions", note: "Spotify")
-                insertTx(context, year, month, day: 5, amount: 129, kind: .expense, categoryID: "cat_subscriptions", note: "Apple iCloud")
-                insertTx(context, year, month, day: 19, amount: 99, kind: .expense, categoryID: "cat_subscriptions", note: "Netflix")
-
-                // Transport 3-6
-                let transportCount = 3 + (month % 4)
+                // Transport: månedskort + enkeltturer
+                insertTx(context, year, month, day: 4, amount: roundToNearestTen(440 + Double((month * 11) % 90)), kind: .expense, categoryID: "cat_transport", note: "Ruter månedskort")
+                let transportCount = 2 + (month % 3)
                 for idx in 0..<transportCount {
-                    let day = 4 + ((idx * 5 + month) % 24)
-                    let amount = roundToNearestTen(42 + Double((idx * 19 + month * 7) % 120))
+                    let day = 8 + ((idx * 5 + month) % 20)
+                    let amount = roundToNearestTen(36 + Double((idx * 19 + month * 7) % 90))
                     insertTx(context, year, month, day: day, amount: amount, kind: .expense, categoryID: "cat_transport", note: "Ruter")
                 }
 
-                // Uteliv (høyere sommer og desember)
-                let nightlifeCount = (month == 12 ? 6 : (month >= 6 && month <= 8 ? 4 : 2 + (month % 2)))
-                for idx in 0..<nightlifeCount {
+                // Mat ute / kaffe (høyere sommer og desember)
+                let diningCount = month == 12 ? 6 : (month >= 6 && month <= 8 ? 5 : 3 + (month % 2))
+                for idx in 0..<diningCount {
                     let day = 8 + ((idx * 6 + month) % 18)
-                    let amount = roundToNearestTen((220 + Double((idx * 29 + month * 9) % 380)) * (month == 12 ? 1.35 : (month >= 6 && month <= 8 ? 1.15 : 1.0)))
-                    insertTx(context, year, month, day: day, amount: amount, kind: .expense, categoryID: "cat_nightlife", note: idx % 2 == 0 ? "Uteliv" : "Kafé")
+                    let seasonalMultiplier = month == 12 ? 1.30 : (month >= 6 && month <= 8 ? 1.12 : 1.0)
+                    let amount = roundToNearestTen((95 + Double((idx * 29 + month * 9) % 260)) * seasonalMultiplier)
+                    let note = diningNotes[(idx + month) % diningNotes.count]
+                    insertTx(context, year, month, day: day, amount: amount, kind: .expense, categoryID: "cat_eating_out", note: note)
                 }
 
-                // Shopping/diverse
-                let shoppingCount = month == 12 ? 4 : 2
+                // Shopping
+                let shoppingCount = month == 12 ? 4 : (month >= 6 && month <= 8 ? 3 : 2)
                 for idx in 0..<shoppingCount {
                     let day = 10 + ((idx * 7 + month) % 17)
                     let amount = roundToNearestTen(180 + Double((idx * 53 + month * 13) % 520))
-                    insertTx(context, year, month, day: day, amount: amount, kind: .expense, categoryID: "cat_shopping", note: "Shopping")
+                    let note = shoppingNotes[(idx + month) % shoppingNotes.count]
+                    insertTx(context, year, month, day: day, amount: amount, kind: .expense, categoryID: "cat_shopping", note: note)
+                }
+
+                // Helse / apotek
+                if month % 2 == 1 || month == 12 {
+                    let healthAmount = roundToNearestTen(90 + Double((month * 17) % 170))
+                    insertTx(context, year, month, day: 11 + (month % 9), amount: healthAmount, kind: .expense, categoryID: "cat_health", note: month % 3 == 0 ? "Legebesøk" : "Apotek")
                 }
 
                 let miscCount = 2 + (month % 2)
                 for idx in 0..<miscCount {
                     let day = 6 + ((idx * 9 + month) % 20)
                     let amount = roundToNearestTen(120 + Double((idx * 41 + month * 5) % 340))
-                    insertTx(context, year, month, day: day, amount: amount, kind: .expense, categoryID: "cat_misc", note: "Diverse")
+                    let note = miscNotes[(idx + month) % miscNotes.count]
+                    insertTx(context, year, month, day: day, amount: amount, kind: .expense, categoryID: "cat_misc", note: note)
+                }
+
+                if month == 1 || month == 8 {
+                    insertTx(context, year, month, day: 14, amount: roundToNearestTen(950 + Double(month * 40)), kind: .expense, categoryID: "cat_misc", note: "Semester / studiebøker")
                 }
 
                 // Sparing
                 insertTx(context, year, month, day: 25, amount: savingAmount(month: month), kind: .manualSaving, categoryID: "cat_savings_account", note: "Fast sparing")
+                insertTx(context, year, month, day: 26, amount: roundToNearestTen(350 + Double((month * 23) % 260)), kind: .manualSaving, categoryID: "cat_savings_investing", note: "Månedsinvestering")
                 if month % 3 == 0 {
                     insertTx(context, year, month, day: 29, amount: 300, kind: .manualSaving, categoryID: "cat_savings_buffer", note: "Ekstra sparing")
+                }
+                if month == 4 || month == 10 || month == 12 {
+                    insertTx(context, year, month, day: 28, amount: month == 12 ? 1200 : 800, kind: .manualSaving, categoryID: "cat_savings_bsu", note: "BSU")
                 }
 
                 // Refusjon av og til
@@ -358,10 +383,10 @@ enum DemoDataSeeder {
         let targetDate = date(year: endYear + 2, month: 12, day: 1)
         context.insert(
             Goal(
-                targetAmount: 150_000,
+                targetAmount: 250_000,
                 targetDate: targetDate,
                 scope: .wealth,
-                includeAccounts: false,
+                includeAccounts: true,
                 isActive: true,
                 createdAt: date(year: endYear - (demoYears - 1), month: 1, day: 1)
             )
@@ -516,16 +541,17 @@ private struct DemoProfile: Decodable {
     }
 
     static let defaultProfile = DemoProfile(
-        version: 1,
-        name: "student_realistic_no_v1",
+        version: 2,
+        name: "young-adult_realistic_no_v2",
         expenseCategories: [
             .init(id: "cat_rent", name: "Husleie", sortOrder: 1),
-            .init(id: "cat_food", name: "Mat", sortOrder: 2),
+            .init(id: "cat_food", name: "Dagligvarer", sortOrder: 2),
             .init(id: "cat_transport", name: "Transport", sortOrder: 3),
-            .init(id: "cat_subscriptions", name: "Abonnement", sortOrder: 4),
-            .init(id: "cat_nightlife", name: "Uteliv", sortOrder: 5),
-            .init(id: "cat_shopping", name: "Shopping", sortOrder: 6),
-            .init(id: "cat_misc", name: "Diverse", sortOrder: 7)
+            .init(id: "cat_subscriptions", name: "Mobil og abonnement", sortOrder: 4),
+            .init(id: "cat_eating_out", name: "Mat ute og kaffe", sortOrder: 5),
+            .init(id: "cat_shopping", name: "Klær og shopping", sortOrder: 6),
+            .init(id: "cat_health", name: "Helse og apotek", sortOrder: 7),
+            .init(id: "cat_misc", name: "Diverse", sortOrder: 8)
         ],
         incomeCategories: [
             .init(id: "cat_income_salary", name: "Lønn", sortOrder: 101),
