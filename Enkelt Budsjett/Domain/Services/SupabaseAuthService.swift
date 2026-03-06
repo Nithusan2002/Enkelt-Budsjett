@@ -61,6 +61,11 @@ struct SupabaseConfiguration {
     static let redirectSchemeKey = "SUPABASE_REDIRECT_SCHEME"
     static let redirectHostKey = "SUPABASE_REDIRECT_HOST"
 
+    private static let fallbackURL = "https://mxgjkrgikgfqccyzubxv.supabase.co"
+    private static let fallbackPublishableKey = "sb_publishable_oEiVNV89KMbag_-jRoCpvw_pQNKoAPT"
+    private static let fallbackRedirectScheme = "sporokonomi"
+    private static let fallbackRedirectHost = "auth-callback"
+
     let projectURL: URL
     let publishableKey: String
     let redirectScheme: String?
@@ -79,24 +84,27 @@ struct SupabaseConfiguration {
     }
 
     static func load(from bundle: Bundle = .main) throws -> SupabaseConfiguration {
-        guard let urlString = bundle.object(forInfoDictionaryKey: urlKey) as? String,
-              let url = URL(string: urlString),
-              let key = bundle.object(forInfoDictionaryKey: publishableKeyKey) as? String,
-              !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        let configuredURL = stringValue(for: urlKey, in: bundle) ?? fallbackURL
+        let configuredKey = stringValue(for: publishableKeyKey, in: bundle) ?? fallbackPublishableKey
+
+        guard let url = URL(string: configuredURL), !configuredKey.isEmpty else {
             throw AuthServiceError.missingConfiguration
         }
 
-        let redirectScheme = (bundle.object(forInfoDictionaryKey: redirectSchemeKey) as? String)?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        let redirectHost = (bundle.object(forInfoDictionaryKey: redirectHostKey) as? String)?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let redirectScheme = stringValue(for: redirectSchemeKey, in: bundle) ?? fallbackRedirectScheme
+        let redirectHost = stringValue(for: redirectHostKey, in: bundle) ?? fallbackRedirectHost
 
         return SupabaseConfiguration(
             projectURL: url,
-            publishableKey: key.trimmingCharacters(in: .whitespacesAndNewlines),
-            redirectScheme: redirectScheme?.isEmpty == true ? nil : redirectScheme,
-            redirectHost: redirectHost?.isEmpty == true ? nil : redirectHost
+            publishableKey: configuredKey,
+            redirectScheme: redirectScheme.isEmpty ? nil : redirectScheme,
+            redirectHost: redirectHost.isEmpty ? nil : redirectHost
         )
+    }
+
+    private static func stringValue(for key: String, in bundle: Bundle) -> String? {
+        (bundle.object(forInfoDictionaryKey: key) as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 
