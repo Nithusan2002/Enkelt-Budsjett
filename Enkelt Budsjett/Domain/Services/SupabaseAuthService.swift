@@ -5,6 +5,7 @@ import UIKit
 
 enum AuthServiceError: LocalizedError {
     case missingConfiguration
+    case missingOAuthConfiguration
     case invalidResponse
     case invalidCredentials
     case emailNotConfirmed
@@ -17,6 +18,8 @@ enum AuthServiceError: LocalizedError {
         switch self {
         case .missingConfiguration:
             return "Supabase er ikke konfigurert i appen ennå."
+        case .missingOAuthConfiguration:
+            return "Google-innlogging er ikke konfigurert i appen ennå."
         case .invalidResponse:
             return "Kunne ikke tolke svar fra kontotjenesten. Prøv igjen."
         case .invalidCredentials:
@@ -60,33 +63,39 @@ struct SupabaseConfiguration {
 
     let projectURL: URL
     let publishableKey: String
-    let redirectScheme: String
-    let redirectHost: String
+    let redirectScheme: String?
+    let redirectHost: String?
 
-    var redirectURL: URL {
+    var redirectURL: URL? {
+        guard let redirectScheme, !redirectScheme.isEmpty,
+              let redirectHost, !redirectHost.isEmpty else {
+            return nil
+        }
+
         var components = URLComponents()
         components.scheme = redirectScheme
         components.host = redirectHost
-        return components.url ?? projectURL
+        return components.url
     }
 
     static func load(from bundle: Bundle = .main) throws -> SupabaseConfiguration {
         guard let urlString = bundle.object(forInfoDictionaryKey: urlKey) as? String,
               let url = URL(string: urlString),
               let key = bundle.object(forInfoDictionaryKey: publishableKeyKey) as? String,
-              !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              let redirectScheme = bundle.object(forInfoDictionaryKey: redirectSchemeKey) as? String,
-              !redirectScheme.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              let redirectHost = bundle.object(forInfoDictionaryKey: redirectHostKey) as? String,
-              !redirectHost.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+              !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw AuthServiceError.missingConfiguration
         }
+
+        let redirectScheme = (bundle.object(forInfoDictionaryKey: redirectSchemeKey) as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let redirectHost = (bundle.object(forInfoDictionaryKey: redirectHostKey) as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
 
         return SupabaseConfiguration(
             projectURL: url,
             publishableKey: key.trimmingCharacters(in: .whitespacesAndNewlines),
-            redirectScheme: redirectScheme.trimmingCharacters(in: .whitespacesAndNewlines),
-            redirectHost: redirectHost.trimmingCharacters(in: .whitespacesAndNewlines)
+            redirectScheme: redirectScheme?.isEmpty == true ? nil : redirectScheme,
+            redirectHost: redirectHost?.isEmpty == true ? nil : redirectHost
         )
     }
 }
@@ -101,13 +110,13 @@ final class SupabaseAuthClient: AuthClientProtocol {
     init(
         configuration: SupabaseConfiguration,
         session: URLSession = .shared,
-        tokenStore: AuthTokenStore? = nil,
-        webAuthCoordinator: OAuthWebAuthenticationCoordinating? = nil
+        tokenStore: AuthTokenStore = AuthTokenStore(),
+        webAuthCoordinator: OAuthWebAuthenticationCoordinating = OAuthWebAuthenticationCoordinator()
     ) {
         self.configuration = configuration
         self.session = session
-        self.tokenStore = tokenStore ?? AuthTokenStore()
-        self.webAuthCoordinator = webAuthCoordinator ?? OAuthWebAuthenticationCoordinator()
+        self.tokenStore = tokenStore
+        self.webAuthCoordinator = webAuthCoordinator
     }
 
     func signUp(email: String, password: String, displayName: String?) async throws -> AuthClientSession? {
@@ -155,8 +164,8 @@ final class SupabaseAuthClient: AuthClientProtocol {
 
     func signInWithGoogle() async throws -> AuthClientSession {
         let callbackURL = try await webAuthCoordinator.authenticate(
-            url: googleOAuthURL(),
-            callbackScheme: configuration.redirectScheme
+            url: try googleOAuthURL(),
+            callbackScheme: try redirectScheme()
         )
 
         let tokens = try parseOAuthTokens(from: callbackURL)
@@ -189,14 +198,25 @@ final class SupabaseAuthClient: AuthClientProtocol {
         tokenStore.clear()
     }
 
-    private func googleOAuthURL() -> URL {
+    private func googleOAuthURL() throws -> URL {
+        guard let redirectURL = configuration.redirectURL else {
+            throw AuthServiceError.missingOAuthConfiguration
+        }
+
         var components = URLComponents(url: endpointURL(for: "auth/v1/authorize"), resolvingAgainstBaseURL: false)
         components?.queryItems = [
             URLQueryItem(name: "provider", value: "google"),
-            URLQueryItem(name: "redirect_to", value: configuration.redirectURL.absoluteString),
+            URLQueryItem(name: "redirect_to", value: redirectURL.absoluteString),
             URLQueryItem(name: "prompt", value: "select_account")
         ]
         return components?.url ?? configuration.projectURL
+    }
+
+    private func redirectScheme() throws -> String {
+        guard let redirectScheme = configuration.redirectScheme, !redirectScheme.isEmpty else {
+            throw AuthServiceError.missingOAuthConfiguration
+        }
+        return redirectScheme
     }
 
     private func fetchUser(accessToken: String) async throws -> AuthUserPayload {
