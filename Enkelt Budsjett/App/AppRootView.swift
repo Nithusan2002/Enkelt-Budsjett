@@ -266,40 +266,23 @@ private struct BootstrapLoadingView: View {
     let errorMessage: String?
     let showRetry: Bool
     let onRetry: () -> Void
+    @State private var isAnimating = false
 
     var body: some View {
-        VStack(spacing: 16) {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Text("Klargjør appen")
-                        .font(.headline.weight(.semibold))
-                    Spacer()
-                    Text(phase.title)
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(AppTheme.textSecondary)
-                }
+        VStack(spacing: 0) {
+            Image("Spor-økonomi-applogo")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 620)
+                .accessibilityHidden(true)
 
-                ProgressView(value: phase.progress, total: 1)
-                    .tint(AppTheme.primary)
-
-                VStack(spacing: 8) {
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(AppTheme.surfaceElevated)
-                        .frame(height: 14)
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(AppTheme.surfaceElevated)
-                        .frame(height: 14)
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(AppTheme.surfaceElevated)
-                        .frame(height: 14)
-                }
-            }
-            .padding(16)
-            .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(AppTheme.divider, lineWidth: 1)
-            )
+            Image(systemName: "gearshape.fill")
+                .font(.system(size: 28, weight: .semibold))
+                .foregroundStyle(AppTheme.primary)
+                .padding(.top, -12)
+                .rotationEffect(.degrees(isAnimating ? 360 : 0))
+                .animation(.linear(duration: 1.4).repeatForever(autoreverses: false), value: isAnimating)
+                .accessibilityHidden(true)
 
             if let errorMessage {
                 Text(errorMessage)
@@ -307,7 +290,7 @@ private struct BootstrapLoadingView: View {
                     .multilineTextAlignment(.center)
             }
 
-            if showRetry {
+            if showRetry, errorMessage != nil {
                 Button("Prøv igjen") {
                     onRetry()
                 }
@@ -315,6 +298,10 @@ private struct BootstrapLoadingView: View {
                 .tint(AppTheme.primary)
             }
         }
-        .padding(24)
+        .padding(.horizontal, 24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear {
+            isAnimating = true
+        }
     }
 }
