@@ -212,6 +212,42 @@ struct InvestmentsFeatureTests {
 
     @Test
     @MainActor
+    func investmentWizardCanAddBucketBeforeSummary() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+
+        let first = InvestmentBucket(id: "bucket_fond", name: "Fond", isDefault: true, sortOrder: 1)
+        let second = InvestmentBucket(id: "bucket_bsu", name: "BSU", isDefault: true, sortOrder: 2)
+        context.insert(first)
+        context.insert(second)
+        try context.save()
+
+        let viewModel = InvestmentCheckInWizardViewModel()
+        viewModel.loadInitialState(
+            buckets: [first, second],
+            snapshots: [],
+            selectedMonth: .now
+        )
+        viewModel.start()
+        viewModel.goNext()
+
+        #expect(viewModel.isLastBucketStep)
+        #expect(viewModel.nextButtonTitle == "Oppsummering")
+
+        try viewModel.addBucketDuringCheckIn(
+            context: context,
+            name: "Eiendom",
+            colorHex: AppTheme.customBucketPalette[0]
+        )
+
+        #expect(viewModel.buckets.map(\.name) == ["Fond", "BSU", "Eiendom"])
+        #expect(viewModel.currentBucket?.name == "Eiendom")
+        #expect(viewModel.nextButtonTitle == "Oppsummering")
+        #expect(viewModel.stepStates["bucket_eiendom"] != nil)
+    }
+
+    @Test
+    @MainActor
     func developmentChartBuilderFiltersYearToDateAndLast12() {
         let bucket = InvestmentBucket(id: "funds", name: "Fond", isDefault: true, sortOrder: 1)
         let now = Date()

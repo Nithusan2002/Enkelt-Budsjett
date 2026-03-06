@@ -14,6 +14,10 @@ struct InvestmentCheckInWizardView: View {
     @StateObject private var viewModel = InvestmentCheckInWizardViewModel()
     @State private var errorMessage: String?
     @State private var isSaving = false
+    @State private var showAddTypeSheet = false
+    @State private var addTypeName = ""
+    @State private var addTypeColorHex = AppTheme.customBucketPalette[0]
+    @State private var addTypeErrorMessage: String?
     private var isReadOnlyMode: Bool { PersistenceGate.isReadOnlyMode }
 
     var body: some View {
@@ -71,6 +75,13 @@ struct InvestmentCheckInWizardView: View {
                         onAddPreset: { viewModel.addToInput($0, for: bucket.id) },
                         onBack: { viewModel.goBack() },
                         onNext: { viewModel.goNext() },
+                        showAddNewType: viewModel.isLastBucketStep,
+                        onAddNewType: {
+                            addTypeName = ""
+                            addTypeColorHex = AppTheme.customBucketPalette[0]
+                            addTypeErrorMessage = nil
+                            showAddTypeSheet = true
+                        },
                         nextTitle: viewModel.nextButtonTitle,
                         canGoNext: viewModel.canMoveNext
                     )
@@ -96,6 +107,27 @@ struct InvestmentCheckInWizardView: View {
             }
             .onAppear {
                 viewModel.loadInitialState(buckets: buckets, snapshots: snapshots)
+            }
+            .sheet(isPresented: $showAddTypeSheet) {
+                AddInvestmentTypeDuringCheckInSheet(
+                    name: $addTypeName,
+                    selectedColorHex: $addTypeColorHex,
+                    errorMessage: addTypeErrorMessage
+                ) {
+                    do {
+                        try viewModel.addBucketDuringCheckIn(
+                            context: modelContext,
+                            name: addTypeName,
+                            colorHex: addTypeColorHex
+                        )
+                        addTypeErrorMessage = nil
+                        showAddTypeSheet = false
+                    } catch {
+                        addTypeErrorMessage = (error as? LocalizedError)?.errorDescription ?? "Kunne ikke lagre beholdningstype nå."
+                    }
+                } onCancel: {
+                    addTypeErrorMessage = nil
+                }
             }
         }
     }
@@ -310,6 +342,8 @@ private struct WizardBucketStepView: View {
     let onAddPreset: (Double) -> Void
     let onBack: () -> Void
     let onNext: () -> Void
+    let showAddNewType: Bool
+    let onAddNewType: () -> Void
     let nextTitle: String
     let canGoNext: Bool
     @FocusState private var amountFieldFocused: Bool
@@ -400,6 +434,13 @@ private struct WizardBucketStepView: View {
                 }
                 .buttonStyle(.bordered)
 
+                if showAddNewType {
+                    Button("Ny type") {
+                        onAddNewType()
+                    }
+                    .buttonStyle(.bordered)
+                }
+
                 Button(nextTitle) {
                     onNext()
                 }
@@ -489,6 +530,75 @@ private struct WizardBucketStepView: View {
                 )
         }
         .buttonStyle(.plain)
+    }
+}
+
+private struct AddInvestmentTypeDuringCheckInSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    @Binding var name: String
+    @Binding var selectedColorHex: String
+    let errorMessage: String?
+    let onSave: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Navn") {
+                    TextField("F.eks. Eiendom", text: $name)
+                        .textFieldStyle(.appInput)
+                }
+
+                Section("Farge") {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 44), spacing: 12)], spacing: 12) {
+                        ForEach(AppTheme.customBucketPalette, id: \.self) { hex in
+                            Button {
+                                selectedColorHex = hex
+                            } label: {
+                                Circle()
+                                    .fill(Color(hex: hex))
+                                    .frame(width: 28, height: 28)
+                                    .overlay {
+                                        if selectedColorHex == hex {
+                                            Circle()
+                                                .stroke(AppTheme.background, lineWidth: 2)
+                                                .padding(2)
+                                        }
+                                    }
+                                    .overlay(
+                                        Circle()
+                                            .stroke(AppTheme.divider, lineWidth: 1)
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    Text("Ny type vises i denne innsjekken før oppsummering.")
+                        .appSecondaryStyle()
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .font(.footnote)
+                            .foregroundStyle(AppTheme.negative)
+                    }
+                }
+            }
+            .navigationTitle("Legg til type")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Avbryt") {
+                        onCancel()
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Lagre") {
+                        onSave()
+                    }
+                    .appCTAStyle()
+                }
+            }
+        }
     }
 }
 
