@@ -22,6 +22,7 @@ enum InvestmentsDevelopmentPeriod: String, CaseIterable {
 struct InvestmentsDevelopmentBucketPoint: Identifiable {
     let id: String
     let bucketID: String
+    let seriesKey: String
     let name: String
     let color: Color
     let amount: Double
@@ -38,6 +39,7 @@ struct InvestmentsDevelopmentChartPoint: Identifiable {
 private struct InvestmentsDevelopmentStackedRow: Identifiable {
     let id: String
     let date: Date
+    let seriesKey: String
     let bucketName: String
     let amount: Double
 }
@@ -63,16 +65,7 @@ enum InvestmentsDevelopmentChartDataBuilder {
             .sorted { $0.sortOrder < $1.sortOrder }
 
         return filteredSnapshots.map { snapshot in
-            let rows = sortedBuckets.map { bucket in
-                let amount = snapshot.bucketValues.first(where: { $0.bucketID == bucket.id })?.amount ?? 0
-                return InvestmentsDevelopmentBucketPoint(
-                    id: "\(snapshot.periodKey)-\(bucket.id)",
-                    bucketID: bucket.id,
-                    name: bucket.name,
-                    color: AppTheme.portfolioColor(for: bucket),
-                    amount: amount
-                )
-            }
+            let rows = mergedBucketPoints(snapshot: snapshot, buckets: sortedBuckets)
             return InvestmentsDevelopmentChartPoint(
                 id: snapshot.periodKey,
                 date: snapshot.capturedAt,
@@ -160,6 +153,68 @@ enum InvestmentsDevelopmentChartDataBuilder {
             .sorted { $0.amount > $1.amount }
     }
 
+    private static func mergedBucketPoints(
+        snapshot: InvestmentSnapshot,
+        buckets: [InvestmentBucket]
+    ) -> [InvestmentsDevelopmentBucketPoint] {
+        struct Accumulator {
+            var bucketIDs: [String]
+            var name: String
+            var color: Color
+            var amount: Double
+            var sortOrder: Int
+        }
+
+        var merged: [String: Accumulator] = [:]
+
+        for bucket in buckets {
+            let amount = snapshot.bucketValues.first(where: { $0.bucketID == bucket.id })?.amount ?? 0
+            let key = normalizedSeriesKey(for: bucket.name)
+
+            if var existing = merged[key] {
+                existing.bucketIDs.append(bucket.id)
+                existing.amount += amount
+                existing.sortOrder = min(existing.sortOrder, bucket.sortOrder)
+                merged[key] = existing
+            } else {
+                merged[key] = Accumulator(
+                    bucketIDs: [bucket.id],
+                    name: bucket.name,
+                    color: AppTheme.portfolioColor(for: bucket),
+                    amount: amount,
+                    sortOrder: bucket.sortOrder
+                )
+            }
+        }
+
+        return merged
+            .map { key, value in
+                InvestmentsDevelopmentBucketPoint(
+                    id: "\(snapshot.periodKey)-\(key)",
+                    bucketID: value.bucketIDs.first ?? key,
+                    seriesKey: key,
+                    name: value.name,
+                    color: value.color,
+                    amount: value.amount
+                )
+            }
+            .sorted { lhs, rhs in
+                let lhsOrder = merged[lhs.seriesKey]?.sortOrder ?? .max
+                let rhsOrder = merged[rhs.seriesKey]?.sortOrder ?? .max
+                if lhsOrder == rhsOrder {
+                    return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+                }
+                return lhsOrder < rhsOrder
+            }
+    }
+
+    private static func normalizedSeriesKey(for name: String) -> String {
+        name
+            .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+    }
+
     private static func roundedTickStep(_ value: Double) -> Double {
         let steps: [Double] = [1_000, 2_500, 5_000, 10_000, 25_000, 50_000, 100_000, 250_000, 500_000, 1_000_000]
         return steps.first(where: { value <= $0 }) ?? 2_000_000
@@ -212,6 +267,7 @@ struct InvestmentsDevelopmentChartView: View {
                 InvestmentsDevelopmentStackedRow(
                     id: "\(point.id)-\(bucket.bucketID)",
                     date: point.date,
+                    seriesKey: bucket.seriesKey,
                     bucketName: bucket.name,
                     amount: bucket.amount
                 )
@@ -220,7 +276,7 @@ struct InvestmentsDevelopmentChartView: View {
     }
 
     private var stackedColorDomain: [String] {
-        latest.buckets.map(\.name)
+        latest.buckets.map(\.seriesKey)
     }
 
     private var stackedColorRange: [Color] {
@@ -349,7 +405,7 @@ struct InvestmentsDevelopmentChartView: View {
                     y: .value("Beløp", row.amount),
                     stacking: .standard
                 )
-                .foregroundStyle(by: .value("Beholdning", row.bucketName))
+                .foregroundStyle(by: .value("Beholdning", row.seriesKey))
                 .interpolationMethod(.catmullRom)
                 .opacity(areaOpacity)
             }
@@ -379,7 +435,22 @@ struct InvestmentsDevelopmentChartView: View {
         }
         .frame(height: 260)
         .chartForegroundStyleScale(domain: stackedColorDomain, range: stackedColorRange)
-        .chartLegend(position: .bottom, spacing: 8)
+        .chartLegend(position: .bottom, spacing: 8) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 90), alignment: .leading)], alignment: .leading, spacing: 8) {
+                ForEach(latest.buckets) { bucket in
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(bucket.color)
+                            .frame(width: 10, height: 10)
+                        Text(bucket.name)
+                            .font(.footnote)
+                            .foregroundStyle(AppTheme.textSecondary)
+                            .lineLimit(1)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
         .chartXScale(domain: chartDateDomain())
         .chartXAxis {
             AxisMarks(values: InvestmentsDevelopmentChartDataBuilder.xAxisDates(points: points, period: period)) { value in
