@@ -262,6 +262,19 @@ struct RecurringAndDemoTests {
 
     @Test
     @MainActor
+    func demoSeedSetsPreferenceToLocalSessionMode() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+
+        _ = try DemoDataSeeder.seedRealisticYear(context: context, year: 2026)
+
+        let preferences = try context.fetch(FetchDescriptor<UserPreference>())
+        #expect(preferences.count == 1)
+        #expect(preferences.first?.authSessionModeRaw == AuthSessionMode.local.rawValue)
+    }
+
+    @Test
+    @MainActor
     func demoSeedIsIdempotentWhenRunTwice() throws {
         let container = try TestModelContainerFactory.makeInMemoryContainer()
         let context = container.mainContext
