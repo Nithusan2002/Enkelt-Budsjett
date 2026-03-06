@@ -448,7 +448,7 @@ private struct AuthSessionPayload {
 private struct AuthUserPayload: Decodable {
     let id: String
     let email: String?
-    let userMetadata: [String: String]?
+    let userMetadata: [String: JSONValue]?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -461,7 +461,7 @@ private struct AuthUserPayload: Decodable {
     }
 
     func toAuthClientSession(accessToken: String, refreshToken: String?) -> AuthClientSession {
-        let displayName = userMetadata?["display_name"] ?? userMetadata?["full_name"]
+        let displayName = userMetadata?["display_name"]?.stringValue ?? userMetadata?["full_name"]?.stringValue
         return AuthClientSession(
             userID: id,
             email: email,
@@ -469,6 +469,42 @@ private struct AuthUserPayload: Decodable {
             accessToken: accessToken,
             refreshToken: refreshToken
         )
+    }
+}
+
+
+private enum JSONValue: Decodable {
+    case string(String)
+    case number(Double)
+    case bool(Bool)
+    case object([String: JSONValue])
+    case array([JSONValue])
+    case null
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if container.decodeNil() {
+            self = .null
+        } else if let string = try? container.decode(String.self) {
+            self = .string(string)
+        } else if let bool = try? container.decode(Bool.self) {
+            self = .bool(bool)
+        } else if let number = try? container.decode(Double.self) {
+            self = .number(number)
+        } else if let object = try? container.decode([String: JSONValue].self) {
+            self = .object(object)
+        } else if let array = try? container.decode([JSONValue].self) {
+            self = .array(array)
+        } else {
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Unsupported JSON value")
+        }
+    }
+
+    var stringValue: String? {
+        if case .string(let value) = self {
+            return value
+        }
+        return nil
     }
 }
 
