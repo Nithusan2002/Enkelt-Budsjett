@@ -2,6 +2,11 @@ import Foundation
 import SwiftUI
 import UIKit
 
+enum AppProminentCTATone {
+    case primary
+    case positive
+}
+
 enum AppDateFormatters {
     static let fullDate: DateFormatter = {
         let formatter = DateFormatter()
@@ -108,6 +113,26 @@ extension View {
 
     func appCTAStyle() -> some View {
         self.font(.headline.weight(.semibold))
+    }
+
+    func appProminentCTAStyle(tone: AppProminentCTATone = .primary) -> some View {
+        let tintColor: Color
+        let foregroundColor: Color
+
+        switch tone {
+        case .primary:
+            tintColor = AppTheme.primary
+            foregroundColor = AppTheme.onPrimary
+        case .positive:
+            tintColor = AppTheme.positive
+            foregroundColor = AppTheme.onPositive
+        }
+
+        return self
+            .appCTAStyle()
+            .buttonStyle(.borderedProminent)
+            .tint(tintColor)
+            .foregroundStyle(foregroundColor)
     }
 
     func appInputShellStyle() -> some View {

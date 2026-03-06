@@ -172,9 +172,7 @@ struct OverviewView: View {
                 Button(latestSnapshot == nil ? "Ny innsjekk" : "Oppdater formue nå") {
                     showCheckIn = true
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(AppTheme.primary)
-                .appCTAStyle()
+                .appProminentCTAStyle()
             }
 
             Divider()

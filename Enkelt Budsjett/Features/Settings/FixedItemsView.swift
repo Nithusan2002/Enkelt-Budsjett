@@ -25,8 +25,7 @@ struct FixedItemsView: View {
                         Button("Legg til fast post") {
                             showAddSheet = true
                         }
-                        .buttonStyle(.borderedProminent)
-                        .tint(AppTheme.primary)
+                        .appProminentCTAStyle()
                         .disabled(isReadOnlyMode)
                     }
                     .padding(.vertical, 8)

@@ -570,8 +570,7 @@ struct InvestmentsDevelopmentChartView: View {
             Button("Ny innsjekk") {
                 onUpdateValues()
             }
-            .buttonStyle(.borderedProminent)
-            .tint(AppTheme.primary)
+            .appProminentCTAStyle()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 6)

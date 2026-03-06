@@ -622,8 +622,7 @@ struct AddTransactionSheet: View {
                                 Button("Ferdig") {
                                     dismiss()
                                 }
-                                .buttonStyle(.borderedProminent)
-                                .tint(AppTheme.primary)
+                                .appProminentCTAStyle()
                                 .controlSize(.large)
                                 .frame(maxWidth: .infinity)
                             }

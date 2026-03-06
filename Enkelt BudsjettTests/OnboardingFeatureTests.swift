@@ -78,6 +78,27 @@ struct OnboardingFeatureTests {
 
     @Test
     @MainActor
+    func onboardingCanGoBackToPreviousStep() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+        let preference = UserPreference(onboardingCompleted: false, onboardingCurrentStep: OnboardingStep.minimumData.rawValue)
+        context.insert(preference)
+        try context.save()
+
+        let viewModel = OnboardingViewModel(preference: preference)
+
+        #expect(viewModel.canGoBack)
+        #expect(viewModel.backButtonTitle == "Tilbake")
+
+        viewModel.back(preference: preference, context: context)
+
+        #expect(viewModel.currentStep == .goal)
+        #expect(preference.onboardingCurrentStep == OnboardingStep.goal.rawValue)
+        #expect(viewModel.canGoBack == false)
+    }
+
+    @Test
+    @MainActor
     func onboardingCompleteIncludesCustomBucketInFirstSnapshot() throws {
         let container = try TestModelContainerFactory.makeInMemoryContainer()
         let context = container.mainContext

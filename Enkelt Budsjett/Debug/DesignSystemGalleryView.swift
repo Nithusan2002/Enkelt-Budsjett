@@ -37,8 +37,7 @@ struct DesignSystemGalleryView: View {
                 section("Handlinger") {
                     VStack(spacing: 12) {
                         Button("Lagre endringer") {}
-                            .buttonStyle(.borderedProminent)
-                            .tint(AppTheme.primary)
+                            .appProminentCTAStyle()
                             .frame(maxWidth: .infinity, alignment: .leading)
 
                         Button("Sekundær handling") {}
@@ -84,8 +83,7 @@ struct DesignSystemGalleryView: View {
                             Text("Legg til første transaksjon eller innsjekk for å se utvikling her.")
                                 .appSecondaryStyle()
                             Button("Legg til første post") {}
-                                .buttonStyle(.borderedProminent)
-                                .tint(AppTheme.primary)
+                                .appProminentCTAStyle()
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding()

@@ -908,8 +908,7 @@ private struct BucketTypesSettingsSheet: View {
                     Button("Legg til type") {
                         _ = viewModel.addBucket(context: modelContext, existingBuckets: buckets)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(AppTheme.primary)
+                    .appProminentCTAStyle()
                     .disabled(viewModel.newBucketName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
                     if let addError = viewModel.addBucketError {

@@ -212,8 +212,7 @@ struct AppRootView: View {
                 Button("Prøv igjen") {
                     viewModel.retryUnlock()
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(AppTheme.primary)
+                .appProminentCTAStyle()
             }
             .padding(24)
             .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))

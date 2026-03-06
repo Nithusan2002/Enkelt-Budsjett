@@ -6,11 +6,13 @@ enum AppTheme {
     static let surface = Color(light: "#FFFFFF", dark: "#15332F")
     static let surfaceElevated = Color(light: "#FFFFFF", dark: "#1B3B36")
     static let primary = Color(light: "#1A5448", dark: "#E8EDE7")
+    static let onPrimary = Color(light: "#FFFFFF", dark: "#102824")
     static let secondary = Color(light: "#62766F", dark: "#B9C7C1")
     static let textPrimary = Color(light: "#223038", dark: "#F5F7F4")
     static let textSecondary = Color(light: "#66757D", dark: "#B7C4BE")
     static let divider = Color(light: "#E6E2DA", dark: "#2E5951")
     static let positive = Color(light: "#16A34A", dark: "#3DD67A")
+    static let onPositive = Color(light: "#FFFFFF", dark: "#102824")
     static let warning = Color(light: "#9A621A", dark: "#D8A25A")
     static let negative = Color(light: "#DC2626", dark: "#FF6B6B")
 
