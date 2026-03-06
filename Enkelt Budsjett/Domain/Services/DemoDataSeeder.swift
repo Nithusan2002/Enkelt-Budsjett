@@ -24,6 +24,7 @@ enum DemoDataSeeder {
         let years = startYear...endYear
 
         let categories = try createCategories(context: context, profile: profile)
+        try createFixedItems(context: context, startYear: startYear)
         try createInvestmentBuckets(context: context, profile: profile)
         try createBudgetMonths(context: context, years: years)
         try createBudgetPlans(context: context, years: years, categories: categories, profile: profile)
@@ -100,6 +101,35 @@ enum DemoDataSeeder {
                 )
             )
         }
+        try context.guardedSave(feature: "DemoData", operation: "save", enforceReadOnly: false)
+    }
+
+    private static func createFixedItems(context: ModelContext, startYear: Int) throws {
+        let startDate = date(year: startYear, month: 1, day: 1)
+        let items: [(title: String, amount: Double, categoryID: String, day: Int)] = [
+            ("Husleie", 7600, "cat_rent", 1),
+            ("Mobilabonnement", 349, "cat_subscriptions", 2),
+            ("Månedskort", 490, "cat_transport", 4),
+            ("Spotify", 149, "cat_subscriptions", 5),
+            ("iCloud+", 129, "cat_subscriptions", 18)
+        ]
+
+        for item in items {
+            context.insert(
+                FixedItem(
+                    title: item.title,
+                    amount: item.amount,
+                    categoryID: item.categoryID,
+                    kind: .expense,
+                    dayOfMonth: item.day,
+                    startDate: startDate,
+                    endDate: nil,
+                    isActive: true,
+                    autoCreate: false
+                )
+            )
+        }
+
         try context.guardedSave(feature: "DemoData", operation: "save", enforceReadOnly: false)
     }
 
