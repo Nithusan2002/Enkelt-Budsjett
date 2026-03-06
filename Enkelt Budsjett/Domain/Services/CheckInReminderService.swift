@@ -55,7 +55,7 @@ enum CheckInReminderService {
 
         let content = UNMutableNotificationContent()
         content.title = "Månedlig innsjekk"
-        content.body = "Oppdater formuen din i Enkelt Budsjett."
+        content.body = "Oppdater formuen din i Spor økonomi."
         content.sound = .default
 
         let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
