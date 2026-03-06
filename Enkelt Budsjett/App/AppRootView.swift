@@ -8,9 +8,6 @@ enum AppTab {
     case investments
     case tips
     case settings
-    #if DEBUG
-    case debug
-    #endif
 }
 
 enum AppAppearancePreference: String, CaseIterable {
@@ -106,12 +103,6 @@ struct AppRootView: View {
                             NavigationStack { SettingsView() }
                                 .tabItem { Label("Innstillinger", systemImage: "gear") }
                                 .tag(AppTab.settings)
-
-                            #if DEBUG
-                            NavigationStack { DebugMenuView() }
-                                .tabItem { Label("Debug", systemImage: "hammer") }
-                                .tag(AppTab.debug)
-                            #endif
                         }
                         .environmentObject(navigationState)
                     }
