@@ -14,6 +14,13 @@ struct DemoSeedReport {
 
 enum DemoDataSeeder {
     private static let demoYears = 3
+    private static let demoFixedItems: [(id: String, title: String, amount: Double, categoryID: String, day: Int)] = [
+        ("fixed_demo_rent", "Husleie", 7600, "cat_rent", 1),
+        ("fixed_demo_mobile", "Mobilabonnement", 349, "cat_subscriptions", 2),
+        ("fixed_demo_month_pass", "Månedskort", 490, "cat_transport", 4),
+        ("fixed_demo_spotify", "Spotify", 149, "cat_subscriptions", 5),
+        ("fixed_demo_icloud", "iCloud+", 129, "cat_subscriptions", 18)
+    ]
 
     static func seedRealisticYear(context: ModelContext, year: Int? = nil) throws -> DemoSeedReport {
         try wipeAllData(context: context)
@@ -106,17 +113,10 @@ enum DemoDataSeeder {
 
     private static func createFixedItems(context: ModelContext, startYear: Int) throws {
         let startDate = date(year: startYear, month: 1, day: 1)
-        let items: [(title: String, amount: Double, categoryID: String, day: Int)] = [
-            ("Husleie", 7600, "cat_rent", 1),
-            ("Mobilabonnement", 349, "cat_subscriptions", 2),
-            ("Månedskort", 490, "cat_transport", 4),
-            ("Spotify", 149, "cat_subscriptions", 5),
-            ("iCloud+", 129, "cat_subscriptions", 18)
-        ]
-
-        for item in items {
+        for item in demoFixedItems {
             context.insert(
                 FixedItem(
+                    id: item.id,
                     title: item.title,
                     amount: item.amount,
                     categoryID: item.categoryID,
@@ -266,10 +266,11 @@ enum DemoDataSeeder {
                 }
 
                 // Faste utgifter
-                insertTx(context, year, month, day: 1, amount: roundToNearestTen(7600 * factor), kind: .expense, categoryID: "cat_rent", note: "Husleie")
-                insertTx(context, year, month, day: 2, amount: 349, kind: .expense, categoryID: "cat_subscriptions", note: "Mobilabonnement")
-                insertTx(context, year, month, day: 5, amount: 149, kind: .expense, categoryID: "cat_subscriptions", note: "Spotify")
-                insertTx(context, year, month, day: 18, amount: 129, kind: .expense, categoryID: "cat_subscriptions", note: "iCloud")
+                insertFixedTx(context, year, month, fixedItemID: "fixed_demo_rent", amount: roundToNearestTen(7600 * factor), categoryID: "cat_rent", day: 1, note: "Husleie")
+                insertFixedTx(context, year, month, fixedItemID: "fixed_demo_mobile", amount: 349, categoryID: "cat_subscriptions", day: 2, note: "Mobilabonnement")
+                insertFixedTx(context, year, month, fixedItemID: "fixed_demo_month_pass", amount: roundToNearestTen(440 + Double((month * 11) % 90)), categoryID: "cat_transport", day: 4, note: "Månedskort")
+                insertFixedTx(context, year, month, fixedItemID: "fixed_demo_spotify", amount: 149, categoryID: "cat_subscriptions", day: 5, note: "Spotify")
+                insertFixedTx(context, year, month, fixedItemID: "fixed_demo_icloud", amount: 129, categoryID: "cat_subscriptions", day: 18, note: "iCloud")
 
                 // Mat i butikk: 12-17 kjøp
                 let foodCount = 12 + (month % 6)
@@ -280,8 +281,7 @@ enum DemoDataSeeder {
                     insertTx(context, year, month, day: day, amount: amount, kind: .expense, categoryID: "cat_food", note: note)
                 }
 
-                // Transport: månedskort + enkeltturer
-                insertTx(context, year, month, day: 4, amount: roundToNearestTen(440 + Double((month * 11) % 90)), kind: .expense, categoryID: "cat_transport", note: "Ruter månedskort")
+                // Transport: enkeltturer utover månedskort
                 let transportCount = 2 + (month % 3)
                 for idx in 0..<transportCount {
                     let day = 8 + ((idx * 5 + month) % 20)
@@ -481,6 +481,30 @@ enum DemoDataSeeder {
                 kind: kind,
                 categoryID: categoryID,
                 note: note
+            )
+        )
+    }
+
+    private static func insertFixedTx(
+        _ context: ModelContext,
+        _ year: Int,
+        _ month: Int,
+        fixedItemID: String,
+        amount: Double,
+        categoryID: String,
+        day: Int,
+        note: String
+    ) {
+        let periodKey = String(format: "%04d-%02d", year, month)
+        context.insert(
+            Transaction(
+                date: date(year: year, month: month, day: day),
+                amount: max(0, amount),
+                kind: .expense,
+                categoryID: categoryID,
+                note: note,
+                recurringKey: FixedItemsService.recurringKey(fixedItemID: fixedItemID, periodKey: periodKey),
+                fixedItemID: fixedItemID
             )
         )
     }
