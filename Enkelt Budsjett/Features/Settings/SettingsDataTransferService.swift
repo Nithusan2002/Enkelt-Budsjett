@@ -3,6 +3,7 @@ import SwiftData
 import CryptoKit
 
 enum SettingsDataTransferService {
+    @MainActor
     static func makeExportPayload(context: ModelContext) throws -> ExportPayload {
         ExportPayload(
             exportedAt: .now,
