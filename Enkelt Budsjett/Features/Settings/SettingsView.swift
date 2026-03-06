@@ -1251,6 +1251,15 @@ private enum SettingsEmailAuthMode: String, Identifiable {
             return "Logg inn"
         }
     }
+
+    var subtitle: String {
+        switch self {
+        case .signUp:
+            return "Lag konto for å synkronisere og gjenopprette data senere."
+        case .signIn:
+            return "Logg inn for å få tilgang til lagrede data og synkronisering."
+        }
+    }
 }
 
 private struct SettingsEmailAuthSheet: View {
@@ -1265,32 +1274,61 @@ private struct SettingsEmailAuthSheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Konto") {
-                    if mode == .signUp {
-                        TextField("Navn (valgfritt)", text: $displayName)
-                            .textInputAutocapitalization(.words)
-                    }
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 24) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(mode.title)
+                            .font(.system(size: 34, weight: .bold, design: .rounded))
+                            .foregroundStyle(AppTheme.textPrimary)
 
-                    TextField("E-post", text: $email)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .keyboardType(.emailAddress)
-
-                    SecureField("Passord", text: $password)
-
-                    if mode == .signUp {
-                        Text("Passord må ha minst 8 tegn.")
+                        Text(mode.subtitle)
                             .appSecondaryStyle()
                     }
+
+                    VStack(alignment: .leading, spacing: 16) {
+                        if mode == .signUp {
+                            authField(title: "Navn", footer: "Valgfritt") {
+                                TextField("Nithusan", text: $displayName)
+                                    .textInputAutocapitalization(.words)
+                            }
+                        }
+
+                        authField(title: "E-post") {
+                            TextField("navn@epost.no", text: $email)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                                .keyboardType(.emailAddress)
+                        }
+
+                        authField(title: "Passord") {
+                            SecureField("Skriv passord", text: $password)
+                        }
+
+                        if mode == .signUp {
+                            Text("Minst 8 tegn, med små og store bokstaver, tall og symbol.")
+                                .appSecondaryStyle()
+                                .padding(.top, 2)
+                        }
+                    }
+                    .padding(20)
+                    .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 24))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 24)
+                            .stroke(AppTheme.divider, lineWidth: 1)
+                    )
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
+                .padding(.bottom, 32)
             }
-            .navigationTitle(mode.title)
+            .background(AppTheme.background)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Avbryt") {
                         dismiss()
                     }
+                    .font(.body.weight(.medium))
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(mode.actionTitle) {
@@ -1302,6 +1340,32 @@ private struct SettingsEmailAuthSheet: View {
                     .disabled(email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || password.isEmpty)
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private func authField<Content: View>(title: String, footer: String? = nil, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Text(title)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(AppTheme.textPrimary)
+                if let footer {
+                    Text(footer)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(AppTheme.textSecondary)
+                }
+            }
+
+            content()
+                .font(.body)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 14)
+                .background(AppTheme.background, in: RoundedRectangle(cornerRadius: 16))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(AppTheme.divider, lineWidth: 1)
+                )
         }
     }
 }
