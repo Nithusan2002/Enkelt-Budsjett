@@ -39,6 +39,22 @@ En offline-first iOS-app bygget i SwiftUI + SwiftData for:
 - Personverntekst (NO): `docs/legal/personvern-no.md`
 - Vilkår (NO): `docs/legal/vilkar-no.md`
 
+## GitHub Pages
+
+Repoet inneholder en statisk landingsside i `docs/` som kan publiseres direkte med GitHub Pages.
+
+1. Push repoet til GitHub.
+2. Gå til `Settings > Pages`.
+3. Velg `Deploy from a branch`.
+4. Velg branch `main` og mappe `/docs`.
+5. Publisert side blir tilgjengelig på `https://<github-bruker>.github.io/<repo-navn>/`
+
+Følgende undersider blir også publisert:
+
+- `https://<github-bruker>.github.io/<repo-navn>/support/`
+- `https://<github-bruker>.github.io/<repo-navn>/personvern/`
+- `https://<github-bruker>.github.io/<repo-navn>/vilkar/`
+
 ## Demo-år (realistisk)
 
 - I Debug og TestFlight vises en egen seksjon i `Innstillinger > Demo`.
