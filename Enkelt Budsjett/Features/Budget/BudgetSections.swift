@@ -872,7 +872,10 @@ struct CategoryPickerSheet: View {
     @Binding var selectedCategoryID: String?
     let symbolForCategory: (String) -> String
 
-    private let columns = [GridItem(.adaptive(minimum: 128), spacing: 10)]
+    private let columns = [
+        GridItem(.flexible(), spacing: 10, alignment: .top),
+        GridItem(.flexible(), spacing: 10, alignment: .top)
+    ]
     @State private var searchText: String = ""
 
     private var filteredCategories: [Category] {
@@ -897,7 +900,7 @@ struct CategoryPickerSheet: View {
                     .padding(.horizontal)
                     .padding(.top, 8)
 
-                LazyVGrid(columns: columns, spacing: 10) {
+                LazyVGrid(columns: columns, alignment: .leading, spacing: 10) {
                     ForEach(filteredCategories) { category in
                         let isSelected = selectedCategoryID == category.id
                         Button {
@@ -923,7 +926,7 @@ struct CategoryPickerSheet: View {
                                     .minimumScaleFactor(0.9)
                             }
                             .padding(10)
-                            .frame(maxWidth: .infinity, minHeight: 72, alignment: .topLeading)
+                            .frame(maxWidth: .infinity, minHeight: 88, maxHeight: 88, alignment: .topLeading)
                             .foregroundStyle(isSelected ? AppTheme.primary : AppTheme.textPrimary)
                             .background(
                                 isSelected ? AppTheme.primary.opacity(0.14) : AppTheme.surface,
