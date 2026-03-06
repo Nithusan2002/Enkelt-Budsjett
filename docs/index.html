@@ -1,0 +1,699 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Enkelt Budsjett | Få oversikt uten stress</title>
+  <meta name="description" content="Enkelt Budsjett hjelper deg med budsjett, faste utgifter, mål og investeringsoversikt i en enkel norsk app.">
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f3f0;
+      --panel: rgba(255, 255, 255, 0.78);
+      --panel-strong: #ffffff;
+      --text: #243142;
+      --muted: #617083;
+      --primary: #165c4e;
+      --primary-soft: #e8ede7;
+      --sand: #d8cab8;
+      --border: rgba(36, 49, 66, 0.08);
+      --shadow: 0 20px 50px rgba(36, 49, 66, 0.08);
+      --radius-xl: 32px;
+      --radius-lg: 24px;
+      --radius-md: 18px;
+      --max-width: 1160px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Avenir Next", "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(216, 202, 184, 0.58), transparent 28%),
+        radial-gradient(circle at top right, rgba(232, 237, 231, 0.9), transparent 30%),
+        linear-gradient(180deg, #f8f5f1 0%, var(--bg) 42%, #f1f5f2 100%);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    img {
+      display: block;
+      max-width: 100%;
+    }
+
+    .page {
+      width: min(calc(100% - 32px), var(--max-width));
+      margin: 0 auto;
+      padding: 20px 0 56px;
+    }
+
+    .nav,
+    .hero,
+    .band,
+    .footer {
+      backdrop-filter: blur(10px);
+    }
+
+    .nav {
+      position: sticky;
+      top: 12px;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 18px;
+      margin-bottom: 20px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      box-shadow: 0 10px 30px rgba(36, 49, 66, 0.06);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .brand-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      box-shadow: 0 10px 22px rgba(22, 92, 78, 0.12);
+    }
+
+    .brand-copy strong,
+    .brand-copy span {
+      display: block;
+    }
+
+    .brand-copy strong {
+      font-size: 0.95rem;
+      letter-spacing: 0.01em;
+    }
+
+    .brand-copy span {
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .nav-links {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .nav-links a {
+      padding: 10px 14px;
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .nav-links a:hover,
+    .nav-links a:focus-visible {
+      background: rgba(22, 92, 78, 0.08);
+      color: var(--primary);
+      outline: none;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+      gap: 28px;
+      align-items: stretch;
+      margin-top: 10px;
+    }
+
+    .hero-card,
+    .visual-card,
+    .feature-card,
+    .quote-card,
+    .footer {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+
+    .hero-card {
+      padding: 44px;
+      border-radius: var(--radius-xl);
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(22, 92, 78, 0.08);
+      color: var(--primary);
+      font-size: 0.92rem;
+      font-weight: 600;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      margin: 20px 0 16px;
+      font-size: clamp(2.5rem, 5vw, 4.8rem);
+      line-height: 0.96;
+      letter-spacing: -0.05em;
+      font-weight: 600;
+    }
+
+    .lead {
+      max-width: 50ch;
+      margin-bottom: 28px;
+      color: var(--muted);
+      font-size: 1.08rem;
+    }
+
+    .cta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      padding: 0 18px;
+      border-radius: 999px;
+      font-weight: 600;
+      border: 1px solid transparent;
+      transition: transform 140ms ease, box-shadow 140ms ease, background 140ms ease;
+    }
+
+    .button:hover,
+    .button:focus-visible {
+      transform: translateY(-1px);
+      outline: none;
+    }
+
+    .button-primary {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 14px 30px rgba(22, 92, 78, 0.24);
+    }
+
+    .button-secondary {
+      background: rgba(255, 255, 255, 0.82);
+      border-color: rgba(22, 92, 78, 0.12);
+      color: var(--primary);
+    }
+
+    .hero-points {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .hero-points div {
+      padding: 14px;
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(36, 49, 66, 0.06);
+    }
+
+    .hero-points strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 1rem;
+    }
+
+    .hero-points span {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .visual-card {
+      position: relative;
+      overflow: hidden;
+      padding: 26px;
+      border-radius: var(--radius-xl);
+      background:
+        radial-gradient(circle at top left, rgba(232, 237, 231, 1), transparent 44%),
+        linear-gradient(160deg, rgba(255, 255, 255, 0.95), rgba(248, 244, 239, 0.92));
+    }
+
+    .visual-card::after {
+      content: "";
+      position: absolute;
+      inset: auto -80px -80px auto;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: rgba(216, 202, 184, 0.28);
+      filter: blur(10px);
+    }
+
+    .stat-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.84);
+      border: 1px solid rgba(22, 92, 78, 0.08);
+      color: var(--primary);
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .phone {
+      position: relative;
+      z-index: 1;
+      margin-top: 18px;
+      padding: 18px;
+      border-radius: 30px;
+      background: #1b3e37;
+      box-shadow: 0 24px 44px rgba(27, 62, 55, 0.24);
+    }
+
+    .screen {
+      border-radius: 24px;
+      padding: 18px;
+      background: linear-gradient(180deg, #fcfaf7 0%, #f0f4f1 100%);
+    }
+
+    .screen-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .screen-top h2 {
+      margin-bottom: 4px;
+      font-size: 1.1rem;
+    }
+
+    .screen-top p,
+    .micro,
+    .list-item span,
+    .mini-card p,
+    .section-intro {
+      color: var(--muted);
+    }
+
+    .amount {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .mini-grid,
+    .features,
+    .quote-grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .mini-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      margin-bottom: 16px;
+    }
+
+    .mini-card {
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.82);
+      border: 1px solid rgba(36, 49, 66, 0.06);
+    }
+
+    .mini-card strong {
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .list-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(36, 49, 66, 0.06);
+    }
+
+    .list-item strong {
+      display: block;
+      font-size: 0.98rem;
+    }
+
+    .pill {
+      padding: 8px 10px;
+      border-radius: 999px;
+      background: rgba(22, 92, 78, 0.08);
+      color: var(--primary);
+      font-size: 0.84rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    section {
+      margin-top: 28px;
+    }
+
+    .band {
+      padding: 28px;
+      border-radius: var(--radius-xl);
+      background: rgba(24, 74, 64, 0.95);
+      color: #fff;
+      box-shadow: 0 20px 50px rgba(24, 74, 64, 0.24);
+    }
+
+    .band-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .band-grid div {
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .band-grid strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 1rem;
+    }
+
+    .section-head {
+      max-width: 720px;
+      margin-bottom: 18px;
+    }
+
+    .section-head h2 {
+      margin-bottom: 10px;
+      font-size: clamp(2rem, 3.4vw, 3.2rem);
+      line-height: 1.02;
+      letter-spacing: -0.04em;
+    }
+
+    .features {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .feature-card,
+    .quote-card {
+      padding: 22px;
+      border-radius: 24px;
+    }
+
+    .feature-card h3,
+    .quote-card h3 {
+      margin-bottom: 8px;
+      font-size: 1.18rem;
+    }
+
+    .quote-grid {
+      grid-template-columns: 1.1fr 0.9fr;
+    }
+
+    .quote-card blockquote {
+      margin: 0 0 20px;
+      font-size: 1.35rem;
+      line-height: 1.35;
+      letter-spacing: -0.02em;
+    }
+
+    .footer {
+      margin-top: 28px;
+      padding: 24px;
+      border-radius: 28px;
+    }
+
+    .footer-top,
+    .footer-links {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .footer-links {
+      color: var(--muted);
+    }
+
+    .footer-links a:hover,
+    .footer-links a:focus-visible {
+      color: var(--primary);
+      outline: none;
+    }
+
+    @media (max-width: 980px) {
+      .hero,
+      .quote-grid,
+      .features {
+        grid-template-columns: 1fr;
+      }
+
+      .band-grid,
+      .hero-points {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .page {
+        width: min(calc(100% - 20px), var(--max-width));
+        padding-top: 10px;
+      }
+
+      .nav {
+        position: static;
+        border-radius: 28px;
+        padding: 16px;
+      }
+
+      .hero-card,
+      .visual-card,
+      .band,
+      .footer {
+        padding: 22px;
+      }
+
+      .nav,
+      .footer-top,
+      .footer-links {
+        align-items: flex-start;
+      }
+
+      .mini-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="nav" aria-label="Toppnavigasjon">
+      <a class="brand" href="./">
+        <img class="brand-icon" src="./assets/icon-sage.svg" alt="Enkelt Budsjett ikon">
+        <span class="brand-copy">
+          <strong>Enkelt Budsjett</strong>
+          <span>Personlig økonomi uten stress</span>
+        </span>
+      </a>
+      <nav class="nav-links" aria-label="Hovedlenker">
+        <a href="#funksjoner">Funksjoner</a>
+        <a href="#hvorfor">Hvorfor appen</a>
+        <a href="./support/">Support</a>
+        <a href="./personvern/">Personvern</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-card">
+          <p class="eyebrow">Kommer snart til App Store</p>
+          <h1 id="hero-title">Få roligere oversikt over budsjett og investeringer.</h1>
+          <p class="lead">
+            Enkelt Budsjett samler månedlig budsjett, faste utgifter, sparing og investeringssnapshots i en varm og ryddig norsk app.
+          </p>
+          <div class="cta-row">
+            <a class="button button-primary" href="./support/">Kontakt oss</a>
+            <a class="button button-secondary" href="./personvern/">Les personvern</a>
+          </div>
+          <div class="hero-points" aria-label="Hovedfordeler">
+            <div>
+              <strong>Offline-first</strong>
+              <span>Data lagres på enheten din som standard.</span>
+            </div>
+            <div>
+              <strong>Ingen bankintegrasjon</strong>
+              <span>Du beholder kontrollen og legger inn tallene selv.</span>
+            </div>
+            <div>
+              <strong>Norsk flyt</strong>
+              <span>Laget for enkel økonomioppfølging i hverdagen.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="visual-card" aria-label="Forhåndsvisning av app">
+          <span class="stat-chip">Budsjett, mål og investeringer</span>
+          <div class="phone">
+            <div class="screen">
+              <div class="screen-top">
+                <div>
+                  <p class="micro">Mars 2026</p>
+                  <h2>Oversikt</h2>
+                  <p>Se netto hittil, sparing og utvikling på ett sted.</p>
+                </div>
+                <div class="amount">24 800 kr</div>
+              </div>
+
+              <div class="mini-grid">
+                <div class="mini-card">
+                  <strong>Budsjett brukt</strong>
+                  <p>62 % av månedens ramme</p>
+                </div>
+                <div class="mini-card">
+                  <strong>Fast sparing</strong>
+                  <p>4 500 kr registrert</p>
+                </div>
+              </div>
+
+              <div class="list" aria-label="Eksempelkort">
+                <div class="list-item">
+                  <div>
+                    <strong>Mat og husholdning</strong>
+                    <span>Hold deg innenfor månedlig plan</span>
+                  </div>
+                  <span class="pill">3 240 kr</span>
+                </div>
+                <div class="list-item">
+                  <div>
+                    <strong>Investeringer</strong>
+                    <span>Månedlig snapshot med utvikling</span>
+                  </div>
+                  <span class="pill">+5,4 %</span>
+                </div>
+                <div class="list-item">
+                  <div>
+                    <strong>Mål</strong>
+                    <span>Se hvor langt du har kommet</span>
+                  </div>
+                  <span class="pill">74 %</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="band" id="hvorfor" aria-labelledby="why-title">
+        <div class="section-head">
+          <h2 id="why-title">Bygget for deg som vil ha tydelig oversikt uten å bli overlesset.</h2>
+          <p class="section-intro">Appen fokuserer på det du faktisk trenger for å følge økonomien måned for måned.</p>
+        </div>
+        <div class="band-grid">
+          <div>
+            <strong>Faste poster</strong>
+            <span>Gjenta månedlige utgifter uten dobbeltarbeid.</span>
+          </div>
+          <div>
+            <strong>Investeringsinnsjekk</strong>
+            <span>Oppdater porteføljen med en enkel månedlig rutine.</span>
+          </div>
+          <div>
+            <strong>Eksport og import</strong>
+            <span>Ta vare på egne data med enkel sikkerhetskopi.</span>
+          </div>
+        </div>
+      </section>
+
+      <section id="funksjoner" aria-labelledby="features-title">
+        <div class="section-head">
+          <h2 id="features-title">Tre områder som gjør appen nyttig i praksis.</h2>
+          <p class="section-intro">Forsiden er bevisst enkel. Arbeidet skjer i korte, fokuserte steg inne i appen.</p>
+        </div>
+        <div class="features">
+          <article class="feature-card">
+            <h3>Månedsbudsjett</h3>
+            <p>Følg inntekt, utgifter og manuell sparing med grupperte kategorier og tydelig progresjon.</p>
+          </article>
+          <article class="feature-card">
+            <h3>Investeringsoversikt</h3>
+            <p>Registrer snapshots per måned for fond, aksjer, BSU, buffer og andre kontoer du vil følge.</p>
+          </article>
+          <article class="feature-card">
+            <h3>Mål og vaner</h3>
+            <p>Se hvor mye du har spart hittil i år og knytt økonomien til konkrete mål som føles oppnåelige.</p>
+          </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="closing-title">
+        <div class="quote-grid">
+          <article class="quote-card">
+            <img src="./assets/logo-wordmark.svg" alt="Spor økonomi logotype">
+            <blockquote>
+              En roligere måte å følge pengene dine på, uten mas, moraliserende språk eller unødvendig kompleksitet.
+            </blockquote>
+            <a class="button button-primary" href="./support/">Ta kontakt</a>
+          </article>
+          <article class="quote-card">
+            <h3 id="closing-title">Praktisk informasjon</h3>
+            <p>Appen er under utvikling for iPhone og bruker lokal lagring som utgangspunkt. Hvis iCloud-synk er aktiv, kan data synkroniseres via din Apple-konto.</p>
+            <p>Har du spørsmål om personvern, support eller App Store-lansering, finner du alt samlet under lenkene nedenfor.</p>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-top">
+        <div>
+          <strong>Enkelt Budsjett</strong>
+          <p class="micro">GitHub Pages-landingsside for appen.</p>
+        </div>
+        <div class="footer-links" aria-label="Juridiske lenker">
+          <a href="./support/">Support</a>
+          <a href="./personvern/">Personvern</a>
+          <a href="./vilkar/">Vilkår</a>
+        </div>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>

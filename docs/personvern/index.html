@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Personvern | Enkelt Budsjett</title>
+  <meta name="description" content="Personvernerklæring for Enkelt Budsjett.">
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f3f0;
+      --card: #ffffff;
+      --text: #243142;
+      --muted: #617083;
+      --primary: #165c4e;
+      --border: rgba(36, 49, 66, 0.08);
+      --shadow: 0 20px 50px rgba(36, 49, 66, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Avenir Next", "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top right, rgba(232, 237, 231, 0.95), transparent 28%),
+        linear-gradient(180deg, #faf6f1 0%, var(--bg) 100%);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+
+    a:hover,
+    a:focus-visible {
+      text-decoration: underline;
+      outline: none;
+    }
+
+    main {
+      width: min(calc(100% - 32px), 780px);
+      margin: 0 auto;
+      padding: 28px 0 52px;
+    }
+
+    .back {
+      display: inline-flex;
+      margin-bottom: 16px;
+      color: var(--muted);
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.82);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      padding: 28px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(8px);
+    }
+
+    h1,
+    h2,
+    p,
+    li {
+      margin-top: 0;
+    }
+
+    h1 {
+      margin-bottom: 4px;
+      font-size: clamp(2rem, 5vw, 3rem);
+      line-height: 1.02;
+      letter-spacing: -0.04em;
+    }
+
+    h2 {
+      margin-top: 24px;
+      margin-bottom: 10px;
+      font-size: 1.2rem;
+    }
+
+    .meta,
+    ul {
+      color: var(--muted);
+    }
+
+    ul {
+      padding-left: 20px;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <a class="back" href="../">Tilbake til forsiden</a>
+    <article class="card">
+      <h1>Personvernerklæring</h1>
+      <p class="meta">Enkelt Budsjett · Sist oppdatert: 28. februar 2026</p>
+
+      <h2>Kort fortalt</h2>
+      <p>Enkelt Budsjett er laget for å gi deg budsjett- og investeringsoversikt uten bankintegrasjon i MVP.</p>
+
+      <h2>Hvilke data behandles</h2>
+      <ul>
+        <li>Budsjettdata, transaksjoner, mål og innstillinger du legger inn i appen.</li>
+        <li>Disse dataene brukes kun for appfunksjonalitet.</li>
+      </ul>
+
+      <h2>Lagring</h2>
+      <ul>
+        <li>Data lagres lokalt på enheten med SwiftData.</li>
+        <li>Hvis iCloud-synk er aktiv, kan data synkroniseres via CloudKit i din Apple-konto.</li>
+      </ul>
+
+      <h2>Deling med tredjeparter</h2>
+      <ul>
+        <li>Ingen tredjepartssporing i MVP.</li>
+        <li>Ingen annonserings-SDK-er i MVP.</li>
+      </ul>
+
+      <h2>Eksport og sletting</h2>
+      <ul>
+        <li>Du kan eksportere data fra Innstillinger.</li>
+        <li>Du kan slette alle lokale data fra Innstillinger.</li>
+      </ul>
+
+      <h2>Kontakt</h2>
+      <p>E-post: <a href="mailto:sporokonomi.app@gmail.com">sporokonomi.app@gmail.com</a></p>
+    </article>
+  </main>
+</body>
+</html>
