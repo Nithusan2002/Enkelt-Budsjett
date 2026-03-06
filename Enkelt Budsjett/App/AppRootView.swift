@@ -50,6 +50,7 @@ struct AppRootView: View {
     @AppStorage("app_appearance_mode") private var appAppearanceModeRawValue = AppAppearancePreference.followSystem.rawValue
     @StateObject private var viewModel = AppRootViewModel()
     @StateObject private var navigationState = AppNavigationState()
+    @StateObject private var sessionStore = SessionStore()
     @State private var bootstrapAttempted = false
 
     private var preference: UserPreference? { preferences.first }
@@ -78,7 +79,9 @@ struct AppRootView: View {
         ZStack {
             Group {
                 if let preference {
-                    if !preference.onboardingCompleted {
+                    if sessionStore.requiresAuthChoice {
+                        WelcomeAuthView(preference: preference)
+                    } else if !preference.onboardingCompleted {
                         OnboardingView(preference: preference)
                     } else {
                         TabView(selection: $navigationState.selectedTab) {
@@ -143,6 +146,7 @@ struct AppRootView: View {
         .background(AppTheme.background.ignoresSafeArea())
         .foregroundStyle(AppTheme.textPrimary)
         .preferredColorScheme(preferredColorScheme)
+        .environmentObject(sessionStore)
         .task {
             guard !bootstrapAttempted else { return }
             applyBarAppearance()
@@ -152,6 +156,13 @@ struct AppRootView: View {
         .onAppear {
             applyBarAppearance()
             viewModel.configureLock(enabled: shouldUseFaceIDLock)
+            sessionStore.restore(from: preference)
+        }
+        .onChange(of: preference?.authSessionModeRaw) { _, _ in
+            sessionStore.restore(from: preference)
+        }
+        .onChange(of: preference?.authUserID) { _, _ in
+            sessionStore.restore(from: preference)
         }
         .onChange(of: shouldUseFaceIDLock) { _, newValue in
             viewModel.configureLock(enabled: newValue)

@@ -439,6 +439,11 @@ final class Challenge {
 final class UserPreference {
     var singletonKey: String = "main"
     var firstName: String = ""
+    var authSessionModeRaw: String = AuthSessionMode.undecided.rawValue
+    var authProviderRaw: String?
+    var authUserID: String?
+    var authEmail: String?
+    var authDisplayName: String?
     var savingsDefinition: SavingsDefinition = SavingsDefinition.incomeMinusExpense
     var yearStartRule: String = "calendarYear"
     var checkInReminderEnabled: Bool = true
@@ -455,6 +460,11 @@ final class UserPreference {
     init(
         singletonKey: String = "main",
         firstName: String = "",
+        authSessionModeRaw: String = AuthSessionMode.undecided.rawValue,
+        authProviderRaw: String? = nil,
+        authUserID: String? = nil,
+        authEmail: String? = nil,
+        authDisplayName: String? = nil,
         savingsDefinition: SavingsDefinition = .incomeMinusExpense,
         yearStartRule: String = "calendarYear",
         checkInReminderEnabled: Bool = true,
@@ -470,6 +480,11 @@ final class UserPreference {
     ) {
         self.singletonKey = singletonKey
         self.firstName = firstName
+        self.authSessionModeRaw = authSessionModeRaw
+        self.authProviderRaw = authProviderRaw
+        self.authUserID = authUserID
+        self.authEmail = authEmail
+        self.authDisplayName = authDisplayName
         self.savingsDefinition = savingsDefinition
         self.yearStartRule = yearStartRule
         self.checkInReminderEnabled = checkInReminderEnabled
