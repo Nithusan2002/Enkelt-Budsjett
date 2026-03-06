@@ -1,4 +1,4 @@
-# Spor Økonomi – juridiske sider (GitHub Pages)
+# Enkelt Budsjett – juridiske sider (GitHub Pages)
 
 Denne mappen inneholder tre ferdige sider for App Store Connect:
 
