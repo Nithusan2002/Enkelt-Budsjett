@@ -123,6 +123,11 @@ final class InvestmentCheckInWizardViewModel: ObservableObject {
         index == buckets.count - 1 ? "Oppsummering" : "Neste"
     }
 
+    var isLastBucketStep: Bool {
+        guard hasBuckets else { return false }
+        return index == buckets.count - 1
+    }
+
     var canMoveNext: Bool {
         guard let bucket = currentBucket else { return false }
         return validationMessage(for: bucket.id) == nil
@@ -240,6 +245,51 @@ final class InvestmentCheckInWizardViewModel: ObservableObject {
         stepStates[bucketID] = state
     }
 
+    func addBucketDuringCheckIn(
+        context: ModelContext,
+        name: String,
+        colorHex: String
+    ) throws {
+        let existingBuckets = try context.fetch(FetchDescriptor<InvestmentBucket>())
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !trimmedName.isEmpty else {
+            throw InvestmentWizardAddBucketError.emptyName
+        }
+
+        let bucket: InvestmentBucket
+        if let existing = existingBuckets.first(where: {
+            $0.name.compare(trimmedName, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
+        }) {
+            if existing.isActive {
+                throw InvestmentWizardAddBucketError.duplicateName
+            }
+
+            existing.name = trimmedName
+            existing.colorHex = colorHex
+            existing.isActive = true
+            existing.sortOrder = (existingBuckets.map(\.sortOrder).max() ?? 0) + 1
+            try context.guardedSave(feature: "Investments", operation: "reactivate_bucket")
+            bucket = existing
+        } else {
+            let id = uniqueBucketID(for: trimmedName, existingBuckets: existingBuckets)
+            let sortOrder = (existingBuckets.map(\.sortOrder).max() ?? 0) + 1
+            let created = InvestmentBucket(
+                id: id,
+                name: trimmedName,
+                colorHex: colorHex,
+                isDefault: false,
+                isActive: true,
+                sortOrder: sortOrder
+            )
+            context.insert(created)
+            try context.guardedSave(feature: "Investments", operation: "add_bucket")
+            bucket = created
+        }
+
+        appendBucketToWizard(bucket)
+    }
+
     func isNewType(_ bucketID: String) -> Bool {
         previousValues[bucketID] == nil
     }
@@ -332,6 +382,23 @@ final class InvestmentCheckInWizardViewModel: ObservableObject {
         stepStates = newStates
     }
 
+    private func appendBucketToWizard(_ bucket: InvestmentBucket) {
+        if let existingIndex = buckets.firstIndex(where: { $0.id == bucket.id }) {
+            buckets[existingIndex] = bucket
+        } else {
+            buckets.append(bucket)
+        }
+        buckets.sort { $0.sortOrder < $1.sortOrder }
+        stepStates[bucket.id] = InvestmentWizardStepState(
+            mode: .unchanged,
+            inputString: Self.formatInputAmount(previousValue(for: bucket.id))
+        )
+        if let newIndex = buckets.firstIndex(where: { $0.id == bucket.id }) {
+            index = newIndex
+            visitedBucketIDs.insert(bucket.id)
+        }
+    }
+
     private func isBucketCompleted(_ bucketID: String) -> Bool {
         validationMessage(for: bucketID) == nil
     }
@@ -340,6 +407,37 @@ final class InvestmentCheckInWizardViewModel: ObservableObject {
         guard let snapshot else { return [:] }
         return snapshot.bucketValues.reduce(into: [:]) { result, value in
             result[value.bucketID, default: 0] += value.amount
+        }
+    }
+
+    private func uniqueBucketID(for name: String, existingBuckets: [InvestmentBucket]) -> String {
+        let base = name
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+            .folding(options: [.diacriticInsensitive], locale: Locale(identifier: "nb_NO"))
+            .replacingOccurrences(of: " ", with: "_")
+            .replacingOccurrences(of: "/", with: "_")
+        var candidate = "bucket_\(base)"
+        var suffix = 2
+        let existingIDs = Set(existingBuckets.map(\.id))
+        while existingIDs.contains(candidate) {
+            candidate = "bucket_\(base)_\(suffix)"
+            suffix += 1
+        }
+        return candidate
+    }
+}
+
+enum InvestmentWizardAddBucketError: LocalizedError {
+    case emptyName
+    case duplicateName
+
+    var errorDescription: String? {
+        switch self {
+        case .emptyName:
+            return "Skriv inn et navn på beholdningstypen."
+        case .duplicateName:
+            return "Denne beholdningstypen finnes allerede."
         }
     }
 }
