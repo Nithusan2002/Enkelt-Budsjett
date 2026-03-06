@@ -315,6 +315,28 @@ struct RecurringAndDemoTests {
 
     @Test
     @MainActor
+    func demoSeedCreatesRecurringTransactionsForFixedItems() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+
+        _ = try DemoDataSeeder.seedRealisticYear(context: context, year: 2026)
+
+        let transactions = try context.fetch(FetchDescriptor<Transaction>())
+        let januaryFixedTotal = FixedItemsService.fixedTotalForMonth(
+            periodKey: "2026-01",
+            transactions: transactions
+        )
+
+        #expect(januaryFixedTotal > 0)
+        #expect(transactions.contains(where: { $0.fixedItemID == "fixed_demo_rent" && $0.recurringKey != nil }))
+        #expect(transactions.contains(where: { $0.fixedItemID == "fixed_demo_mobile" && $0.recurringKey != nil }))
+        #expect(transactions.contains(where: { $0.fixedItemID == "fixed_demo_month_pass" && $0.recurringKey != nil }))
+        #expect(transactions.contains(where: { $0.fixedItemID == "fixed_demo_spotify" && $0.recurringKey != nil }))
+        #expect(transactions.contains(where: { $0.fixedItemID == "fixed_demo_icloud" && $0.recurringKey != nil }))
+    }
+
+    @Test
+    @MainActor
     func demoSeedIsIdempotentWhenRunTwice() throws {
         let container = try TestModelContainerFactory.makeInMemoryContainer()
         let context = container.mainContext
