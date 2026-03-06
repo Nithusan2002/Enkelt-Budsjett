@@ -270,19 +270,28 @@ struct OnboardingView: View {
                 viewModel.primaryAction(preference: preference, context: modelContext)
             }
             .frame(maxWidth: .infinity)
-            .appCTAStyle()
-            .buttonStyle(.borderedProminent)
-            .tint(AppTheme.primary)
+            .appProminentCTAStyle()
             .disabled(viewModel.isPrimaryDisabled)
             .accessibilityLabel(viewModel.primaryButtonTitle)
 
-            if let secondary = viewModel.secondaryButtonTitle {
-                Button(secondary) {
-                    viewModel.secondaryAction(preference: preference, context: modelContext)
+            HStack(spacing: 16) {
+                if let backTitle = viewModel.backButtonTitle {
+                    Button(backTitle) {
+                        viewModel.back(preference: preference, context: modelContext)
+                    }
+                    .appSecondaryStyle()
+                    .accessibilityLabel(backTitle)
                 }
-                .appSecondaryStyle()
-                .accessibilityLabel(secondary)
+
+                if let secondary = viewModel.secondaryButtonTitle {
+                    Button(secondary) {
+                        viewModel.secondaryAction(preference: preference, context: modelContext)
+                    }
+                    .appSecondaryStyle()
+                    .accessibilityLabel(secondary)
+                }
             }
+            .frame(maxWidth: .infinity, alignment: .center)
         }
         .frame(maxWidth: 420, alignment: .center)
         .frame(maxWidth: .infinity, alignment: .center)

@@ -111,9 +111,7 @@ struct InvestmentCheckInWizardView: View {
                 dismiss()
                 onRequestNewType?()
             }
-            .buttonStyle(.borderedProminent)
-            .tint(AppTheme.primary)
-            .appCTAStyle()
+            .appProminentCTAStyle()
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -231,9 +229,7 @@ private struct WizardIntroView: View {
                 Button("Start") {
                     onStart()
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(AppTheme.primary)
-                .appCTAStyle()
+                .appProminentCTAStyle()
             }
             .padding(.horizontal)
             .padding(.top, 8)
@@ -407,9 +403,7 @@ private struct WizardBucketStepView: View {
                 Button(nextTitle) {
                     onNext()
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(AppTheme.primary)
-                .appCTAStyle()
+                .appProminentCTAStyle()
                 .disabled(!canGoNext)
             }
             .padding(.horizontal)
@@ -628,9 +622,7 @@ private struct WizardSummaryView: View {
                         Text("Lagre")
                     }
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(AppTheme.primary)
-                .appCTAStyle()
+                .appProminentCTAStyle()
                 .disabled(saveDisabled)
             }
             .padding(.horizontal)

@@ -87,6 +87,10 @@ final class OnboardingViewModel: ObservableObject {
         }
     }
 
+    var backButtonTitle: String? {
+        canGoBack ? "Tilbake" : nil
+    }
+
     var secondaryButtonTitle: String? {
         switch currentStep {
         case .goal:
@@ -96,6 +100,11 @@ final class OnboardingViewModel: ObservableObject {
         default:
             return nil
         }
+    }
+
+    var canGoBack: Bool {
+        guard let idx = orderedSteps.firstIndex(of: currentStep) else { return false }
+        return idx > 0
     }
 
     var isPrimaryDisabled: Bool {
@@ -168,6 +177,20 @@ final class OnboardingViewModel: ObservableObject {
             markCurrentStepSeen()
         } catch {
             let message = (error as? LocalizedError)?.errorDescription ?? "Kunne ikke lagre fremdrift. Prøv igjen."
+            setError(message)
+        }
+    }
+
+    func back(preference: UserPreference, context: ModelContext) {
+        do {
+            try saveStepState(preference: preference, context: context)
+            guard let idx = orderedSteps.firstIndex(of: currentStep), idx > 0 else { return }
+            let previousStep = orderedSteps[idx - 1]
+            preference.onboardingCurrentStep = previousStep.rawValue
+            try context.guardedSave(feature: "Onboarding", operation: "save_step_transition")
+            currentStep = previousStep
+        } catch {
+            let message = (error as? LocalizedError)?.errorDescription ?? "Kunne ikke gå tilbake. Prøv igjen."
             setError(message)
         }
     }

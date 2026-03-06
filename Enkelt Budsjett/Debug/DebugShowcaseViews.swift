@@ -9,8 +9,7 @@ struct ComponentStatesDebugView: View {
                 componentSection("Knapper") {
                     VStack(spacing: 12) {
                         Button("Primær handling") {}
-                            .buttonStyle(.borderedProminent)
-                            .tint(AppTheme.primary)
+                            .appProminentCTAStyle()
                             .frame(maxWidth: .infinity, alignment: .leading)
 
                         Button("Sekundær handling") {}
@@ -19,8 +18,7 @@ struct ComponentStatesDebugView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
 
                         Button("Deaktivert handling") {}
-                            .buttonStyle(.borderedProminent)
-                            .tint(AppTheme.primary)
+                            .appProminentCTAStyle()
                             .disabled(true)
                             .frame(maxWidth: .infinity, alignment: .leading)
 

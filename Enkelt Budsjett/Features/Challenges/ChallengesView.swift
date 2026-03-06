@@ -48,8 +48,7 @@ struct ChallengesView: View {
                     }
                     .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(waitlistOptIn ? AppTheme.positive : AppTheme.primary)
+                .appProminentCTAStyle(tone: waitlistOptIn ? .positive : .primary)
 
                 Text(waitlistOptIn ? "Du får et lite varsel i appen når funksjonen er klar." : "Du kan slå på varsel nå, eller vente til senere.")
                     .appSecondaryStyle()

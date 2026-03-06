@@ -445,9 +445,7 @@ struct InvestmentsView: View {
                     Button("Ny innsjekk") {
                         openCheckIn()
                     }
-                    .appCTAStyle()
-                    .buttonStyle(.borderedProminent)
-                    .tint(AppTheme.primary)
+                    .appProminentCTAStyle()
                     .disabled(isReadOnlyMode)
                 }
                 .padding(12)
