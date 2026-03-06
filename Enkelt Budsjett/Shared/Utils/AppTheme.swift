@@ -2,16 +2,16 @@ import SwiftUI
 import UIKit
 
 enum AppTheme {
-    static let background = Color(light: "#FFF8F1", dark: "#0D1118")
-    static let surface = Color(light: "#FFFFFF", dark: "#151C26")
-    static let surfaceElevated = Color(light: "#FFFFFF", dark: "#1B2430")
-    static let primary = Color(light: "#EA580C", dark: "#FB8A3C")
-    static let secondary = Color(light: "#0EA5E9", dark: "#53C8FF")
-    static let textPrimary = Color(light: "#1F2937", dark: "#F5F7FA")
-    static let textSecondary = Color(light: "#6B7280", dark: "#A5B2C5")
-    static let divider = Color(light: "#F1E7DC", dark: "#273244")
+    static let background = Color(light: "#FAFAF9", dark: "#102824")
+    static let surface = Color(light: "#FFFFFF", dark: "#15332F")
+    static let surfaceElevated = Color(light: "#FFFFFF", dark: "#1B3B36")
+    static let primary = Color(light: "#1A5448", dark: "#E8EDE7")
+    static let secondary = Color(light: "#6E847D", dark: "#B9C7C1")
+    static let textPrimary = Color(light: "#223038", dark: "#F5F7F4")
+    static let textSecondary = Color(light: "#66757D", dark: "#B7C4BE")
+    static let divider = Color(light: "#E6E2DA", dark: "#2E5951")
     static let positive = Color(light: "#16A34A", dark: "#3DD67A")
-    static let warning = Color(light: "#D97706", dark: "#FFB547")
+    static let warning = Color(light: "#A56A1F", dark: "#D8A25A")
     static let negative = Color(light: "#DC2626", dark: "#FF6B6B")
 
     static let portfolioFund = Color(light: "#1F9BD3", dark: "#48B6E9")

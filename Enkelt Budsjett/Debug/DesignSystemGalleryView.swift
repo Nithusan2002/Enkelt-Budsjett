@@ -145,14 +145,14 @@ struct DesignSystemGalleryView: View {
 
     private var colorSwatches: [ColorSwatch] {
         [
-            ColorSwatch(name: "Primary", color: AppTheme.primary, hex: "#EA580C"),
-            ColorSwatch(name: "Secondary", color: AppTheme.secondary, hex: "#0EA5E9"),
+            ColorSwatch(name: "Primary", color: AppTheme.primary, hex: "#1A5448"),
+            ColorSwatch(name: "Secondary", color: AppTheme.secondary, hex: "#6E847D"),
             ColorSwatch(name: "Surface", color: AppTheme.surface, hex: "#FFFFFF"),
-            ColorSwatch(name: "Background", color: AppTheme.background, hex: "#FFF8F1"),
+            ColorSwatch(name: "Background", color: AppTheme.background, hex: "#FAFAF9"),
             ColorSwatch(name: "Positive", color: AppTheme.positive, hex: "#16A34A"),
-            ColorSwatch(name: "Warning", color: AppTheme.warning, hex: "#D97706"),
+            ColorSwatch(name: "Warning", color: AppTheme.warning, hex: "#A56A1F"),
             ColorSwatch(name: "Negative", color: AppTheme.negative, hex: "#DC2626"),
-            ColorSwatch(name: "Divider", color: AppTheme.divider, hex: "#F1E7DC")
+            ColorSwatch(name: "Divider", color: AppTheme.divider, hex: "#E6E2DA")
         ]
     }
 }
