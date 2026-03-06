@@ -110,13 +110,13 @@ final class SupabaseAuthClient: AuthClientProtocol {
     init(
         configuration: SupabaseConfiguration,
         session: URLSession = .shared,
-        tokenStore: AuthTokenStore = AuthTokenStore(),
-        webAuthCoordinator: OAuthWebAuthenticationCoordinating = OAuthWebAuthenticationCoordinator()
+        tokenStore: AuthTokenStore? = nil,
+        webAuthCoordinator: OAuthWebAuthenticationCoordinating? = nil
     ) {
         self.configuration = configuration
         self.session = session
-        self.tokenStore = tokenStore
-        self.webAuthCoordinator = webAuthCoordinator
+        self.tokenStore = tokenStore ?? AuthTokenStore()
+        self.webAuthCoordinator = webAuthCoordinator ?? OAuthWebAuthenticationCoordinator()
     }
 
     func signUp(email: String, password: String, displayName: String?) async throws -> AuthClientSession? {
