@@ -170,8 +170,8 @@ final class SessionStore: ObservableObject {
 
     func signInWithGoogle(preference: UserPreference, context: ModelContext) async {
         await performAuthRequest {
-            let session = try await authClient.signInWithGoogle()
-            updatePreference(
+            let session = try await self.authClient.signInWithGoogle()
+            self.updatePreference(
                 preference,
                 mode: .authenticated,
                 session: UserSession(
