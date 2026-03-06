@@ -36,7 +36,7 @@ struct SettingsView: View {
     @State private var ensuredPreference: UserPreference?
     @State private var demoLoadMessage = ""
     @State private var demoToastMessage: String?
-    @State private var emailAuthMode: SettingsEmailAuthMode?
+    @State private var emailAuthMode: EmailAuthMode?
 
     private var pref: UserPreference {
         if let existing = preferences.first ?? ensuredPreference {
@@ -133,7 +133,7 @@ struct SettingsView: View {
             }
             }
             .sheet(item: $emailAuthMode) { mode in
-                SettingsEmailAuthSheet(mode: mode) { email, password, displayName in
+                EmailAuthSheetView(mode: mode) { email, password, displayName in
                     switch mode {
                     case .signUp:
                         await sessionStore.createAccountWithEmail(
@@ -278,74 +278,27 @@ struct SettingsView: View {
     }
 
     private var accountSection: some View {
-        Section("Konto og synk") {
-            HStack {
-                Text("Status")
-                    .appBodyStyle()
-                Spacer()
-                Text(accountStatusText())
-                    .appSecondaryStyle()
-                    .multilineTextAlignment(.trailing)
+        SettingsAccountSection(
+            authEmail: pref.authEmail,
+            isReadOnlyMode: isReadOnlyMode,
+            onContinueWithoutAccount: {
+                sessionStore.continueWithoutAccount(preference: pref, context: modelContext)
+            },
+            onCreateAccount: {
+                emailAuthMode = .signUp
+            },
+            onSignInWithEmail: {
+                emailAuthMode = .signIn
+            },
+            onSignInWithGoogle: {
+                Task {
+                    await sessionStore.signInWithGoogle(preference: pref, context: modelContext)
+                }
+            },
+            onSignOut: {
+                sessionStore.signOut(preference: pref, context: modelContext)
             }
-
-            if sessionStore.isAuthenticated {
-                if let email = pref.authEmail, !email.isEmpty {
-                    HStack {
-                        Text("Konto")
-                            .appBodyStyle()
-                        Spacer()
-                        Text(email)
-                            .appSecondaryStyle()
-                    }
-                }
-
-                Button("Logg ut") {
-                    sessionStore.signOut(preference: pref, context: modelContext)
-                }
-                .buttonStyle(.plain)
-                .disabled(isReadOnlyMode || sessionStore.isWorking)
-
-                Text("Du kan fortsatt bruke appen lokalt etter utlogging.")
-                    .appSecondaryStyle()
-            } else {
-                Button {
-                    sessionStore.continueWithoutAccount(preference: pref, context: modelContext)
-                } label: {
-                    settingsRow(title: "Fortsett uten konto", value: "", showsChevron: false)
-                }
-                .buttonStyle(.plain)
-                .disabled(isReadOnlyMode || sessionStore.isWorking)
-
-                Button {
-                    emailAuthMode = .signUp
-                } label: {
-                    settingsRow(title: "Opprett konto med e-post", value: "", showsChevron: false)
-                }
-                .buttonStyle(.plain)
-                .disabled(isReadOnlyMode || sessionStore.isWorking)
-
-                Button {
-                    emailAuthMode = .signIn
-                } label: {
-                    settingsRow(title: "Logg inn med e-post", value: "", showsChevron: false)
-                }
-                .buttonStyle(.plain)
-                .disabled(isReadOnlyMode || sessionStore.isWorking)
-
-                Button {
-                    Task {
-                        await sessionStore.signInWithGoogle(preference: pref, context: modelContext)
-                    }
-                } label: {
-                    settingsRow(title: "Logg inn med Google", value: "", showsChevron: false)
-                }
-                .buttonStyle(.plain)
-                .disabled(isReadOnlyMode || sessionStore.isWorking)
-
-                Text("Konto brukes senere til synkronisering og gjenoppretting.")
-                    .appSecondaryStyle()
-            }
-        }
+        )
     }
 
     private var appSettingsSection: some View {
@@ -773,21 +726,6 @@ struct SettingsView: View {
             return "Data synkroniseres med iCloud og lagres lokalt på enheten. Ingen bankkobling i denne versjonen."
         }
         return "Data lagres kun på denne enheten. Ingen bankkobling i denne versjonen."
-    }
-
-    private func accountStatusText() -> String {
-        switch sessionStore.sessionMode {
-        case .undecided:
-            return "Ikke valgt"
-        case .local:
-            return "Lokal bruker"
-        case .authenticated:
-            if let providerRaw = pref.authProviderRaw,
-               let provider = AuthProvider(rawValue: providerRaw) {
-                return "Logget inn med \(provider.title)"
-            }
-            return "Logget inn"
-        }
     }
 
     private func isCloudSyncActive() -> Bool {
@@ -1224,148 +1162,6 @@ private struct AboutAppView: View {
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(AppTheme.textPrimary)
                 .multilineTextAlignment(.trailing)
-        }
-    }
-}
-
-private enum SettingsEmailAuthMode: String, Identifiable {
-    case signUp
-    case signIn
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .signUp:
-            return "Opprett konto"
-        case .signIn:
-            return "Logg inn"
-        }
-    }
-
-    var actionTitle: String {
-        switch self {
-        case .signUp:
-            return "Opprett konto"
-        case .signIn:
-            return "Logg inn"
-        }
-    }
-
-    var subtitle: String {
-        switch self {
-        case .signUp:
-            return "Lag konto for å synkronisere og gjenopprette data senere."
-        case .signIn:
-            return "Logg inn for å få tilgang til lagrede data og synkronisering."
-        }
-    }
-}
-
-private struct SettingsEmailAuthSheet: View {
-    @Environment(\.dismiss) private var dismiss
-
-    let mode: SettingsEmailAuthMode
-    let onSubmit: (String, String, String?) async -> Void
-
-    @State private var email = ""
-    @State private var password = ""
-    @State private var displayName = ""
-
-    var body: some View {
-        NavigationStack {
-            ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 24) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(mode.title)
-                            .font(.system(size: 34, weight: .bold, design: .rounded))
-                            .foregroundStyle(AppTheme.textPrimary)
-
-                        Text(mode.subtitle)
-                            .appSecondaryStyle()
-                    }
-
-                    VStack(alignment: .leading, spacing: 16) {
-                        if mode == .signUp {
-                            authField(title: "Navn", footer: "Valgfritt") {
-                                TextField("Nithusan", text: $displayName)
-                                    .textInputAutocapitalization(.words)
-                            }
-                        }
-
-                        authField(title: "E-post") {
-                            TextField("navn@epost.no", text: $email)
-                                .textInputAutocapitalization(.never)
-                                .autocorrectionDisabled()
-                                .keyboardType(.emailAddress)
-                        }
-
-                        authField(title: "Passord") {
-                            SecureField("Skriv passord", text: $password)
-                        }
-
-                        if mode == .signUp {
-                            Text("Minst 8 tegn, med små og store bokstaver, tall og symbol.")
-                                .appSecondaryStyle()
-                                .padding(.top, 2)
-                        }
-                    }
-                    .padding(20)
-                    .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 24))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 24)
-                            .stroke(AppTheme.divider, lineWidth: 1)
-                    )
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 20)
-                .padding(.bottom, 32)
-            }
-            .background(AppTheme.background)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Avbryt") {
-                        dismiss()
-                    }
-                    .font(.body.weight(.medium))
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(mode.actionTitle) {
-                        Task {
-                            await onSubmit(email, password, displayName)
-                            dismiss()
-                        }
-                    }
-                    .disabled(email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || password.isEmpty)
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func authField<Content: View>(title: String, footer: String? = nil, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                Text(title)
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(AppTheme.textPrimary)
-                if let footer {
-                    Text(footer)
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(AppTheme.textSecondary)
-                }
-            }
-
-            content()
-                .font(.body)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 14)
-                .background(AppTheme.background, in: RoundedRectangle(cornerRadius: 16))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(AppTheme.divider, lineWidth: 1)
-                )
         }
     }
 }
