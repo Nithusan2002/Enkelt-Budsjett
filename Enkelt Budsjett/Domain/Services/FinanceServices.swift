@@ -571,6 +571,9 @@ enum BootstrapService {
             if ensureCategoryGroups(context: context) {
                 didChange = true
             }
+            if ensureAuthChoiceMigration(context: context) {
+                didChange = true
+            }
 
             if didChange {
                 try context.guardedSave(
@@ -587,6 +590,7 @@ enum BootstrapService {
             context.insert(UserPreference())
             _ = ensureDefaultCategories(context: context)
             _ = ensureCategoryGroups(context: context)
+            _ = ensureAuthChoiceMigration(context: context)
             try context.guardedSave(
                 feature: "Bootstrap",
                 operation: "ensure_preference_recovery",
@@ -761,6 +765,27 @@ enum BootstrapService {
                 didChange = true
             }
         }
+        return didChange
+    }
+
+    @discardableResult
+    private static func ensureAuthChoiceMigration(context: ModelContext) -> Bool {
+        let preferences = (try? context.fetch(FetchDescriptor<UserPreference>())) ?? []
+        var didChange = false
+
+        for preference in preferences {
+            let rawMode = preference.authSessionModeRaw.trimmingCharacters(in: .whitespacesAndNewlines)
+            if rawMode.isEmpty {
+                preference.authSessionModeRaw = AuthSessionMode.undecided.rawValue
+            }
+
+            let isLegacyUser = preference.onboardingCompleted || preference.onboardingCurrentStep > 0
+            if preference.authSessionModeRaw == AuthSessionMode.undecided.rawValue && isLegacyUser {
+                preference.authSessionModeRaw = AuthSessionMode.local.rawValue
+                didChange = true
+            }
+        }
+
         return didChange
     }
 }

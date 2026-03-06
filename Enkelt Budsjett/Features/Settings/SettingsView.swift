@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.openURL) private var openURL
+    @EnvironmentObject private var sessionStore: SessionStore
     @Query private var preferences: [UserPreference]
     @Query(sort: \InvestmentBucket.sortOrder) private var investmentBuckets: [InvestmentBucket]
     @AppStorage("app_appearance_mode") private var appAppearanceModeRawValue = AppAppearancePreference.followSystem.rawValue
@@ -35,6 +36,7 @@ struct SettingsView: View {
     @State private var ensuredPreference: UserPreference?
     @State private var demoLoadMessage = ""
     @State private var demoToastMessage: String?
+    @State private var emailAuthMode: SettingsEmailAuthMode?
 
     private var pref: UserPreference {
         if let existing = preferences.first ?? ensuredPreference {
@@ -63,6 +65,7 @@ struct SettingsView: View {
     private var baseForm: some View {
         Form {
             trustSection
+            accountSection
             appSettingsSection
             budgetAndInvestmentsSection
             dataSection
@@ -128,6 +131,27 @@ struct SettingsView: View {
             ShareSheet(activityItems: [item.url]) {
                 cleanupSharedExportFile()
             }
+            }
+            .sheet(item: $emailAuthMode) { mode in
+                SettingsEmailAuthSheet(mode: mode) { email, password, displayName in
+                    switch mode {
+                    case .signUp:
+                        await sessionStore.createAccountWithEmail(
+                            email: email,
+                            password: password,
+                            displayName: displayName,
+                            preference: pref,
+                            context: modelContext
+                        )
+                    case .signIn:
+                        await sessionStore.signInWithEmail(
+                            email: email,
+                            password: password,
+                            preference: pref,
+                            context: modelContext
+                        )
+                    }
+                }
             }
     }
 
@@ -234,6 +258,11 @@ struct SettingsView: View {
                 settingsErrorMessage = newValue
                 viewModel.clearPreferencePersistenceError()
             }
+            .onChange(of: sessionStore.authErrorMessage) { _, newValue in
+                guard let newValue else { return }
+                settingsErrorMessage = newValue
+                sessionStore.clearError()
+            }
     }
 
     private var trustSection: some View {
@@ -245,6 +274,77 @@ struct SettingsView: View {
                     .appSecondaryStyle()
             }
             .padding(.vertical, 6)
+        }
+    }
+
+    private var accountSection: some View {
+        Section("Konto og synk") {
+            HStack {
+                Text("Status")
+                    .appBodyStyle()
+                Spacer()
+                Text(accountStatusText())
+                    .appSecondaryStyle()
+                    .multilineTextAlignment(.trailing)
+            }
+
+            if sessionStore.isAuthenticated {
+                if let email = pref.authEmail, !email.isEmpty {
+                    HStack {
+                        Text("Konto")
+                            .appBodyStyle()
+                        Spacer()
+                        Text(email)
+                            .appSecondaryStyle()
+                    }
+                }
+
+                Button("Logg ut") {
+                    sessionStore.signOut(preference: pref, context: modelContext)
+                }
+                .buttonStyle(.plain)
+                .disabled(isReadOnlyMode || sessionStore.isWorking)
+
+                Text("Du kan fortsatt bruke appen lokalt etter utlogging.")
+                    .appSecondaryStyle()
+            } else {
+                Button {
+                    sessionStore.continueWithoutAccount(preference: pref, context: modelContext)
+                } label: {
+                    settingsRow(title: "Fortsett uten konto", value: "", showsChevron: false)
+                }
+                .buttonStyle(.plain)
+                .disabled(isReadOnlyMode || sessionStore.isWorking)
+
+                Button {
+                    emailAuthMode = .signUp
+                } label: {
+                    settingsRow(title: "Opprett konto med e-post", value: "", showsChevron: false)
+                }
+                .buttonStyle(.plain)
+                .disabled(isReadOnlyMode || sessionStore.isWorking)
+
+                Button {
+                    emailAuthMode = .signIn
+                } label: {
+                    settingsRow(title: "Logg inn med e-post", value: "", showsChevron: false)
+                }
+                .buttonStyle(.plain)
+                .disabled(isReadOnlyMode || sessionStore.isWorking)
+
+                Button {
+                    Task {
+                        await sessionStore.signInWithGoogle(preference: pref, context: modelContext)
+                    }
+                } label: {
+                    settingsRow(title: "Logg inn med Google", value: "", showsChevron: false)
+                }
+                .buttonStyle(.plain)
+                .disabled(isReadOnlyMode || sessionStore.isWorking)
+
+                Text("Konto brukes senere til synkronisering og gjenoppretting.")
+                    .appSecondaryStyle()
+            }
         }
     }
 
@@ -393,7 +493,7 @@ struct SettingsView: View {
     private var aboutSection: some View {
         Section("Om appen") {
             Button {
-                if let url = URL(string: "mailto:hei@simplebudget.app") {
+                if let url = URL(string: "mailto:sporokonomi.app@gmail.com") {
                     openURL(url)
                 }
             } label: {
@@ -673,6 +773,21 @@ struct SettingsView: View {
             return "Data synkroniseres med iCloud og lagres lokalt på enheten. Ingen bankkobling i denne versjonen."
         }
         return "Data lagres kun på denne enheten. Ingen bankkobling i denne versjonen."
+    }
+
+    private func accountStatusText() -> String {
+        switch sessionStore.sessionMode {
+        case .undecided:
+            return "Ikke valgt"
+        case .local:
+            return "Lokal bruker"
+        case .authenticated:
+            if let providerRaw = pref.authProviderRaw,
+               let provider = AuthProvider(rawValue: providerRaw) {
+                return "Logget inn med \(provider.title)"
+            }
+            return "Logget inn"
+        }
     }
 
     private func isCloudSyncActive() -> Bool {
@@ -958,8 +1073,11 @@ private struct PrivacyInfoView: View {
     var body: some View {
         List {
             Section {
-                Text("Spor økonomi lagrer budsjettdata, transaksjoner, mål og innstillinger lokalt på enheten via SwiftData.")
+                Text("Enkelt Budsjett lagrer budsjettdata, transaksjoner, mål og innstillinger lokalt på enheten via SwiftData.")
                 Text("Ingen tredjepartssporing eller annonse-SDK-er brukes.")
+            }
+            Section("Konto") {
+                Text("Hvis du velger å opprette konto eller logge inn med e-post, behandles e-postadresse, bruker-ID og eventuelt visningsnavn for autentisering.")
             }
             Section("iCloud-synk") {
                 Text("Hvis iCloud-synk er aktivert på enheten, synkroniseres data via CloudKit i din Apple-konto. Du styrer dette selv i iOS-innstillinger.")
@@ -969,7 +1087,7 @@ private struct PrivacyInfoView: View {
                 Text("Du kan slette alle lokale data fra Innstillinger → Farlige handlinger.")
             }
             Section("Kontakt") {
-                Text("hei@simplebudget.app")
+                Text("sporokonomi.app@gmail.com")
             }
         }
         .navigationTitle("Personvern")
@@ -980,15 +1098,15 @@ private struct TermsInfoView: View {
     var body: some View {
         List {
             Section {
-                Text("Spor økonomi gir ikke økonomisk rådgivning. Appen er et planleggings- og oversiktsverktøy.")
+                Text("Enkelt Budsjett gir ikke økonomisk rådgivning. Appen er et planleggings- og oversiktsverktøy.")
                 Text("Du er ansvarlig for egne økonomiske beslutninger.")
             }
             Section("Data og sikkerhet") {
-                Text("Du er ansvarlig for sikker oppbevaring av eksportfiler og eventuelle passord.")
+                Text("Du er ansvarlig for sikker oppbevaring av eksportfiler, kontoopplysninger og eventuelle passord.")
                 Text("Appen leveres uten garantier.")
             }
             Section("Kontakt") {
-                Text("hei@simplebudget.app")
+                Text("sporokonomi.app@gmail.com")
             }
         }
         .navigationTitle("Vilkår")
@@ -996,6 +1114,8 @@ private struct TermsInfoView: View {
 }
 
 private struct AboutAppView: View {
+    @Environment(\.openURL) private var openURL
+
     private var versionText: String {
         let short = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
         let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
@@ -1003,12 +1123,185 @@ private struct AboutAppView: View {
     }
 
     var body: some View {
-        List {
-            Text("Spor økonomi")
-                .appCardTitleStyle()
-            Text(versionText)
-                .appSecondaryStyle()
+        ScrollView {
+            VStack(spacing: 20) {
+                VStack(spacing: 14) {
+                    Image("Spor-økonomi-applogo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: 220)
+                        .accessibilityHidden(true)
+
+                    VStack(spacing: 6) {
+                        Text("Spor økonomi")
+                            .font(.system(.title, design: .rounded).weight(.bold))
+                            .multilineTextAlignment(.center)
+                        Text("En rolig måte å følge budsjett, sparing og investeringer på.")
+                            .appBodyStyle()
+                            .foregroundStyle(AppTheme.textSecondary)
+                            .multilineTextAlignment(.center)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.top, 8)
+
+                aboutCard {
+                    VStack(alignment: .leading, spacing: 12) {
+                        aboutRow(title: "Versjon", value: versionText)
+                        aboutRow(title: "Plattform", value: "iPhone")
+                        aboutRow(title: "Lagring", value: "Lokal først med SwiftData")
+                    }
+                }
+
+                aboutCard {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Hva appen er laget for")
+                            .font(.headline.weight(.semibold))
+                        Text("Spor økonomi hjelper deg å få oversikt over hverdagsøkonomi og investeringer uten bankkoblinger, støy eller unødvendig kompleksitet.")
+                            .appBodyStyle()
+                            .foregroundStyle(AppTheme.textSecondary)
+                    }
+                }
+
+                aboutCard {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Kontakt")
+                            .font(.headline.weight(.semibold))
+
+                        Button {
+                            if let url = URL(string: "mailto:sporokonomi.app@gmail.com") {
+                                openURL(url)
+                            }
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("sporokonomi.app@gmail.com")
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(AppTheme.textPrimary)
+                                    Text("Send spørsmål, feil eller forslag")
+                                        .appSecondaryStyle()
+                                }
+                                Spacer()
+                                Image(systemName: "arrow.up.right.square")
+                                    .foregroundStyle(AppTheme.primary)
+                            }
+                            .padding(14)
+                            .background(AppTheme.background, in: RoundedRectangle(cornerRadius: 14))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .stroke(AppTheme.divider, lineWidth: 1)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 20)
         }
+        .background(AppTheme.background)
         .navigationTitle("Om appen")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func aboutCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        content()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+            .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 18))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18)
+                    .stroke(AppTheme.divider, lineWidth: 1)
+            )
+    }
+
+    private func aboutRow(title: String, value: String) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title)
+                .appSecondaryStyle()
+            Spacer(minLength: 12)
+            Text(value)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(AppTheme.textPrimary)
+                .multilineTextAlignment(.trailing)
+        }
+    }
+}
+
+private enum SettingsEmailAuthMode: String, Identifiable {
+    case signUp
+    case signIn
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .signUp:
+            return "Opprett konto"
+        case .signIn:
+            return "Logg inn"
+        }
+    }
+
+    var actionTitle: String {
+        switch self {
+        case .signUp:
+            return "Opprett konto"
+        case .signIn:
+            return "Logg inn"
+        }
+    }
+}
+
+private struct SettingsEmailAuthSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    let mode: SettingsEmailAuthMode
+    let onSubmit: (String, String, String?) async -> Void
+
+    @State private var email = ""
+    @State private var password = ""
+    @State private var displayName = ""
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Konto") {
+                    if mode == .signUp {
+                        TextField("Navn (valgfritt)", text: $displayName)
+                            .textInputAutocapitalization(.words)
+                    }
+
+                    TextField("E-post", text: $email)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .keyboardType(.emailAddress)
+
+                    SecureField("Passord", text: $password)
+
+                    if mode == .signUp {
+                        Text("Passord må ha minst 8 tegn.")
+                            .appSecondaryStyle()
+                    }
+                }
+            }
+            .navigationTitle(mode.title)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Avbryt") {
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(mode.actionTitle) {
+                        Task {
+                            await onSubmit(email, password, displayName)
+                            dismiss()
+                        }
+                    }
+                    .disabled(email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || password.isEmpty)
+                }
+            }
+        }
     }
 }
