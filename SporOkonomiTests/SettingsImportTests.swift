@@ -3,6 +3,8 @@ import SwiftData
 import Testing
 @testable import SporOkonomi
 
+private typealias Category = SporOkonomi.Category
+
 struct SettingsImportTests {
 
     @Test
@@ -194,6 +196,14 @@ struct SettingsImportTests {
     }
 
     private func makeGoalImportFile(targetAmount: Double, targetDate: Date, createdAt: Date) throws -> URL {
+        let goal = Goal(
+            targetAmount: targetAmount,
+            targetDate: targetDate,
+            scope: .wealth,
+            includeAccounts: true,
+            isActive: true,
+            createdAt: createdAt
+        )
         let payload = ExportPayload(
             exportedAt: Date(timeIntervalSince1970: 1_772_323_200),
             budgetMonths: [],
@@ -207,22 +217,18 @@ struct SettingsImportTests {
             buckets: [],
             snapshots: [],
             goals: [
-                GoalDTO(
-                    targetAmount: targetAmount,
-                    targetDate: targetDate,
-                    scope: GoalScope.wealth.rawValue,
-                    includeAccounts: true,
-                    isActive: true,
-                    createdAt: createdAt
-                )
+                GoalDTO(goal)
             ],
             challenges: [],
             preferences: []
         )
 
-        let data = try JSONEncoder.settingsDataEncoder().encode(payload)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.dateEncodingStrategy = .iso8601
+        let data = try encoder.encode(payload)
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("goal-settings-import-\(UUID().uuidString).json")
-        try data.write(to: url, options: .atomic)
+        try data.write(to: url, options: Data.WritingOptions.atomic)
         return url
     }
 }
