@@ -10,7 +10,7 @@ enum AppStoreMode {
 }
 
 @main
-struct Simple_Budget___Budskjett_planlegger_gjort_enkeltApp: App {
+struct SporOkonomiApp: App {
     private static let cloudContainerID = "iCloud.com.nithusan.Enkelt-Budsjett"
     private let container = Self.makeContainer()
     static private(set) var activeStoreMode: AppStoreMode = .primary

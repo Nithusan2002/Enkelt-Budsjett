@@ -702,7 +702,7 @@ struct SettingsView: View {
     }
 
     private func storeModeText() -> String {
-        switch Simple_Budget___Budskjett_planlegger_gjort_enkeltApp.activeStoreMode {
+        switch SporOkonomiApp.activeStoreMode {
         case .primary:
             return "Primær"
         case .primaryWithoutCloud:
@@ -729,25 +729,25 @@ struct SettingsView: View {
     }
 
     private func isCloudSyncActive() -> Bool {
-        Simple_Budget___Budskjett_planlegger_gjort_enkeltApp.activeStoreMode == .primary
+        SporOkonomiApp.activeStoreMode == .primary
     }
 
     private func storeModeDetailText() -> String? {
-        switch Simple_Budget___Budskjett_planlegger_gjort_enkeltApp.activeStoreMode {
+        switch SporOkonomiApp.activeStoreMode {
         case .primary:
             return nil
         case .primaryWithoutCloud:
             var detail = "iCloud-synk er ikke aktiv. Data lagres kun lokalt på denne enheten."
-            if let accountStatus = Simple_Budget___Budskjett_planlegger_gjort_enkeltApp.lastCloudAccountStatus, !accountStatus.isEmpty {
+            if let accountStatus = SporOkonomiApp.lastCloudAccountStatus, !accountStatus.isEmpty {
                 detail += "\n\nKonto-status: \(accountStatus)"
             }
-            if let probe = Simple_Budget___Budskjett_planlegger_gjort_enkeltApp.lastCloudProbeStatus, !probe.isEmpty {
+            if let probe = SporOkonomiApp.lastCloudProbeStatus, !probe.isEmpty {
                 detail += "\n\nCloud probe: \(probe)"
             }
-            if let analysis = Simple_Budget___Budskjett_planlegger_gjort_enkeltApp.lastCloudCompatibilityAnalysis, !analysis.isEmpty {
+            if let analysis = SporOkonomiApp.lastCloudCompatibilityAnalysis, !analysis.isEmpty {
                 detail += "\n\nCloud analyse: \(analysis)"
             }
-            if let error = Simple_Budget___Budskjett_planlegger_gjort_enkeltApp.lastCloudInitError, !error.isEmpty {
+            if let error = SporOkonomiApp.lastCloudInitError, !error.isEmpty {
                 detail += "\n\nFeildetaljer: \(error)"
             }
             return detail
@@ -1011,7 +1011,7 @@ private struct PrivacyInfoView: View {
     var body: some View {
         List {
             Section {
-                Text("Enkelt Budsjett lagrer budsjettdata, transaksjoner, mål og innstillinger lokalt på enheten via SwiftData.")
+                Text("Spor økonomi lagrer budsjettdata, transaksjoner, mål og innstillinger lokalt på enheten via SwiftData.")
                 Text("Ingen tredjepartssporing eller annonse-SDK-er brukes.")
             }
             Section("Konto") {
@@ -1036,7 +1036,7 @@ private struct TermsInfoView: View {
     var body: some View {
         List {
             Section {
-                Text("Enkelt Budsjett gir ikke økonomisk rådgivning. Appen er et planleggings- og oversiktsverktøy.")
+                Text("Spor økonomi gir ikke økonomisk rådgivning. Appen er et planleggings- og oversiktsverktøy.")
                 Text("Du er ansvarlig for egne økonomiske beslutninger.")
             }
             Section("Data og sikkerhet") {

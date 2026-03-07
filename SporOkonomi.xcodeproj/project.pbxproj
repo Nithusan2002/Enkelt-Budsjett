@@ -12,37 +12,37 @@
 			containerPortal = 82F82F6A2F4CB67E00CA6205 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 82F82F712F4CB67E00CA6205;
-			remoteInfo = "Enkelt Budsjett";
+			remoteInfo = "SporOkonomi";
 		};
 		82F82F8A2F4CB68000CA6205 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 82F82F6A2F4CB67E00CA6205 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 82F82F712F4CB67E00CA6205;
-			remoteInfo = "Enkelt Budsjett";
+			remoteInfo = "SporOkonomi";
 		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		82F82F722F4CB67E00CA6205 /* Enkelt Budsjett.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Enkelt Budsjett.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		82F82F7F2F4CB68000CA6205 /* Enkelt BudsjettTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Enkelt BudsjettTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
-		82F82F892F4CB68000CA6205 /* Enkelt BudsjettUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Enkelt BudsjettUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		82F82F722F4CB67E00CA6205 /* SporOkonomi.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "SporOkonomi.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		82F82F7F2F4CB68000CA6205 /* SporOkonomiTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "SporOkonomiTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		82F82F892F4CB68000CA6205 /* SporOkonomiUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "SporOkonomiUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		82F82F742F4CB67E00CA6205 /* Enkelt Budsjett */ = {
+		82F82F742F4CB67E00CA6205 /* SporOkonomi */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "Enkelt Budsjett";
+			path = "SporOkonomi";
 			sourceTree = "<group>";
 		};
-		82F82F822F4CB68000CA6205 /* Enkelt BudsjettTests */ = {
+		82F82F822F4CB68000CA6205 /* SporOkonomiTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "Enkelt BudsjettTests";
+			path = "SporOkonomiTests";
 			sourceTree = "<group>";
 		};
-		82F82F8C2F4CB68000CA6205 /* Enkelt BudsjettUITests */ = {
+		82F82F8C2F4CB68000CA6205 /* SporOkonomiUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "Enkelt BudsjettUITests";
+			path = "SporOkonomiUITests";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -75,9 +75,9 @@
 		82F82F692F4CB67E00CA6205 = {
 			isa = PBXGroup;
 			children = (
-				82F82F742F4CB67E00CA6205 /* Enkelt Budsjett */,
-				82F82F822F4CB68000CA6205 /* Enkelt BudsjettTests */,
-				82F82F8C2F4CB68000CA6205 /* Enkelt BudsjettUITests */,
+				82F82F742F4CB67E00CA6205 /* SporOkonomi */,
+				82F82F822F4CB68000CA6205 /* SporOkonomiTests */,
+				82F82F8C2F4CB68000CA6205 /* SporOkonomiUITests */,
 				82F82F732F4CB67E00CA6205 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -85,9 +85,9 @@
 		82F82F732F4CB67E00CA6205 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				82F82F722F4CB67E00CA6205 /* Enkelt Budsjett.app */,
-				82F82F7F2F4CB68000CA6205 /* Enkelt BudsjettTests.xctest */,
-				82F82F892F4CB68000CA6205 /* Enkelt BudsjettUITests.xctest */,
+				82F82F722F4CB67E00CA6205 /* SporOkonomi.app */,
+				82F82F7F2F4CB68000CA6205 /* SporOkonomiTests.xctest */,
+				82F82F892F4CB68000CA6205 /* SporOkonomiUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -95,9 +95,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		82F82F712F4CB67E00CA6205 /* Enkelt Budsjett */ = {
+		82F82F712F4CB67E00CA6205 /* SporOkonomi */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 82F82F932F4CB68000CA6205 /* Build configuration list for PBXNativeTarget "Enkelt Budsjett" */;
+			buildConfigurationList = 82F82F932F4CB68000CA6205 /* Build configuration list for PBXNativeTarget "SporOkonomi" */;
 			buildPhases = (
 				82F82F6E2F4CB67E00CA6205 /* Sources */,
 				82F82F6F2F4CB67E00CA6205 /* Frameworks */,
@@ -108,18 +108,18 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				82F82F742F4CB67E00CA6205 /* Enkelt Budsjett */,
+				82F82F742F4CB67E00CA6205 /* SporOkonomi */,
 			);
-			name = "Enkelt Budsjett";
+			name = "SporOkonomi";
 			packageProductDependencies = (
 			);
-			productName = "Enkelt Budsjett";
-			productReference = 82F82F722F4CB67E00CA6205 /* Enkelt Budsjett.app */;
+			productName = "SporOkonomi";
+			productReference = 82F82F722F4CB67E00CA6205 /* SporOkonomi.app */;
 			productType = "com.apple.product-type.application";
 		};
-		82F82F7E2F4CB68000CA6205 /* Enkelt BudsjettTests */ = {
+		82F82F7E2F4CB68000CA6205 /* SporOkonomiTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 82F82F962F4CB68000CA6205 /* Build configuration list for PBXNativeTarget "Enkelt BudsjettTests" */;
+			buildConfigurationList = 82F82F962F4CB68000CA6205 /* Build configuration list for PBXNativeTarget "SporOkonomiTests" */;
 			buildPhases = (
 				82F82F7B2F4CB68000CA6205 /* Sources */,
 				82F82F7C2F4CB68000CA6205 /* Frameworks */,
@@ -131,18 +131,18 @@
 				82F82F812F4CB68000CA6205 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				82F82F822F4CB68000CA6205 /* Enkelt BudsjettTests */,
+				82F82F822F4CB68000CA6205 /* SporOkonomiTests */,
 			);
-			name = "Enkelt BudsjettTests";
+			name = "SporOkonomiTests";
 			packageProductDependencies = (
 			);
-			productName = "Enkelt BudsjettTests";
-			productReference = 82F82F7F2F4CB68000CA6205 /* Enkelt BudsjettTests.xctest */;
+			productName = "SporOkonomiTests";
+			productReference = 82F82F7F2F4CB68000CA6205 /* SporOkonomiTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		82F82F882F4CB68000CA6205 /* Enkelt BudsjettUITests */ = {
+		82F82F882F4CB68000CA6205 /* SporOkonomiUITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 82F82F992F4CB68000CA6205 /* Build configuration list for PBXNativeTarget "Enkelt BudsjettUITests" */;
+			buildConfigurationList = 82F82F992F4CB68000CA6205 /* Build configuration list for PBXNativeTarget "SporOkonomiUITests" */;
 			buildPhases = (
 				82F82F852F4CB68000CA6205 /* Sources */,
 				82F82F862F4CB68000CA6205 /* Frameworks */,
@@ -154,13 +154,13 @@
 				82F82F8B2F4CB68000CA6205 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				82F82F8C2F4CB68000CA6205 /* Enkelt BudsjettUITests */,
+				82F82F8C2F4CB68000CA6205 /* SporOkonomiUITests */,
 			);
-			name = "Enkelt BudsjettUITests";
+			name = "SporOkonomiUITests";
 			packageProductDependencies = (
 			);
-			productName = "Enkelt BudsjettUITests";
-			productReference = 82F82F892F4CB68000CA6205 /* Enkelt BudsjettUITests.xctest */;
+			productName = "SporOkonomiUITests";
+			productReference = 82F82F892F4CB68000CA6205 /* SporOkonomiUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
@@ -186,7 +186,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 82F82F6D2F4CB67E00CA6205 /* Build configuration list for PBXProject "Enkelt Budsjett" */;
+			buildConfigurationList = 82F82F6D2F4CB67E00CA6205 /* Build configuration list for PBXProject "SporOkonomi" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -200,9 +200,9 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				82F82F712F4CB67E00CA6205 /* Enkelt Budsjett */,
-				82F82F7E2F4CB68000CA6205 /* Enkelt BudsjettTests */,
-				82F82F882F4CB68000CA6205 /* Enkelt BudsjettUITests */,
+				82F82F712F4CB67E00CA6205 /* SporOkonomi */,
+				82F82F7E2F4CB68000CA6205 /* SporOkonomiTests */,
+				82F82F882F4CB68000CA6205 /* SporOkonomiUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -258,12 +258,12 @@
 /* Begin PBXTargetDependency section */
 		82F82F812F4CB68000CA6205 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 82F82F712F4CB67E00CA6205 /* Enkelt Budsjett */;
+			target = 82F82F712F4CB67E00CA6205 /* SporOkonomi */;
 			targetProxy = 82F82F802F4CB68000CA6205 /* PBXContainerItemProxy */;
 		};
 		82F82F8B2F4CB68000CA6205 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 82F82F712F4CB67E00CA6205 /* Enkelt Budsjett */;
+			target = 82F82F712F4CB67E00CA6205 /* SporOkonomi */;
 			targetProxy = 82F82F8A2F4CB68000CA6205 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -397,14 +397,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "Enkelt Budsjett/SimpleBudget.entitlements";
+				CODE_SIGN_ENTITLEMENTS = "SporOkonomi/SimpleBudget.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = K392629S8S;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Spor økonomi";
-				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleTypeRole = Editor;\n    CFBundleURLName = \"com.nithusan.Enkelt-Budsjett.auth\";\n    CFBundleURLSchemes =     (\n        sporokonomi\n    );\n}";
+				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleTypeRole = Editor;\n    CFBundleURLName = \"com.nithusan.SporOkonomi.auth\";\n    CFBundleURLSchemes =     (\n        sporokonomi\n    );\n}";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Bruk Face ID for å låse opp appen.";
 				INFOPLIST_KEY_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_oEiVNV89KMbag_-jRoCpvw_pQNKoAPT";
 				INFOPLIST_KEY_SUPABASE_REDIRECT_HOST = "auth-callback";
@@ -420,7 +420,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.nithusan.Enkelt-Budsjett";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.nithusan.SporOkonomi";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -437,14 +437,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "Enkelt Budsjett/SimpleBudget.entitlements";
+				CODE_SIGN_ENTITLEMENTS = "SporOkonomi/SimpleBudget.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = K392629S8S;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Spor økonomi";
-				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleTypeRole = Editor;\n    CFBundleURLName = \"com.nithusan.Enkelt-Budsjett.auth\";\n    CFBundleURLSchemes =     (\n        sporokonomi\n    );\n}";
+				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleTypeRole = Editor;\n    CFBundleURLName = \"com.nithusan.SporOkonomi.auth\";\n    CFBundleURLSchemes =     (\n        sporokonomi\n    );\n}";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Bruk Face ID for å låse opp appen.";
 				INFOPLIST_KEY_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_oEiVNV89KMbag_-jRoCpvw_pQNKoAPT";
 				INFOPLIST_KEY_SUPABASE_REDIRECT_HOST = "auth-callback";
@@ -460,7 +460,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.nithusan.Enkelt-Budsjett";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.nithusan.SporOkonomi";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -482,7 +482,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.nithusan.Enkelt-BudsjettTests";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.nithusan.SporOkonomiTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -490,7 +490,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Enkelt Budsjett.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Enkelt Budsjett";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SporOkonomi.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/SporOkonomi";
 			};
 			name = Debug;
 		};
@@ -504,7 +504,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.nithusan.Enkelt-BudsjettTests";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.nithusan.SporOkonomiTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -512,7 +512,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Enkelt Budsjett.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Enkelt Budsjett";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SporOkonomi.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/SporOkonomi";
 			};
 			name = Release;
 		};
@@ -524,7 +524,7 @@
 				DEVELOPMENT_TEAM = K392629S8S;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.nithusan.Enkelt-BudsjettUITests";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.nithusan.SporOkonomiUITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -532,7 +532,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = "Enkelt Budsjett";
+				TEST_TARGET_NAME = "SporOkonomi";
 			};
 			name = Debug;
 		};
@@ -544,7 +544,7 @@
 				DEVELOPMENT_TEAM = K392629S8S;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.nithusan.Enkelt-BudsjettUITests";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.nithusan.SporOkonomiUITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -552,14 +552,14 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = "Enkelt Budsjett";
+				TEST_TARGET_NAME = "SporOkonomi";
 			};
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		82F82F6D2F4CB67E00CA6205 /* Build configuration list for PBXProject "Enkelt Budsjett" */ = {
+		82F82F6D2F4CB67E00CA6205 /* Build configuration list for PBXProject "SporOkonomi" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				82F82F912F4CB68000CA6205 /* Debug */,
@@ -568,7 +568,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		82F82F932F4CB68000CA6205 /* Build configuration list for PBXNativeTarget "Enkelt Budsjett" */ = {
+		82F82F932F4CB68000CA6205 /* Build configuration list for PBXNativeTarget "SporOkonomi" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				82F82F942F4CB68000CA6205 /* Debug */,
@@ -577,7 +577,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		82F82F962F4CB68000CA6205 /* Build configuration list for PBXNativeTarget "Enkelt BudsjettTests" */ = {
+		82F82F962F4CB68000CA6205 /* Build configuration list for PBXNativeTarget "SporOkonomiTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				82F82F972F4CB68000CA6205 /* Debug */,
@@ -586,7 +586,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		82F82F992F4CB68000CA6205 /* Build configuration list for PBXNativeTarget "Enkelt BudsjettUITests" */ = {
+		82F82F992F4CB68000CA6205 /* Build configuration list for PBXNativeTarget "SporOkonomiUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				82F82F9A2F4CB68000CA6205 /* Debug */,

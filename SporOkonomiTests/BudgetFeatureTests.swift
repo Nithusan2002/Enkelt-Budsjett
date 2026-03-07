@@ -1,8 +1,8 @@
 import Foundation
 import Testing
-@testable import Simple_Budget___Budskjett_planlegger_gjort_enkelt
+@testable import SporOkonomi
 
-private typealias Category = Simple_Budget___Budskjett_planlegger_gjort_enkelt.Category
+private typealias Category = SporOkonomi.Category
 
 struct BudgetFeatureTests {
 

@@ -1,9 +1,9 @@
 import Foundation
 import Testing
 import SwiftData
-@testable import Simple_Budget___Budskjett_planlegger_gjort_enkelt
+@testable import SporOkonomi
 
-struct Simple_Budget___Budskjett_planlegger_gjort_enkeltTests {
+struct SporOkonomiTests {
 
     @Test @MainActor func calculatesSavingsIncomeMinusExpense() async throws {
         let now = Date()
