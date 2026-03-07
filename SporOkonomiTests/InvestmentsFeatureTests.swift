@@ -7,6 +7,59 @@ struct InvestmentsFeatureTests {
 
     @Test
     @MainActor
+    func ensureDefaultBucketsCreatesOnlyFourStarterTypes() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+        let viewModel = InvestmentsViewModel()
+
+        viewModel.ensureDefaultBuckets(context: context, existingBuckets: [])
+
+        let buckets = try context.fetch(FetchDescriptor<InvestmentBucket>())
+        let names = Set(buckets.map(\.name))
+
+        #expect(names == ["Fond", "Aksjer", "BSU", "Buffer"])
+        #expect(!names.contains("Krypto"))
+    }
+
+    @Test
+    @MainActor
+    func ensureDefaultBucketsIsIdempotentWhenCalledRepeatedlyBeforeQueryRefresh() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+        let viewModel = InvestmentsViewModel()
+
+        viewModel.ensureDefaultBuckets(context: context, existingBuckets: [])
+        viewModel.ensureDefaultBuckets(context: context, existingBuckets: [])
+
+        let buckets = try context.fetch(FetchDescriptor<InvestmentBucket>())
+
+        #expect(buckets.count == 4)
+        #expect(Set(buckets.map(\.name)) == ["Fond", "Aksjer", "BSU", "Buffer"])
+    }
+
+    @Test
+    @MainActor
+    func ensureDefaultBucketsRemovesDuplicateStarterTypesByName() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+        let viewModel = InvestmentsViewModel()
+
+        context.insert(InvestmentBucket(id: "bucket_fond", name: "Fond", isDefault: true, sortOrder: 1))
+        context.insert(InvestmentBucket(id: "funds", name: "Fond", isDefault: true, sortOrder: 2))
+        context.insert(InvestmentBucket(id: "stocks", name: "Aksjer", isDefault: true, sortOrder: 3))
+        try context.save()
+
+        viewModel.ensureDefaultBuckets(context: context, existingBuckets: [])
+
+        let buckets = try context.fetch(FetchDescriptor<InvestmentBucket>())
+        let fondBuckets = buckets.filter { $0.name == "Fond" }
+
+        #expect(fondBuckets.count == 1)
+        #expect(Set(buckets.map(\.name)) == ["Fond", "Aksjer", "BSU", "Buffer"])
+    }
+
+    @Test
+    @MainActor
     func investmentWizardEffectiveValuesAndTotalsFollowRules() throws {
         let container = try TestModelContainerFactory.makeInMemoryContainer()
         let context = container.mainContext
