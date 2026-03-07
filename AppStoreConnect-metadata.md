@@ -6,9 +6,9 @@ Sist oppdatert: 2026-03-06
 
 Disse feltene må fylles i App Store Connect:
 
-- Privacy Policy URL: `https://nithusan2002.github.io/Enkelt-Budsjett/personvern/`
-- Support URL: `https://nithusan2002.github.io/Enkelt-Budsjett/support/`
-- Marketing URL (valgfritt): `https://nithusan2002.github.io/Enkelt-Budsjett/`
+- Privacy Policy URL: `https://nithusan2002.github.io/spor-okonomi/personvern/`
+- Support URL: `https://nithusan2002.github.io/spor-okonomi/support/`
+- Marketing URL (valgfritt): `https://nithusan2002.github.io/spor-okonomi/`
 
 Hvis dere senere kobler et eget domene til GitHub Pages, oppdater disse URL-ene samtidig.
 
