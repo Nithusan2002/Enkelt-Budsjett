@@ -11,7 +11,7 @@ enum AppStoreMode {
 
 @main
 struct SporOkonomiApp: App {
-    private static let cloudContainerID = "iCloud.com.nithusan.Enkelt-Budsjett"
+    private static let cloudContainerID = "iCloud.com.nithusan.SporOkonomi"
     private let container = Self.makeContainer()
     static private(set) var activeStoreMode: AppStoreMode = .primary
     static private(set) var lastCloudInitError: String?

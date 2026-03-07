@@ -535,7 +535,7 @@ struct StoredAuthTokens: Codable, Equatable {
 }
 
 final class AuthTokenStore {
-    private let service = "com.nithusan.Enkelt-Budsjett.auth"
+    private let service = "com.nithusan.SporOkonomi.auth"
     private let account = "supabase.session"
 
     func save(_ tokens: StoredAuthTokens) -> Bool {
