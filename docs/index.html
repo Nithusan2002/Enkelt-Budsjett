@@ -384,6 +384,75 @@
       white-space: nowrap;
     }
 
+    .shot-frame {
+      position: relative;
+      overflow: hidden;
+      border-radius: 24px;
+      min-height: 540px;
+      background: linear-gradient(180deg, #fcfaf7 0%, #f0f4f1 100%);
+      border: 1px solid rgba(36, 49, 66, 0.08);
+    }
+
+    .shot-frame img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .shot-placeholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 24px;
+      text-align: center;
+      color: var(--muted);
+      background:
+        radial-gradient(circle at top left, rgba(22, 92, 78, 0.08), transparent 34%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(240, 244, 241, 0.94));
+    }
+
+    .shot-placeholder strong {
+      color: var(--text);
+      font-size: 1rem;
+    }
+
+    .shot-placeholder code {
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(22, 92, 78, 0.08);
+      color: var(--primary);
+      font-family: "SFMono-Regular", ui-monospace, monospace;
+      font-size: 0.82rem;
+    }
+
+    .shots-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .shot-card {
+      padding: 18px;
+      border-radius: 24px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+
+    .shot-card h3 {
+      margin-bottom: 6px;
+      font-size: 1.12rem;
+    }
+
+    .shot-card p {
+      margin-bottom: 14px;
+      color: var(--muted);
+    }
+
     section {
       margin-top: 28px;
     }
@@ -482,7 +551,8 @@
     @media (max-width: 980px) {
       .hero,
       .quote-grid,
-      .features {
+      .features,
+      .shots-grid {
         grid-template-columns: 1fr;
       }
 
@@ -572,49 +642,12 @@
         <div class="visual-card" aria-label="Forhåndsvisning av app">
           <span class="stat-chip">Budsjett, mål og investeringer</span>
           <div class="phone">
-            <div class="screen">
-              <div class="screen-top">
-                <div>
-                  <p class="micro">Mars 2026</p>
-                  <h2>Oversikt</h2>
-                  <p>Se netto hittil, sparing og utvikling på ett sted.</p>
-                </div>
-                <div class="amount">24 800 kr</div>
-              </div>
-
-              <div class="mini-grid">
-                <div class="mini-card">
-                  <strong>Budsjett brukt</strong>
-                  <p>62 % av månedens ramme</p>
-                </div>
-                <div class="mini-card">
-                  <strong>Fast sparing</strong>
-                  <p>4 500 kr registrert</p>
-                </div>
-              </div>
-
-              <div class="list" aria-label="Eksempelkort">
-                <div class="list-item">
-                  <div>
-                    <strong>Mat og husholdning</strong>
-                    <span>Hold deg innenfor månedlig plan</span>
-                  </div>
-                  <span class="pill">3 240 kr</span>
-                </div>
-                <div class="list-item">
-                  <div>
-                    <strong>Investeringer</strong>
-                    <span>Månedlig snapshot med utvikling</span>
-                  </div>
-                  <span class="pill">+5,4 %</span>
-                </div>
-                <div class="list-item">
-                  <div>
-                    <strong>Mål</strong>
-                    <span>Se hvor langt du har kommet</span>
-                  </div>
-                  <span class="pill">74 %</span>
-                </div>
+            <div class="shot-frame">
+              <img src="./assets/screenshots/overview.png" alt="Spor økonomi oversikt" onerror="this.style.display='none'">
+              <div class="shot-placeholder">
+                <strong>Legg inn ekte appbilde her</strong>
+                <span>Drop et portrettbilde fra appen i denne stien:</span>
+                <code>docs/assets/screenshots/overview.png</code>
               </div>
             </div>
           </div>
@@ -646,6 +679,41 @@
         <div class="section-head">
           <h2 id="features-title">Tre områder som gjør appen nyttig i praksis.</h2>
           <p class="section-intro">Forsiden er bevisst enkel. Arbeidet skjer i korte, fokuserte steg inne i appen.</p>
+        </div>
+        <div class="shots-grid" aria-label="Appbilder">
+          <article class="shot-card">
+            <h3>Budsjett</h3>
+            <p>Vis månedsoversikten med kategori- og gruppekontroll.</p>
+            <div class="shot-frame">
+              <img src="./assets/screenshots/budget.png" alt="Spor økonomi budsjett" onerror="this.style.display='none'">
+              <div class="shot-placeholder">
+                <strong>Legg til budsjettbilde</strong>
+                <code>docs/assets/screenshots/budget.png</code>
+              </div>
+            </div>
+          </article>
+          <article class="shot-card">
+            <h3>Faste poster</h3>
+            <p>Bruk ekte skjermbilde fra listen med faste kostnader eller detaljer.</p>
+            <div class="shot-frame">
+              <img src="./assets/screenshots/fixed-items.png" alt="Spor økonomi faste poster" onerror="this.style.display='none'">
+              <div class="shot-placeholder">
+                <strong>Legg til fastpost-bilde</strong>
+                <code>docs/assets/screenshots/fixed-items.png</code>
+              </div>
+            </div>
+          </article>
+          <article class="shot-card">
+            <h3>Investeringer</h3>
+            <p>Vis portefølje, utvikling eller siste innsjekk.</p>
+            <div class="shot-frame">
+              <img src="./assets/screenshots/investments.png" alt="Spor økonomi investeringer" onerror="this.style.display='none'">
+              <div class="shot-placeholder">
+                <strong>Legg til investeringsbilde</strong>
+                <code>docs/assets/screenshots/investments.png</code>
+              </div>
+            </div>
+          </article>
         </div>
         <div class="features">
           <article class="feature-card">
