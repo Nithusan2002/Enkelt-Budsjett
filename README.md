@@ -1,4 +1,4 @@
-# Enkelt Budsjett
+# Spor økonomi
 
 En offline-first iOS-app bygget i SwiftUI + SwiftData for:
 - budsjettsporing
@@ -15,7 +15,7 @@ En offline-first iOS-app bygget i SwiftUI + SwiftData for:
 
 ## Kjør lokalt
 
-1. Åpne `Enkelt Budsjett.xcodeproj` i Xcode.
+1. Åpne `SporOkonomi.xcodeproj` i Xcode.
 2. Velg iPhone-simulator eller fysisk enhet.
 3. Trykk `Run` (`Cmd + R`).
 
@@ -34,7 +34,7 @@ En offline-first iOS-app bygget i SwiftUI + SwiftData for:
 
 ## App Store-klargjøring (juridisk)
 
-- Privacy manifest: `Enkelt Budsjett/PrivacyInfo.xcprivacy`
+- Privacy manifest: `SporOkonomi/PrivacyInfo.xcprivacy`
 - App Store Connect metadata: `AppStoreConnect-metadata.md`
 - Personverntekst (NO): `docs/legal/personvern-no.md`
 - Vilkår (NO): `docs/legal/vilkar-no.md`

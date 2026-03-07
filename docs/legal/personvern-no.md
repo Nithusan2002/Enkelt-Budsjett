@@ -1,10 +1,10 @@
-# Personvernerklæring – Enkelt Budsjett
+# Personvernerklæring – Spor økonomi
 
 Sist oppdatert: 2026-03-06
 
 ## Kort fortalt
 
-Enkelt Budsjett er laget for å gi deg budsjett- og investeringsoversikt uten bankintegrasjon i MVP.
+Spor økonomi er laget for å gi deg budsjett- og investeringsoversikt uten bankintegrasjon i MVP.
 
 ## Hvilke data behandles
 

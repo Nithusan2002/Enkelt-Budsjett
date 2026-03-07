@@ -1,10 +1,10 @@
-# Vilkår – Enkelt Budsjett
+# Vilkår – Spor økonomi
 
 Sist oppdatert: 2026-03-06
 
 ## Tjenesten
 
-Enkelt Budsjett tilbyr verktøy for personlig økonomiplanlegging.
+Spor økonomi tilbyr verktøy for personlig økonomiplanlegging.
 
 ## Ansvar
 

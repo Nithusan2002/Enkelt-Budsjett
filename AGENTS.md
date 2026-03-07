@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Denne filen definerer hvordan Codex skal jobbe med prosjektet **Enkelt Budsjett**.
+Denne filen definerer hvordan Codex skal jobbe med prosjektet **Spor økonomi**.
 Mål: høy fart, tydelig kvalitet, små trygge leveranser.
 
 ## Prosjektkontekst
