@@ -142,4 +142,25 @@ struct OnboardingFeatureTests {
         #expect(snapshots[0].bucketValues.contains(where: { $0.bucketID == "bucket_eiendom" && $0.amount == 500_000 }))
         #expect(snapshots[0].bucketValues.contains(where: { $0.bucketID == "bucket_fond" && $0.amount == 150_000 }))
     }
+
+    @Test
+    @MainActor
+    func onboardingDefaultBucketsExcludeCrypto() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+        let preference = UserPreference(onboardingCompleted: false)
+        context.insert(preference)
+        try context.save()
+
+        let viewModel = OnboardingViewModel(preference: preference)
+        viewModel.selectGoal(.getOverview)
+        viewModel.monthlyIncomeText = "45 000"
+        viewModel.finish(preference: preference, context: context)
+
+        let buckets = try context.fetch(FetchDescriptor<InvestmentBucket>())
+        let bucketNames = Set(buckets.map(\.name))
+
+        #expect(bucketNames == ["Fond", "Aksjer", "BSU", "Buffer"])
+        #expect(!bucketNames.contains("Krypto"))
+    }
 }

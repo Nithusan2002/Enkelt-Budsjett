@@ -40,17 +40,15 @@ private enum PreviewData {
         context.insert(InvestmentBucket(id: "bucket_aksjer", name: "Aksjer", isDefault: true, sortOrder: 2))
         context.insert(InvestmentBucket(id: "bucket_bsu", name: "BSU", isDefault: true, sortOrder: 3))
         context.insert(InvestmentBucket(id: "bucket_buffer", name: "Buffer", isDefault: true, sortOrder: 4))
-        context.insert(InvestmentBucket(id: "bucket_krypto", name: "Krypto", isDefault: true, sortOrder: 5))
 
         let key = DateService.periodKey(from: .now)
         let values = [
             InvestmentSnapshotValue(periodKey: key, bucketID: "bucket_fund", amount: 100_000),
             InvestmentSnapshotValue(periodKey: key, bucketID: "bucket_aksjer", amount: 35_000),
             InvestmentSnapshotValue(periodKey: key, bucketID: "bucket_bsu", amount: 20_000),
-            InvestmentSnapshotValue(periodKey: key, bucketID: "bucket_buffer", amount: 12_000),
-            InvestmentSnapshotValue(periodKey: key, bucketID: "bucket_krypto", amount: 8_000)
+            InvestmentSnapshotValue(periodKey: key, bucketID: "bucket_buffer", amount: 12_000)
         ]
-        context.insert(InvestmentSnapshot(periodKey: key, capturedAt: .now, totalValue: 175_000, bucketValues: values))
+        context.insert(InvestmentSnapshot(periodKey: key, capturedAt: .now, totalValue: 167_000, bucketValues: values))
         if let targetDate = Calendar.current.date(byAdding: .year, value: 2, to: .now) {
             context.insert(Goal(targetAmount: 450_000, targetDate: targetDate, includeAccounts: true))
         }
