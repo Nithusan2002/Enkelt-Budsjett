@@ -1,4 +1,4 @@
-# CLAUDE.md — Enkelt Budsjett
+# CLAUDE.md — Spor økonomi
 
 Practical guide for AI assistants working on this codebase. Read this before making any changes.
 
@@ -6,11 +6,11 @@ Practical guide for AI assistants working on this codebase. Read this before mak
 
 ## Project Overview
 
-**Enkelt Budsjett** (Simple Budget) is a Norwegian personal-finance iOS app built entirely with SwiftUI and SwiftData. It is offline-first with optional iCloud sync via CloudKit. There is no backend server, no third-party SDKs, and no analytics. The UI language is Norwegian throughout.
+**Spor økonomi** (Simple Budget) is a Norwegian personal-finance iOS app built entirely with SwiftUI and SwiftData. It is offline-first with optional iCloud sync via CloudKit. There is no backend server, no third-party SDKs, and no analytics. The UI language is Norwegian throughout.
 
-- **Bundle ID:** `com.nithusan.Enkelt-Budsjett`
+- **Bundle ID:** `com.nithusan.SporOkonomi`
 - **Minimum iOS:** 18.0
-- **CloudKit container:** `iCloud.com.nithusan.Enkelt-Budsjett`
+- **CloudKit container:** `iCloud.com.nithusan.SporOkonomi`
 - **App Store URLs:** https://simplebudget.app
 
 ---
@@ -18,7 +18,7 @@ Practical guide for AI assistants working on this codebase. Read this before mak
 ## Repository Layout
 
 ```
-Enkelt Budsjett/
+Spor økonomi/
 ├── App/                        # Entry point, root navigation, app state
 │   ├── *App.swift              # SwiftData container setup, CloudKit fallback logic
 │   ├── AppRootView.swift       # Tab/nav shell
@@ -50,8 +50,8 @@ Enkelt Budsjett/
 ├── DemoData/                   # JSON demo dataset
 └── Assets.xcassets/
 
-Enkelt BudsjettTests/           # Swift Testing unit tests
-Enkelt BudsjettUITests/         # XCUITest UI tests
+Spor økonomiTests/           # Swift Testing unit tests
+Spor økonomiUITests/         # XCUITest UI tests
 docs/legal/                     # Norwegian privacy policy & terms
 ```
 
@@ -133,7 +133,7 @@ All user-facing text is in **Norwegian Bokmål**. Copy must be:
 
 Framework: **Swift Testing** (native, not XCTest where possible).
 
-Location: `Enkelt BudsjettTests/FeatureLogicTests.swift`
+Location: `Spor økonomiTests/FeatureLogicTests.swift`
 
 For unit tests, create an in-memory SwiftData container:
 
@@ -147,7 +147,7 @@ UI tests use the launch argument `UITEST_IN_MEMORY_STORE` to get a clean store.
 Run tests via Xcode or:
 ```bash
 xcodebuild test \
-  -scheme "Enkelt Budsjett" \
+  -scheme "Spor økonomi" \
   -destination "platform=iOS Simulator,name=iPhone 16"
 ```
 
@@ -168,11 +168,11 @@ Requires Xcode 16+ on macOS with an Apple ID that has iCloud/CloudKit access.
 ```bash
 # Build for simulator
 xcodebuild \
-  -scheme "Enkelt Budsjett" \
+  -scheme "Spor økonomi" \
   -destination "platform=iOS Simulator,name=iPhone 16"
 
 # Archive for distribution
-xcodebuild archive -scheme "Enkelt Budsjett"
+xcodebuild archive -scheme "Spor økonomi"
 ```
 
 **Demo data** (Debug / TestFlight only): Settings → Demo → "Load demo (3 år realistisk)"
@@ -226,7 +226,7 @@ Leveranse: implementer + test + commit
 
 - **No third-party analytics or tracking SDKs.**
 - Data stays on device; iCloud sync is the only network path.
-- Privacy manifest: `Enkelt Budsjett/PrivacyInfo.xcprivacy` — update if new API categories are used.
+- Privacy manifest: `SporOkonomi/PrivacyInfo.xcprivacy` — update if new API categories are used.
 - Debug-only features (demo seeder UI) must be hidden in App Store builds.
 - GDPR-friendly by design — no personal data leaves the device without user consent (iCloud sync).
 

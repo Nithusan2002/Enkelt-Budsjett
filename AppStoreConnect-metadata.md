@@ -1,4 +1,4 @@
-# App Store Connect – juridiske metadata (Enkelt Budsjett)
+# App Store Connect – juridiske metadata (Spor økonomi)
 
 Sist oppdatert: 2026-03-06
 
