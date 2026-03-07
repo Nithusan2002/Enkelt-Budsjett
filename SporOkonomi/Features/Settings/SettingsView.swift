@@ -286,7 +286,7 @@ struct SettingsView: View {
     }
 
     private var appSettingsSection: some View {
-        Section("Appinnstillinger") {
+        Section {
             HStack {
                 Text("Visning")
                     .appBodyStyle()
@@ -334,6 +334,8 @@ struct SettingsView: View {
             Toggle("Face ID-lås", isOn: binding(\.faceIDLockEnabled))
                 .appBodyStyle()
                 .disabled(isReadOnlyMode)
+        } header: {
+            Text("Appinnstillinger")
         } footer: {
             if isReadOnlyMode {
                 Text("Skrivende handlinger er midlertidig deaktivert.")
@@ -373,7 +375,7 @@ struct SettingsView: View {
     }
 
     private var dataSection: some View {
-        Section("Data og personvern") {
+        Section {
             NavigationLink {
                 StorageDiagnosticsView(
                     storageLocationText: storageLocationText(),
@@ -411,6 +413,8 @@ struct SettingsView: View {
             } label: {
                 settingsRow(title: "Vilkår", value: "", showsChevron: false)
             }
+        } header: {
+            Text("Data og personvern")
         } footer: {
             Text("Importer eller eksporter en kopi av dataene dine.")
         }
@@ -436,7 +440,7 @@ struct SettingsView: View {
     }
 
     private var advancedSection: some View {
-        Section("Avansert") {
+        Section {
             NavigationLink {
                 StorageDiagnosticsView(
                     storageLocationText: storageLocationText(),
@@ -459,6 +463,8 @@ struct SettingsView: View {
             }
             .buttonStyle(.plain)
             .disabled(isReadOnlyMode)
+        } header: {
+            Text("Avansert")
         } footer: {
             Text("Viser teknisk lagringsstatus og handlinger som bør brukes med omtanke.")
         }
