@@ -177,10 +177,28 @@ struct AppRootView: View {
         tabAppearance.stackedLayoutAppearance.normal.iconColor = normalColor
         tabAppearance.stackedLayoutAppearance.normal.titleTextAttributes = [.foregroundColor: normalColor]
         tabAppearance.stackedLayoutAppearance.selected.iconColor = selectedColor
-        tabAppearance.stackedLayoutAppearance.selected.titleTextAttributes = [.foregroundColor: selectedColor]
+        tabAppearance.stackedLayoutAppearance.selected.titleTextAttributes = [
+            .foregroundColor: selectedColor,
+            .font: UIFont.systemFont(ofSize: 10, weight: .semibold)
+        ]
+        tabAppearance.inlineLayoutAppearance.normal.iconColor = normalColor
+        tabAppearance.inlineLayoutAppearance.normal.titleTextAttributes = [.foregroundColor: normalColor]
+        tabAppearance.inlineLayoutAppearance.selected.iconColor = selectedColor
+        tabAppearance.inlineLayoutAppearance.selected.titleTextAttributes = [
+            .foregroundColor: selectedColor,
+            .font: UIFont.systemFont(ofSize: 10, weight: .semibold)
+        ]
+        tabAppearance.compactInlineLayoutAppearance.normal.iconColor = normalColor
+        tabAppearance.compactInlineLayoutAppearance.normal.titleTextAttributes = [.foregroundColor: normalColor]
+        tabAppearance.compactInlineLayoutAppearance.selected.iconColor = selectedColor
+        tabAppearance.compactInlineLayoutAppearance.selected.titleTextAttributes = [
+            .foregroundColor: selectedColor,
+            .font: UIFont.systemFont(ofSize: 10, weight: .semibold)
+        ]
 
         UITabBar.appearance().standardAppearance = tabAppearance
         UITabBar.appearance().scrollEdgeAppearance = tabAppearance
+        UITabBar.appearance().selectionIndicatorImage = tabSelectionIndicatorImage()
 
         let navAppearance = UINavigationBarAppearance()
         navAppearance.configureWithTransparentBackground()
@@ -190,6 +208,19 @@ struct AppRootView: View {
         UINavigationBar.appearance().scrollEdgeAppearance = navAppearance
         UINavigationBar.appearance().compactAppearance = navAppearance
         UINavigationBar.appearance().tintColor = UIColor(AppTheme.primary)
+    }
+
+    private func tabSelectionIndicatorImage() -> UIImage? {
+        let size = CGSize(width: 76, height: 32)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        return renderer.image { context in
+            let rect = CGRect(origin: .zero, size: size)
+            let path = UIBezierPath(roundedRect: rect, cornerRadius: 16)
+            UIColor(AppTheme.primary).withAlphaComponent(0.12).setFill()
+            context.cgContext.addPath(path.cgPath)
+            context.cgContext.fillPath()
+        }
+        .resizableImage(withCapInsets: UIEdgeInsets(top: 16, left: 28, bottom: 16, right: 28))
     }
 
     private var lockOverlay: some View {

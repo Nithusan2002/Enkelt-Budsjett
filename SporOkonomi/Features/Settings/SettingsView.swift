@@ -73,6 +73,7 @@ struct SettingsView: View {
             dataSection
             aboutSection
             advancedSection
+            dangerousActionsSection
         }
         .onAppear {
             ensurePreference()
@@ -104,6 +105,7 @@ struct SettingsView: View {
             .scrollContentBackground(.hidden)
             .background(AppTheme.background)
             .navigationTitle("Innstillinger")
+            .navigationBarTitleDisplayMode(.large)
             .sheet(isPresented: $showReminderSheet) {
             ReminderSettingsSheet(
                 enabled: pref.checkInReminderEnabled,
@@ -268,9 +270,6 @@ struct SettingsView: View {
         SettingsAccountSection(
             authEmail: pref.authEmail,
             isReadOnlyMode: isReadOnlyMode,
-            onContinueWithoutAccount: {
-                sessionStore.continueWithoutAccount(preference: pref, context: modelContext)
-            },
             onCreateAccount: {
                 emailAuthMode = .signUp
             },
@@ -290,55 +289,44 @@ struct SettingsView: View {
 
     private var appSettingsSection: some View {
         Section {
-            HStack {
-                Text("Visning")
-                    .appBodyStyle()
-                Spacer()
-                Menu {
-                    ForEach(AppAppearancePreference.allCases, id: \.rawValue) { mode in
-                        Button {
-                            appearanceModeBinding.wrappedValue = mode
-                        } label: {
-                            if mode == currentAppearanceMode {
-                                Label(mode.title, systemImage: "checkmark")
-                            } else {
-                                Text(mode.title)
-                            }
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Text(currentAppearanceMode.title)
-                            .appSecondaryStyle()
-                        Image(systemName: "chevron.up.chevron.down")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(AppTheme.textSecondary)
-                    }
-                }
-                .tint(AppTheme.textSecondary)
-            }
-
-            HStack {
-                Text("Språk")
-                    .appBodyStyle()
-                Spacer()
-                Text("Norsk")
-                    .appSecondaryStyle()
-            }
-
-            Button {
-                showReminderSheet = true
+            NavigationLink {
+                AppearanceSettingsView(selection: appearanceModeBinding)
             } label: {
-                settingsRow(title: "Månedlig innsjekk", value: reminderSummaryText(), showsChevron: true)
+                settingsRow(title: "Visning", value: currentAppearanceMode.title, showsChevron: false)
             }
-            .buttonStyle(.plain)
+
+            NavigationLink {
+                LanguageSettingsView()
+            } label: {
+                settingsRow(title: "Språk", value: "Norsk", showsChevron: false)
+            }
+
+            Toggle(isOn: reminderEnabledBinding) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Månedlig innsjekk")
+                        .appBodyStyle()
+                    Text(reminderToggleSubtitle())
+                        .font(.footnote)
+                        .foregroundStyle(AppTheme.textSecondary)
+                }
+            }
             .disabled(isReadOnlyMode)
+
+            if pref.checkInReminderEnabled {
+                Button {
+                    showReminderSheet = true
+                } label: {
+                    settingsRow(title: "Påminnelsesdag", value: "\(pref.checkInReminderDay). i måneden", showsChevron: true)
+                }
+                .buttonStyle(.plain)
+                .disabled(isReadOnlyMode)
+            }
 
             Toggle("Face ID-lås", isOn: binding(\.faceIDLockEnabled))
                 .appBodyStyle()
                 .disabled(isReadOnlyMode)
         } header: {
-            Text("Appinnstillinger")
+            sectionHeader("Appinnstillinger")
         } footer: {
             if isReadOnlyMode {
                 Text("Skrivende handlinger er midlertidig deaktivert.")
@@ -347,7 +335,7 @@ struct SettingsView: View {
     }
 
     private var budgetAndInvestmentsSection: some View {
-        Section("Økonomi") {
+        Section {
             NavigationLink {
                 FixedItemsView()
             } label: {
@@ -373,6 +361,8 @@ struct SettingsView: View {
             } label: {
                 settingsRow(title: "Kategorier", value: "", showsChevron: false)
             }
+        } header: {
+            sectionHeader("Økonomi")
         }
         .disabled(isReadOnlyMode)
     }
@@ -421,14 +411,14 @@ struct SettingsView: View {
             }
             .buttonStyle(.plain)
         } header: {
-            Text("Data og personvern")
+            sectionHeader("Data og personvern")
         } footer: {
             Text("Importer eller eksporter en kopi av dataene dine.")
         }
     }
 
     private var aboutSection: some View {
-        Section("Om appen") {
+        Section {
             Button {
                 if let url = URL(string: "mailto:sporokonomi.app@gmail.com") {
                     openURL(url)
@@ -443,6 +433,8 @@ struct SettingsView: View {
             } label: {
                 settingsRow(title: "Versjon", value: appVersionText(), showsChevron: false)
             }
+        } header: {
+            sectionHeader("Om appen")
         }
     }
 
@@ -460,43 +452,47 @@ struct SettingsView: View {
             }
 
             if viewModel.shouldShowDemoTools() {
-                demoSection
+                Button("Last inn demo (3 år realistisk)") {
+                    do {
+                        let report = try viewModel.seedDemoRealisticYear(context: modelContext, year: nil)
+                        demoLoadMessage = "Demo (3 år) lastet ✓\n\nMåneder: \(report.budgetMonths)\nTransaksjoner: \(report.transactions)\nSnapshots: \(report.snapshots)"
+                        showDemoLoadSuccess = true
+                        showToast("Demo (3 år) lastet ✓")
+                    } catch {
+                        showDemoLoadError = true
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+        } header: {
+            sectionHeader("Avansert")
+        } footer: {
+            Text("Viser teknisk lagringsstatus og handlinger som bør brukes med omtanke.")
+        }
+        .disabled(isReadOnlyMode)
+    }
+
+    private var dangerousActionsSection: some View {
+        Section {
+            if viewModel.shouldShowDemoTools() {
+                Button(role: .destructive) {
+                    showDemoWipeConfirm = true
+                } label: {
+                    destructiveSettingsRow(title: "Tøm alle data")
+                }
+                .buttonStyle(.plain)
             }
 
             Button(role: .destructive) {
                 showDeleteAllConfirm = true
             } label: {
-                settingsRow(title: "Slett all data", value: "", showsChevron: false)
+                destructiveSettingsRow(title: "Slett all data")
             }
             .buttonStyle(.plain)
-            .disabled(isReadOnlyMode)
         } header: {
-            Text("Avansert")
+            sectionHeader("Farlige handlinger", tone: .destructive, topPadding: 18)
         } footer: {
-            Text("Viser teknisk lagringsstatus og handlinger som bør brukes med omtanke.")
-        }
-    }
-
-    private var demoSection: some View {
-        Group {
-            Button("Last inn demo (3 år realistisk)") {
-                do {
-                    let report = try viewModel.seedDemoRealisticYear(context: modelContext, year: nil)
-                    demoLoadMessage = "Demo (3 år) lastet ✓\n\nMåneder: \(report.budgetMonths)\nTransaksjoner: \(report.transactions)\nSnapshots: \(report.snapshots)"
-                    showDemoLoadSuccess = true
-                    showToast("Demo (3 år) lastet ✓")
-                } catch {
-                    showDemoLoadError = true
-                }
-            }
-            .buttonStyle(.plain)
-
-            Button(role: .destructive) {
-                showDemoWipeConfirm = true
-            } label: {
-                Text("Tøm alle data")
-            }
-            .buttonStyle(.plain)
+            Text("Disse handlingene kan ikke angres.")
         }
         .disabled(isReadOnlyMode)
     }
@@ -658,9 +654,31 @@ struct SettingsView: View {
         .contentShape(Rectangle())
     }
 
-    private func reminderSummaryText() -> String {
-        guard pref.checkInReminderEnabled else { return "Av" }
-        return "På · \(pref.checkInReminderDay). kl 12:00"
+    private func destructiveSettingsRow(title: String) -> some View {
+        HStack {
+            Text(title)
+                .font(.body.weight(.semibold))
+                .foregroundStyle(AppTheme.negative)
+            Spacer()
+        }
+        .contentShape(Rectangle())
+    }
+
+    private func reminderToggleSubtitle() -> String {
+        pref.checkInReminderEnabled ? "På den \(pref.checkInReminderDay). hver måned" : "Av"
+    }
+
+    private var reminderEnabledBinding: Binding<Bool> {
+        Binding(
+            get: { pref.checkInReminderEnabled },
+            set: { isEnabled in
+                guard !isReadOnlyMode else {
+                    settingsErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+                    return
+                }
+                applyReminderSettings(enabled: isEnabled, day: pref.checkInReminderDay)
+            }
+        )
     }
 
     private func bucketSummaryText() -> String {
@@ -684,7 +702,7 @@ struct SettingsView: View {
     private func appVersionText() -> String {
         let short = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
         let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
-        return "v\(short) (\(build))"
+        return "\(short) (Build \(build))"
     }
 
     private func storeModeText() -> String {
@@ -701,7 +719,7 @@ struct SettingsView: View {
     }
 
     private func storageLocationText() -> String {
-        isCloudSyncActive() ? "iCloud + lokalt" : "Kun lokalt"
+        isCloudSyncActive() ? "iCloud + lokalt" : "Kun lagret lokalt"
     }
 
     private func isCloudSyncActive() -> Bool {
@@ -744,6 +762,15 @@ struct SettingsView: View {
                 persistSettingsChanges(syncReminder: false)
             }
         )
+    }
+
+    @ViewBuilder
+    private func sectionHeader(_ title: String, tone: SettingsSectionHeaderTone = .default, topPadding: CGFloat = 6) -> some View {
+        Text(title)
+            .font(.system(.subheadline, design: .rounded).weight(.semibold))
+            .foregroundStyle(tone == .destructive ? AppTheme.negative : AppTheme.textSecondary)
+            .textCase(nil)
+            .padding(.top, topPadding)
     }
 }
 
@@ -998,7 +1025,7 @@ private struct PrivacyInfoView: View {
             }
             Section("Dine data") {
                 Text("Du kan eksportere alle data som en JSON-fil fra Innstillinger → Data og personvern.")
-                Text("Du kan slette alle lokale data fra Innstillinger → Avansert.")
+                Text("Du kan slette alle lokale data fra Innstillinger → Farlige handlinger.")
             }
             Section("Kontakt") {
                 Text("sporokonomi.app@gmail.com")
@@ -1046,6 +1073,60 @@ private struct StorageDiagnosticsView: View {
                 .appSecondaryStyle()
                 .multilineTextAlignment(.trailing)
         }
+    }
+}
+
+private enum SettingsSectionHeaderTone {
+    case `default`
+    case destructive
+}
+
+private struct AppearanceSettingsView: View {
+    @Binding var selection: AppAppearancePreference
+
+    var body: some View {
+        List {
+            Section {
+                ForEach(AppAppearancePreference.allCases, id: \.rawValue) { mode in
+                    Button {
+                        selection = mode
+                    } label: {
+                        HStack {
+                            Text(mode.title)
+                                .appBodyStyle()
+                            Spacer()
+                            if selection == mode {
+                                Image(systemName: "checkmark")
+                                    .font(.body.weight(.semibold))
+                                    .foregroundStyle(AppTheme.primary)
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .navigationTitle("Visning")
+    }
+}
+
+private struct LanguageSettingsView: View {
+    var body: some View {
+        List {
+            Section {
+                HStack {
+                    Text("Norsk")
+                        .appBodyStyle()
+                    Spacer()
+                    Image(systemName: "checkmark")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(AppTheme.primary)
+                }
+            } footer: {
+                Text("Norsk er appens aktive språk.")
+            }
+        }
+        .navigationTitle("Språk")
     }
 }
 
