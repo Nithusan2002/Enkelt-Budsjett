@@ -1165,7 +1165,7 @@ private struct AboutAppView: View {
                     Image("Spor-økonomi-applogo")
                         .resizable()
                         .scaledToFit()
-                        .frame(maxWidth: 220)
+                        .frame(maxWidth: 320)
                         .accessibilityHidden(true)
 
                     VStack(spacing: 6) {
