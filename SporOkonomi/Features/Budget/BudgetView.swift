@@ -32,40 +32,10 @@ struct BudgetView: View {
         )
     }
     private var incomeRows: [BudgetIncomeRow] {
-        let incomeByCategory = Dictionary(grouping: monthTransactions.filter { $0.kind == .income }) { $0.categoryID ?? "" }
-            .mapValues { tx in tx.reduce(0) { $0 + abs($1.amount) } }
-        return categories
-            .filter { $0.type == .income && $0.isActive }
-            .map { category in
-                let amount = incomeByCategory[category.id] ?? 0
-                return BudgetIncomeRow(id: category.id, title: category.name, amount: amount)
-            }
-            .filter { $0.amount > 0 }
-            .sorted { $0.amount > $1.amount }
+        viewModel.incomeRows(categories: categories, periodTransactions: monthTransactions)
     }
     private var savingsRows: [BudgetSavingsRow] {
-        let savingsCategoryIDs = Set(
-            categories
-                .filter { $0.type == .savings && $0.isActive }
-                .map(\.id)
-        )
-
-        let grouped = Dictionary(grouping: monthTransactions) { tx in
-            tx.categoryID ?? ""
-        }
-
-        return categories
-            .filter { $0.type == .savings && $0.isActive }
-            .map { category in
-                let amount = (grouped[category.id] ?? [])
-                    .filter { tx in
-                        tx.kind == .manualSaving || (tx.categoryID.map(savingsCategoryIDs.contains) == true)
-                    }
-                    .reduce(0) { $0 + abs($1.amount) }
-                return BudgetSavingsRow(id: category.id, title: category.name, amount: amount)
-            }
-            .filter { $0.amount > 0 }
-            .sorted { $0.amount > $1.amount }
+        viewModel.savingsRows(categories: categories, periodTransactions: monthTransactions)
     }
     private var summary: BudgetSummaryData {
         viewModel.summary(groupRows: groupRows, periodTransactions: monthTransactions)

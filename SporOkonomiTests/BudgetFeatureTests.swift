@@ -161,4 +161,44 @@ struct BudgetFeatureTests {
         #expect(summary.net == 7000)
         #expect(summary.remaining == 7000)
     }
+
+    @Test
+    @MainActor
+    func budgetDetailIncomeRowsIgnoreDuplicateCategoryModels() {
+        let now = Calendar.current.date(from: DateComponents(year: 2026, month: 3, day: 12)) ?? .now
+        let categories = [
+            Category(id: "cat_income_salary", name: "Lønn", type: .income, sortOrder: 1),
+            Category(id: "cat_income_salary", name: "Lønn", type: .income, sortOrder: 1)
+        ]
+        let transactions = [
+            Transaction(date: now, amount: 52_000, kind: .income, categoryID: "cat_income_salary")
+        ]
+
+        let viewModel = BudgetViewModel()
+        let rows = viewModel.incomeRows(categories: categories, periodTransactions: transactions)
+
+        #expect(rows.count == 1)
+        #expect(rows.first?.title == "Lønn")
+        #expect(rows.first?.amount == 52_000)
+    }
+
+    @Test
+    @MainActor
+    func budgetDetailSavingsRowsIgnoreDuplicateCategoryModels() {
+        let now = Calendar.current.date(from: DateComponents(year: 2026, month: 3, day: 12)) ?? .now
+        let categories = [
+            Category(id: "cat_savings_account", name: "Sparekonto (generelt)", type: .savings, sortOrder: 1),
+            Category(id: "cat_savings_account", name: "Sparekonto (generelt)", type: .savings, sortOrder: 1)
+        ]
+        let transactions = [
+            Transaction(date: now, amount: 1_100, kind: .manualSaving, categoryID: "cat_savings_account")
+        ]
+
+        let viewModel = BudgetViewModel()
+        let rows = viewModel.savingsRows(categories: categories, periodTransactions: transactions)
+
+        #expect(rows.count == 1)
+        #expect(rows.first?.title == "Sparekonto (generelt)")
+        #expect(rows.first?.amount == 1_100)
+    }
 }

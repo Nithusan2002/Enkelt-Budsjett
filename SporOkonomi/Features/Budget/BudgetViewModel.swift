@@ -243,6 +243,44 @@ final class BudgetViewModel: ObservableObject {
         return fixedSpentByGroup(categories: categories, periodTransactions: monthTransactions)
     }
 
+    func incomeRows(
+        categories: [Category],
+        periodTransactions: [Transaction]
+    ) -> [BudgetIncomeRow] {
+        let uniqueIncomeCategories = uniqueActiveCategories(of: .income, categories: categories)
+        let incomeByCategory = Dictionary(grouping: periodTransactions.filter { $0.kind == .income }) { $0.categoryID ?? "" }
+            .mapValues { tx in tx.reduce(0) { $0 + abs($1.amount) } }
+
+        return uniqueIncomeCategories
+            .map { category in
+                BudgetIncomeRow(id: category.id, title: category.name, amount: incomeByCategory[category.id] ?? 0)
+            }
+            .filter { $0.amount > 0 }
+            .sorted { $0.amount > $1.amount }
+    }
+
+    func savingsRows(
+        categories: [Category],
+        periodTransactions: [Transaction]
+    ) -> [BudgetSavingsRow] {
+        let uniqueSavingsCategories = uniqueActiveCategories(of: .savings, categories: categories)
+        let savingsCategoryIDs = Set(uniqueSavingsCategories.map(\.id))
+        let grouped = Dictionary(grouping: periodTransactions) { $0.categoryID ?? "" }
+
+        return uniqueSavingsCategories
+            .map { category in
+                let amount = (grouped[category.id] ?? [])
+                    .filter { tx in
+                        tx.kind == .manualSaving || (tx.categoryID.map(savingsCategoryIDs.contains) == true)
+                    }
+                    .reduce(0) { $0 + abs($1.amount) }
+
+                return BudgetSavingsRow(id: category.id, title: category.name, amount: amount)
+            }
+            .filter { $0.amount > 0 }
+            .sorted { $0.amount > $1.amount }
+    }
+
     func fixedSpentByGroup(
         categories: [Category],
         periodTransactions: [Transaction]
@@ -377,5 +415,13 @@ final class BudgetViewModel: ObservableObject {
 
     func clearPersistenceError() {
         persistenceErrorMessage = nil
+    }
+
+    private func uniqueActiveCategories(of type: CategoryType, categories: [Category]) -> [Category] {
+        var seen = Set<String>()
+        return categories.filter { category in
+            guard category.type == type, category.isActive else { return false }
+            return seen.insert(category.id).inserted
+        }
     }
 }
