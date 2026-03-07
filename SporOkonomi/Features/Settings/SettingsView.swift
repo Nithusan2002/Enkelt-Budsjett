@@ -64,16 +64,12 @@ struct SettingsView: View {
 
     private var baseForm: some View {
         Form {
-            trustSection
             accountSection
             appSettingsSection
             budgetAndInvestmentsSection
             dataSection
-            if viewModel.shouldShowDemoTools() {
-                demoSection
-            }
-            destructiveSection
             aboutSection
+            advancedSection
         }
         .onAppear {
             ensurePreference()
@@ -265,18 +261,6 @@ struct SettingsView: View {
             }
     }
 
-    private var trustSection: some View {
-        Section {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Trygg lagring")
-                    .appCardTitleStyle()
-                Text(trustStorageText())
-                    .appSecondaryStyle()
-            }
-            .padding(.vertical, 6)
-        }
-    }
-
     private var accountSection: some View {
         SettingsAccountSection(
             authEmail: pref.authEmail,
@@ -303,14 +287,6 @@ struct SettingsView: View {
 
     private var appSettingsSection: some View {
         Section("Appinnstillinger") {
-            HStack {
-                Text("Valuta")
-                    .appBodyStyle()
-                Spacer()
-                Text("NOK")
-                    .appSecondaryStyle()
-            }
-
             HStack {
                 Text("Visning")
                     .appBodyStyle()
@@ -355,17 +331,18 @@ struct SettingsView: View {
             .buttonStyle(.plain)
             .disabled(isReadOnlyMode)
 
-            Text("Få et lite dytt for å oppdatere totalsummene dine.")
-                .appSecondaryStyle()
-
             Toggle("Face ID-lås", isOn: binding(\.faceIDLockEnabled))
                 .appBodyStyle()
                 .disabled(isReadOnlyMode)
+        } footer: {
+            if isReadOnlyMode {
+                Text("Skrivende handlinger er midlertidig deaktivert.")
+            }
         }
     }
 
     private var budgetAndInvestmentsSection: some View {
-        Section("Budsjett og investeringer") {
+        Section("Økonomi") {
             NavigationLink {
                 FixedItemsView()
             } label: {
@@ -396,21 +373,16 @@ struct SettingsView: View {
     }
 
     private var dataSection: some View {
-        Section("Data") {
-            HStack {
-                Text("Lagring")
-                    .appBodyStyle()
-                Spacer()
-                Text(storageLocationText())
-                    .appSecondaryStyle()
-            }
-
-            HStack {
-                Text("Lagringsmodus")
-                    .appBodyStyle()
-                Spacer()
-                Text(storeModeText())
-                    .appSecondaryStyle()
+        Section("Data og personvern") {
+            NavigationLink {
+                StorageDiagnosticsView(
+                    storageLocationText: storageLocationText(),
+                    storeModeText: storeModeText(),
+                    storeModeDetailText: storeModeDetailText(),
+                    isReadOnlyMode: isReadOnlyMode
+                )
+            } label: {
+                settingsRow(title: "Lagring", value: storageLocationText(), showsChevron: false)
             }
 
             Button {
@@ -428,18 +400,19 @@ struct SettingsView: View {
             .buttonStyle(.plain)
             .disabled(isReadOnlyMode)
 
-            Text("Eksport oppretter en JSON-fil. Import kan slå sammen eller erstatte lokale data.")
-                .appSecondaryStyle()
-
-            if isReadOnlyMode {
-                Text("Skrivende handlinger er deaktivert fordi appen kjører i midlertidig lagring.")
-                    .appSecondaryStyle()
+            NavigationLink {
+                PrivacyInfoView()
+            } label: {
+                settingsRow(title: "Personvern", value: "", showsChevron: false)
             }
 
-            if let detail = storeModeDetailText() {
-                Text(detail)
-                    .appSecondaryStyle()
+            NavigationLink {
+                TermsInfoView()
+            } label: {
+                settingsRow(title: "Vilkår", value: "", showsChevron: false)
             }
+        } footer: {
+            Text("Importer eller eksporter en kopi av dataene dine.")
         }
     }
 
@@ -455,18 +428,6 @@ struct SettingsView: View {
             .buttonStyle(.plain)
 
             NavigationLink {
-                PrivacyInfoView()
-            } label: {
-                settingsRow(title: "Personvern", value: "", showsChevron: false)
-            }
-
-            NavigationLink {
-                TermsInfoView()
-            } label: {
-                settingsRow(title: "Vilkår", value: "", showsChevron: false)
-            }
-
-            NavigationLink {
                 AboutAppView()
             } label: {
                 settingsRow(title: "Versjon", value: appVersionText(), showsChevron: false)
@@ -474,8 +435,37 @@ struct SettingsView: View {
         }
     }
 
+    private var advancedSection: some View {
+        Section("Avansert") {
+            NavigationLink {
+                StorageDiagnosticsView(
+                    storageLocationText: storageLocationText(),
+                    storeModeText: storeModeText(),
+                    storeModeDetailText: storeModeDetailText(),
+                    isReadOnlyMode: isReadOnlyMode
+                )
+            } label: {
+                settingsRow(title: "Synk og diagnose", value: storeModeText(), showsChevron: false)
+            }
+
+            if viewModel.shouldShowDemoTools() {
+                demoSection
+            }
+
+            Button(role: .destructive) {
+                showDeleteAllConfirm = true
+            } label: {
+                settingsRow(title: "Slett all data", value: "", showsChevron: false)
+            }
+            .buttonStyle(.plain)
+            .disabled(isReadOnlyMode)
+        } footer: {
+            Text("Viser teknisk lagringsstatus og handlinger som bør brukes med omtanke.")
+        }
+    }
+
     private var demoSection: some View {
-        Section("Demo-verktøy") {
+        Group {
             Button("Last inn demo (3 år realistisk)") {
                 do {
                     let report = try viewModel.seedDemoRealisticYear(context: modelContext, year: nil)
@@ -494,23 +484,6 @@ struct SettingsView: View {
                 Text("Tøm alle data")
             }
             .buttonStyle(.plain)
-            Text("Kun for testing i debug/TestFlight.")
-                .appSecondaryStyle()
-        }
-        .disabled(isReadOnlyMode)
-    }
-
-    private var destructiveSection: some View {
-        Section("Farlige handlinger") {
-            Button(role: .destructive) {
-                showDeleteAllConfirm = true
-            } label: {
-                settingsRow(title: "Slett all data", value: "", showsChevron: false)
-            }
-            .buttonStyle(.plain)
-
-            Text("Dette kan ikke angres.")
-                .appSecondaryStyle()
         }
         .disabled(isReadOnlyMode)
     }
@@ -716,16 +689,6 @@ struct SettingsView: View {
 
     private func storageLocationText() -> String {
         isCloudSyncActive() ? "iCloud + lokalt" : "Kun lokalt"
-    }
-
-    private func trustStorageText() -> String {
-        if isReadOnlyMode {
-            return "Appen kjører i midlertidig modus uten varig lokal lagring. Endringer lagres ikke permanent før normal lagring er tilbake."
-        }
-        if isCloudSyncActive() {
-            return "Data synkroniseres med iCloud og lagres lokalt på enheten. Ingen bankkobling i denne versjonen."
-        }
-        return "Data lagres kun på denne enheten. Ingen bankkobling i denne versjonen."
     }
 
     private func isCloudSyncActive() -> Bool {
@@ -1021,14 +984,55 @@ private struct PrivacyInfoView: View {
                 Text("Hvis iCloud-synk er aktivert på enheten, synkroniseres data via CloudKit i din Apple-konto. Du styrer dette selv i iOS-innstillinger.")
             }
             Section("Dine data") {
-                Text("Du kan eksportere alle data som en JSON-fil fra Innstillinger → Data.")
-                Text("Du kan slette alle lokale data fra Innstillinger → Farlige handlinger.")
+                Text("Du kan eksportere alle data som en JSON-fil fra Innstillinger → Data og personvern.")
+                Text("Du kan slette alle lokale data fra Innstillinger → Avansert.")
             }
             Section("Kontakt") {
                 Text("sporokonomi.app@gmail.com")
             }
         }
         .navigationTitle("Personvern")
+    }
+}
+
+private struct StorageDiagnosticsView: View {
+    let storageLocationText: String
+    let storeModeText: String
+    let storeModeDetailText: String?
+    let isReadOnlyMode: Bool
+
+    var body: some View {
+        List {
+            Section("Lagring") {
+                infoRow(title: "Lagring", value: storageLocationText)
+                infoRow(title: "Lagringsmodus", value: storeModeText)
+            }
+
+            if isReadOnlyMode {
+                Section {
+                    Text("Appen kjører i midlertidig lagring. Skrivende handlinger er derfor deaktivert til normal lagring er tilbake.")
+                }
+            }
+
+            if let storeModeDetailText, !storeModeDetailText.isEmpty {
+                Section("Diagnose") {
+                    Text(storeModeDetailText)
+                        .appSecondaryStyle()
+                }
+            }
+        }
+        .navigationTitle("Lagring og synk")
+    }
+
+    private func infoRow(title: String, value: String) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title)
+                .appBodyStyle()
+            Spacer(minLength: 12)
+            Text(value)
+                .appSecondaryStyle()
+                .multilineTextAlignment(.trailing)
+        }
     }
 }
 
