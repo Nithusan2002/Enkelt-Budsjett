@@ -58,7 +58,7 @@ final class SessionStore: ObservableObject {
         sessionMode == .authenticated && currentSession != nil
     }
 
-    func restore(from preference: UserPreference?) {
+    func restore(from preference: UserPreference?, context: ModelContext) async {
         guard let preference else {
             sessionMode = .undecided
             currentSession = nil
@@ -83,6 +83,35 @@ final class SessionStore: ObservableObject {
             email: normalized(preference.authEmail),
             displayName: normalized(preference.authDisplayName)
         )
+
+        do {
+            if let restoredSession = try await authClient.restoreSession() {
+                let updatedSession = UserSession(
+                    userID: restoredSession.userID,
+                    provider: provider,
+                    email: restoredSession.email ?? normalized(preference.authEmail),
+                    displayName: restoredSession.displayName ?? normalized(preference.authDisplayName)
+                )
+
+                if currentSession != updatedSession {
+                    updatePreference(
+                        preference,
+                        mode: .authenticated,
+                        session: updatedSession,
+                        context: context
+                    )
+                }
+            } else {
+                updatePreference(
+                    preference,
+                    mode: .local,
+                    session: nil,
+                    context: context
+                )
+            }
+        } catch {
+            // Behold lokal session-state ved midlertidige nettverks- eller backend-feil.
+        }
     }
 
     func continueWithoutAccount(preference: UserPreference, context: ModelContext) {
@@ -257,6 +286,8 @@ private struct UnconfiguredAuthClient: AuthClientProtocol {
     func signInWithGoogle() async throws -> AuthClientSession {
         throw AuthServiceError.missingConfiguration
     }
+
+    func restoreSession() async throws -> AuthClientSession? { nil }
 
     func signOut(accessToken: String?) async {}
 

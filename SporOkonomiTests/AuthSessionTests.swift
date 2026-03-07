@@ -25,7 +25,9 @@ struct AuthSessionTests {
 
     @Test
     @MainActor
-    func sessionStoreRestoresAuthenticatedSessionFromPreference() {
+    func sessionStoreRestoresAuthenticatedSessionFromPreference() async throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
         let preference = UserPreference(
             authSessionModeRaw: AuthSessionMode.authenticated.rawValue,
             authProviderRaw: AuthProvider.email.rawValue,
@@ -33,14 +35,48 @@ struct AuthSessionTests {
             authEmail: "hei@example.com",
             authDisplayName: "Test Bruker"
         )
-        let sessionStore = SessionStore(authClient: MockAuthClient())
+        let sessionStore = SessionStore(
+            authClient: MockAuthClient(
+                restoredSession: AuthClientSession(
+                    userID: "email-user-1",
+                    email: "hei@example.com",
+                    displayName: "Test Bruker",
+                    accessToken: "restored-access",
+                    refreshToken: "restored-refresh"
+                )
+            )
+        )
 
-        sessionStore.restore(from: preference)
+        await sessionStore.restore(from: preference, context: context)
 
         #expect(sessionStore.sessionMode == .authenticated)
         #expect(sessionStore.currentSession?.provider == .email)
         #expect(sessionStore.currentSession?.userID == "email-user-1")
         #expect(sessionStore.currentSession?.email == "hei@example.com")
+    }
+
+    @Test
+    @MainActor
+    func sessionStoreDowngradesToLocalWhenAuthenticatedPreferenceHasNoValidBackendSession() async throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+        let preference = UserPreference(
+            authSessionModeRaw: AuthSessionMode.authenticated.rawValue,
+            authProviderRaw: AuthProvider.google.rawValue,
+            authUserID: "stale-user",
+            authEmail: "stale@example.com"
+        )
+        context.insert(preference)
+        try context.save()
+
+        let sessionStore = SessionStore(authClient: MockAuthClient(restoredSession: nil))
+
+        await sessionStore.restore(from: preference, context: context)
+
+        #expect(sessionStore.sessionMode == .local)
+        #expect(sessionStore.currentSession == nil)
+        #expect(preference.authSessionModeRaw == AuthSessionMode.local.rawValue)
+        #expect(preference.authUserID == nil)
     }
 
     @Test
@@ -131,6 +167,87 @@ struct AuthSessionTests {
         #expect(sessionStore.currentSession == nil)
         #expect(sessionStore.authErrorMessage == "Kontoen er opprettet. Bekreft e-posten din før du logger inn.")
     }
+
+    @Test
+    func supabaseConfigurationRequiresExplicitValues() {
+        do {
+            try SupabaseConfiguration.load(
+                projectURLString: nil,
+                publishableKey: nil,
+                redirectScheme: nil,
+                redirectHost: nil
+            )
+            Issue.record("Expected missingConfiguration to be thrown")
+        } catch let error as AuthServiceError {
+            #expect(error == .missingConfiguration)
+        } catch {
+            Issue.record("Expected AuthServiceError.missingConfiguration, got \(error)")
+        }
+    }
+
+    @Test
+    func restoreSessionRefreshesExpiredAccessToken() async throws {
+        let configuration = try SupabaseConfiguration.load(
+            projectURLString: "https://example.supabase.co",
+            publishableKey: "publishable-key",
+            redirectScheme: "sporokonomi",
+            redirectHost: "auth-callback"
+        )
+        let tokenStore = MockTokenStore(
+            initialTokens: StoredAuthTokens(
+                accessToken: "expired-access",
+                refreshToken: "refresh-123",
+                tokenType: "bearer"
+            )
+        )
+        let sessionConfiguration = URLSessionConfiguration.ephemeral
+        sessionConfiguration.protocolClasses = [MockURLProtocol.self]
+        let session = URLSession(configuration: sessionConfiguration)
+        let client = SupabaseAuthClient(
+            configuration: configuration,
+            session: session,
+            tokenStore: tokenStore,
+            webAuthCoordinator: MockOAuthCoordinator()
+        )
+
+        MockURLProtocol.requestHandler = { request in
+            if request.url?.path == "/auth/v1/user",
+               request.value(forHTTPHeaderField: "Authorization") == "Bearer expired-access" {
+                let response = HTTPURLResponse(url: request.url!, statusCode: 401, httpVersion: nil, headerFields: nil)!
+                let data = #"{"error":"invalid_grant","message":"invalid login credentials"}"#.data(using: .utf8)!
+                return (response, data)
+            }
+
+            if request.url?.path == "/auth/v1/token",
+               request.url?.query == "grant_type=refresh_token" {
+                let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+                let data = #"""
+                {
+                  "access_token": "fresh-access",
+                  "refresh_token": "fresh-refresh",
+                  "token_type": "bearer",
+                  "user": {
+                    "id": "user-123",
+                    "email": "hei@example.com",
+                    "user_metadata": {
+                      "display_name": "Hei"
+                    }
+                  }
+                }
+                """#.data(using: .utf8)!
+                return (response, data)
+            }
+
+            throw URLError(.badServerResponse)
+        }
+
+        let restored = try await client.restoreSession()
+
+        #expect(restored?.userID == "user-123")
+        #expect(restored?.accessToken == "fresh-access")
+        #expect(tokenStore.savedTokens?.accessToken == "fresh-access")
+        #expect(tokenStore.savedTokens?.refreshToken == "fresh-refresh")
+    }
 }
 
 private final class MockAuthClient: AuthClientProtocol {
@@ -138,18 +255,21 @@ private final class MockAuthClient: AuthClientProtocol {
     var signInResult: AuthClientSession?
     var signInError: Error?
     var googleResult: AuthClientSession?
+    var restoredSession: AuthClientSession?
     var lastSignInEmail: String?
 
     init(
         signUpResult: AuthClientSession? = nil,
         signInResult: AuthClientSession? = nil,
         signInError: Error? = nil,
-        googleResult: AuthClientSession? = nil
+        googleResult: AuthClientSession? = nil,
+        restoredSession: AuthClientSession? = nil
     ) {
         self.signUpResult = signUpResult
         self.signInResult = signInResult
         self.signInError = signInError
         self.googleResult = googleResult
+        self.restoredSession = restoredSession
     }
 
     func signUp(email: String, password: String, displayName: String?) async throws -> AuthClientSession? {
@@ -174,9 +294,72 @@ private final class MockAuthClient: AuthClientProtocol {
         return googleResult
     }
 
+    func restoreSession() async throws -> AuthClientSession? {
+        restoredSession
+    }
+
     func signOut(accessToken: String?) async {}
 
     func storedAccessToken() -> String? { nil }
 
     func clearStoredSession() {}
+}
+
+private final class MockOAuthCoordinator: OAuthWebAuthenticationCoordinating {
+    func authenticate(url: URL, callbackScheme: String) async throws -> URL {
+        throw AuthServiceError.invalidResponse
+    }
+}
+
+private final class MockTokenStore: AuthTokenStore {
+    var savedTokens: StoredAuthTokens?
+    private var currentTokens: StoredAuthTokens?
+
+    init(initialTokens: StoredAuthTokens?) {
+        self.currentTokens = initialTokens
+    }
+
+    override func save(_ tokens: StoredAuthTokens) -> Bool {
+        currentTokens = tokens
+        savedTokens = tokens
+        return true
+    }
+
+    override func load() -> StoredAuthTokens? {
+        currentTokens
+    }
+
+    override func clear() {
+        currentTokens = nil
+    }
+}
+
+private final class MockURLProtocol: URLProtocol {
+    static var requestHandler: ((URLRequest) throws -> (HTTPURLResponse, Data))?
+
+    override class func canInit(with request: URLRequest) -> Bool {
+        true
+    }
+
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+        request
+    }
+
+    override func startLoading() {
+        guard let handler = Self.requestHandler else {
+            client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
+            return
+        }
+
+        do {
+            let (response, data) = try handler(request)
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: data)
+            client?.urlProtocolDidFinishLoading(self)
+        } catch {
+            client?.urlProtocol(self, didFailWithError: error)
+        }
+    }
+
+    override func stopLoading() {}
 }

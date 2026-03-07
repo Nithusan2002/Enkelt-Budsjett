@@ -147,13 +147,19 @@ struct AppRootView: View {
         .onAppear {
             applyBarAppearance()
             viewModel.configureLock(enabled: shouldUseFaceIDLock)
-            sessionStore.restore(from: preference)
+            Task {
+                await sessionStore.restore(from: preference, context: modelContext)
+            }
         }
         .onChange(of: preference?.authSessionModeRaw) { _, _ in
-            sessionStore.restore(from: preference)
+            Task {
+                await sessionStore.restore(from: preference, context: modelContext)
+            }
         }
         .onChange(of: preference?.authUserID) { _, _ in
-            sessionStore.restore(from: preference)
+            Task {
+                await sessionStore.restore(from: preference, context: modelContext)
+            }
         }
         .onChange(of: shouldUseFaceIDLock) { _, newValue in
             viewModel.configureLock(enabled: newValue)
@@ -305,13 +311,13 @@ private struct BootstrapLoadingView: View {
             Image("Spor-økonomi-applogo")
                 .resizable()
                 .scaledToFit()
-                .frame(width: 620)
+                .frame(height: 88)
                 .accessibilityHidden(true)
 
             Image(systemName: "gearshape.fill")
                 .font(.system(size: 28, weight: .semibold))
                 .foregroundStyle(AppTheme.primary)
-                .padding(.top, -12)
+                .padding(.top, -6)
                 .rotationEffect(.degrees(isAnimating ? 360 : 0))
                 .animation(.linear(duration: 1.4).repeatForever(autoreverses: false), value: isAnimating)
                 .accessibilityHidden(true)

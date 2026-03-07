@@ -3,7 +3,7 @@ import Foundation
 import Security
 import UIKit
 
-enum AuthServiceError: LocalizedError {
+enum AuthServiceError: LocalizedError, Equatable {
     case missingConfiguration
     case missingOAuthConfiguration
     case invalidResponse
@@ -50,6 +50,7 @@ protocol AuthClientProtocol {
     func signUp(email: String, password: String, displayName: String?) async throws -> AuthClientSession?
     func signIn(email: String, password: String) async throws -> AuthClientSession
     func signInWithGoogle() async throws -> AuthClientSession
+    func restoreSession() async throws -> AuthClientSession?
     func signOut(accessToken: String?) async
     func storedAccessToken() -> String?
     func clearStoredSession()
@@ -60,11 +61,6 @@ struct SupabaseConfiguration {
     static let publishableKeyKey = "SUPABASE_PUBLISHABLE_KEY"
     static let redirectSchemeKey = "SUPABASE_REDIRECT_SCHEME"
     static let redirectHostKey = "SUPABASE_REDIRECT_HOST"
-
-    private static let fallbackURL = "https://mxgjkrgikgfqccyzubxv.supabase.co"
-    private static let fallbackPublishableKey = "sb_publishable_oEiVNV89KMbag_-jRoCpvw_pQNKoAPT"
-    private static let fallbackRedirectScheme = "sporokonomi"
-    private static let fallbackRedirectHost = "auth-callback"
 
     let projectURL: URL
     let publishableKey: String
@@ -84,27 +80,44 @@ struct SupabaseConfiguration {
     }
 
     static func load(from bundle: Bundle = .main) throws -> SupabaseConfiguration {
-        let configuredURL = stringValue(for: urlKey, in: bundle) ?? fallbackURL
-        let configuredKey = stringValue(for: publishableKeyKey, in: bundle) ?? fallbackPublishableKey
+        try load(
+            projectURLString: stringValue(for: urlKey, in: bundle),
+            publishableKey: stringValue(for: publishableKeyKey, in: bundle),
+            redirectScheme: stringValue(for: redirectSchemeKey, in: bundle),
+            redirectHost: stringValue(for: redirectHostKey, in: bundle)
+        )
+    }
 
-        guard let url = URL(string: configuredURL), !configuredKey.isEmpty else {
+    static func load(
+        projectURLString: String?,
+        publishableKey: String?,
+        redirectScheme: String?,
+        redirectHost: String?
+    ) throws -> SupabaseConfiguration {
+        guard let projectURLString,
+              let url = URL(string: projectURLString),
+              let publishableKey,
+              !publishableKey.isEmpty else {
             throw AuthServiceError.missingConfiguration
         }
 
-        let redirectScheme = stringValue(for: redirectSchemeKey, in: bundle) ?? fallbackRedirectScheme
-        let redirectHost = stringValue(for: redirectHostKey, in: bundle) ?? fallbackRedirectHost
-
         return SupabaseConfiguration(
             projectURL: url,
-            publishableKey: configuredKey,
-            redirectScheme: redirectScheme.isEmpty ? nil : redirectScheme,
-            redirectHost: redirectHost.isEmpty ? nil : redirectHost
+            publishableKey: publishableKey,
+            redirectScheme: normalized(redirectScheme),
+            redirectHost: normalized(redirectHost)
         )
     }
 
     private static func stringValue(for key: String, in bundle: Bundle) -> String? {
         (bundle.object(forInfoDictionaryKey: key) as? String)?
             .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func normalized(_ value: String?) -> String? {
+        guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !value.isEmpty else { return nil }
+        return value
     }
 }
 
@@ -184,6 +197,38 @@ final class SupabaseAuthClient: AuthClientProtocol {
             accessToken: tokens.accessToken,
             refreshToken: tokens.refreshToken
         )
+    }
+
+    func restoreSession() async throws -> AuthClientSession? {
+        guard let storedTokens = tokenStore.load() else { return nil }
+
+        do {
+            let user = try await fetchUser(accessToken: storedTokens.accessToken)
+            return user.toAuthClientSession(
+                accessToken: storedTokens.accessToken,
+                refreshToken: storedTokens.refreshToken
+            )
+        } catch let error as AuthServiceError {
+            guard case .invalidCredentials = error else {
+                throw error
+            }
+
+            guard let refreshToken = storedTokens.refreshToken, !refreshToken.isEmpty else {
+                clearStoredSession()
+                return nil
+            }
+
+            do {
+                let refreshedSession = try await refreshSession(refreshToken: refreshToken)
+                return refreshedSession.user.toAuthClientSession(from: refreshedSession)
+            } catch let refreshError as AuthServiceError {
+                if case .invalidCredentials = refreshError {
+                    clearStoredSession()
+                    return nil
+                }
+                throw refreshError
+            }
+        }
     }
 
     func signOut(accessToken: String?) async {
@@ -281,6 +326,22 @@ final class SupabaseAuthClient: AuthClientProtocol {
                 tokenType: session.tokenType
             )
         )
+    }
+
+    private func refreshSession(refreshToken: String) async throws -> AuthSessionPayload {
+        let payload = RefreshSessionPayload(refreshToken: refreshToken)
+        let response: AuthResponse = try await performRequest(
+            path: "auth/v1/token?grant_type=refresh_token",
+            method: "POST",
+            body: payload
+        )
+
+        guard let session = response.session else {
+            throw AuthServiceError.invalidResponse
+        }
+
+        try persist(tokensFrom: session)
+        return session
     }
 
     private func performRequest<Body: Encodable, Response: Decodable>(
@@ -414,6 +475,14 @@ private struct SignInPayload: Encodable {
     let password: String
 }
 
+private struct RefreshSessionPayload: Encodable {
+    let refreshToken: String
+
+    enum CodingKeys: String, CodingKey {
+        case refreshToken = "refresh_token"
+    }
+}
+
 private struct AuthResponse: Decodable {
     let accessToken: String?
     let refreshToken: String?
@@ -534,7 +603,7 @@ struct StoredAuthTokens: Codable, Equatable {
     let tokenType: String?
 }
 
-final class AuthTokenStore {
+class AuthTokenStore {
     private let service = "com.nithusan.SporOkonomi.auth"
     private let account = "supabase.session"
 
