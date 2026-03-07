@@ -1235,17 +1235,25 @@ struct BudgetGroupDetailView: View {
         viewModel.transactionsForGroup(group, periodKey: periodKey, categories: categories, transactions: transactions)
     }
 
-    private var spentByCategory: [(category: Category, spent: Double)] {
-        groupCategories
-            .map { category in
+    private var spentByCategory: [(name: String, spent: Double)] {
+        let groupedByName = Dictionary(grouping: groupCategories) { category in
+            category.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        return groupedByName
+            .map { name, categories in
+                let ids = Set(categories.map(\.id))
                 let spent = rows
-                    .filter { $0.categoryID == category.id }
+                    .filter { transaction in
+                        guard let categoryID = transaction.categoryID else { return false }
+                        return ids.contains(categoryID)
+                    }
                     .reduce(0) { $0 + BudgetService.trackedBudgetImpact($1) }
-                return (category, max(spent, 0))
+                return (name: name, spent: max(spent, 0))
             }
             .sorted { lhs, rhs in
                 if lhs.spent != rhs.spent { return lhs.spent > rhs.spent }
-                return lhs.category.name.localizedCaseInsensitiveCompare(rhs.category.name) == .orderedAscending
+                return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
             }
     }
 
@@ -1277,9 +1285,9 @@ struct BudgetGroupDetailView: View {
                         Text("Ingen kategorier i denne gruppen.")
                             .appSecondaryStyle()
                     } else {
-                        ForEach(spentByCategory, id: \.category.id) { row in
+                        ForEach(spentByCategory, id: \.name) { row in
                             HStack {
-                                Text(row.category.name)
+                                Text(row.name)
                                     .appBodyStyle()
                                 Spacer()
                                 Text(formatNOK(row.spent))

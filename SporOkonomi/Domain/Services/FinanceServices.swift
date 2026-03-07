@@ -552,6 +552,10 @@ enum BootstrapService {
         var didChange = false
         let ranDeduplication = shouldRunDeduplication()
         do {
+            if try deduplicate(context: context, key: { (category: Category) in category.id }) {
+                didChange = true
+            }
+
             if ranDeduplication,
                try deduplicateKeyedModels(context: context) {
                 didChange = true
@@ -617,7 +621,6 @@ enum BootstrapService {
     private static func deduplicateKeyedModels(context: ModelContext) throws -> Bool {
         var didChange = false
         if try deduplicate(context: context, key: { (month: BudgetMonth) in month.periodKey }) { didChange = true }
-        if try deduplicate(context: context, key: { (category: Category) in category.id }) { didChange = true }
         if try deduplicate(context: context, key: { (plan: BudgetPlan) in plan.uniqueKey }) { didChange = true }
         if try deduplicate(context: context, key: { (plan: BudgetGroupPlan) in plan.uniqueKey }) { didChange = true }
         if try deduplicate(context: context, key: { (item: FixedItem) in item.id }) { didChange = true }

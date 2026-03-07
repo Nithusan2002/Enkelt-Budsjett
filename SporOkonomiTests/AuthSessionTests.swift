@@ -25,6 +25,24 @@ struct AuthSessionTests {
 
     @Test
     @MainActor
+    func bootstrapAlwaysDeduplicatesCategoriesByID() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+
+        context.insert(Category(id: "cat_housing", name: "Bolig", type: .expense, sortOrder: 1))
+        context.insert(Category(id: "cat_housing", name: "Bolig", type: .expense, sortOrder: 1))
+        try context.save()
+
+        UserDefaults.standard.set(Date(), forKey: "bootstrap_dedupe_last_run_at")
+
+        try BootstrapService.ensurePreference(context: context)
+
+        let categories = try context.fetch(FetchDescriptor<Category>())
+        #expect(categories.filter { $0.id == "cat_housing" }.count == 1)
+    }
+
+    @Test
+    @MainActor
     func sessionStoreRestoresAuthenticatedSessionFromPreference() async throws {
         let container = try TestModelContainerFactory.makeInMemoryContainer()
         let context = container.mainContext
