@@ -422,15 +422,21 @@ final class InvestmentsViewModel: ObservableObject {
             ("funds", "Fond", "#1F9BD3"),
             ("stocks", "Aksjer", "#7A5AD6"),
             ("bsu", "BSU", "#2FB66B"),
-            ("buffer", "Buffer", "#D9951F"),
-            ("crypto", "Krypto", "#D9671E")
+            ("buffer", "Buffer", "#D9951F")
         ]
 
+        let storedBuckets = (try? context.fetch(FetchDescriptor<InvestmentBucket>())) ?? []
+        let allBuckets = existingBuckets + storedBuckets
         var didChange = false
-        var nextSortOrder = (existingBuckets.map(\.sortOrder).max() ?? 0) + 1
+        var nextSortOrder = (allBuckets.map(\.sortOrder).max() ?? 0) + 1
+
+        if reconcileDuplicateDefaultBuckets(context: context, defaults: defaults, buckets: allBuckets) {
+            didChange = true
+        }
 
         for item in defaults {
-            if let existing = existingBuckets.first(where: {
+            let currentBuckets = (try? context.fetch(FetchDescriptor<InvestmentBucket>())) ?? allBuckets
+            if let existing = currentBuckets.first(where: {
                 $0.id == item.id ||
                 $0.name.compare(item.name, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
             }) {
@@ -520,6 +526,58 @@ final class InvestmentsViewModel: ObservableObject {
         let collapsed = raw.replacingOccurrences(of: "_+", with: "_", options: .regularExpression)
         let trimmed = collapsed.trimmingCharacters(in: CharacterSet(charactersIn: "_"))
         return trimmed.isEmpty ? UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased() : trimmed
+    }
+
+    private func reconcileDuplicateDefaultBuckets(
+        context: ModelContext,
+        defaults: [(id: String, name: String, colorHex: String)],
+        buckets: [InvestmentBucket]
+    ) -> Bool {
+        var didChange = false
+
+        for item in defaults {
+            let matches = buckets.filter {
+                $0.id == item.id ||
+                $0.name.compare(item.name, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
+            }
+            guard matches.count > 1 else { continue }
+
+            let canonical = matches.sorted {
+                if $0.id == item.id { return true }
+                if $1.id == item.id { return false }
+                if $0.isDefault != $1.isDefault { return $0.isDefault && !$1.isDefault }
+                return $0.sortOrder < $1.sortOrder
+            }.first!
+
+            for duplicate in matches where duplicate !== canonical {
+                migrateSnapshots(from: duplicate.id, to: canonical.id, context: context)
+                context.delete(duplicate)
+                didChange = true
+            }
+        }
+
+        return didChange
+    }
+
+    private func migrateSnapshots(from sourceBucketID: String, to targetBucketID: String, context: ModelContext) {
+        guard sourceBucketID != targetBucketID else { return }
+        let snapshots = (try? context.fetch(FetchDescriptor<InvestmentSnapshot>())) ?? []
+
+        for snapshot in snapshots {
+            guard snapshot.bucketValues.contains(where: { $0.bucketID == sourceBucketID }) else { continue }
+
+            var mergedAmounts: [String: Double] = [:]
+            for value in snapshot.bucketValues {
+                let bucketID = value.bucketID == sourceBucketID ? targetBucketID : value.bucketID
+                mergedAmounts[bucketID, default: 0] += value.amount
+            }
+
+            snapshot.bucketValues = mergedAmounts.map { bucketID, amount in
+                InvestmentSnapshotValue(periodKey: snapshot.periodKey, bucketID: bucketID, amount: amount)
+            }
+            .sorted { $0.bucketID < $1.bucketID }
+            snapshot.totalValue = snapshot.bucketValues.reduce(0) { $0 + $1.amount }
+        }
     }
 
     private func normalizedRange(_ range: GraphViewRange) -> GraphViewRange {
