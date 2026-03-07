@@ -4,6 +4,9 @@ import UIKit
 import UniformTypeIdentifiers
 
 struct SettingsView: View {
+    private let privacyPolicyURL = URL(string: "https://nithusan2002.github.io/spor-okonomi/personvern/")
+    private let termsURL = URL(string: "https://nithusan2002.github.io/spor-okonomi/vilkar/")
+
     @Environment(\.modelContext) private var modelContext
     @Environment(\.openURL) private var openURL
     @EnvironmentObject private var sessionStore: SessionStore
@@ -402,17 +405,21 @@ struct SettingsView: View {
             .buttonStyle(.plain)
             .disabled(isReadOnlyMode)
 
-            NavigationLink {
-                PrivacyInfoView()
+            Button {
+                guard let privacyPolicyURL else { return }
+                openURL(privacyPolicyURL)
             } label: {
-                settingsRow(title: "Personvern", value: "", showsChevron: false)
+                settingsRow(title: "Personvern", value: "", showsChevron: true)
             }
+            .buttonStyle(.plain)
 
-            NavigationLink {
-                TermsInfoView()
+            Button {
+                guard let termsURL else { return }
+                openURL(termsURL)
             } label: {
-                settingsRow(title: "Vilkår", value: "", showsChevron: false)
+                settingsRow(title: "Vilkår", value: "", showsChevron: true)
             }
+            .buttonStyle(.plain)
         } header: {
             Text("Data og personvern")
         } footer: {
