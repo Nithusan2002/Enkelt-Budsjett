@@ -51,7 +51,7 @@ struct AppRootView: View {
     @State private var bootstrapAttempted = false
 
     private var preference: UserPreference? { preferences.first }
-    private var activeStoreMode: AppStoreMode { Simple_Budget___Budskjett_planlegger_gjort_enkeltApp.activeStoreMode }
+    private var activeStoreMode: AppStoreMode { SporOkonomiApp.activeStoreMode }
     private var preferredColorScheme: ColorScheme? {
         (AppAppearancePreference(rawValue: appAppearanceModeRawValue) ?? .followSystem).colorScheme
     }

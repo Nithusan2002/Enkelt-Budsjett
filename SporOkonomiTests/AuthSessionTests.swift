@@ -1,7 +1,7 @@
 import Foundation
 import SwiftData
 import Testing
-@testable import Simple_Budget___Budskjett_planlegger_gjort_enkelt
+@testable import SporOkonomi
 
 struct AuthSessionTests {
 

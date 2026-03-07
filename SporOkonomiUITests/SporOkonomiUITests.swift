@@ -1,6 +1,6 @@
 import XCTest
 
-final class Simple_Budget___Budskjett_planlegger_gjort_enkeltUITests: XCTestCase {
+final class SporOkonomiUITests: XCTestCase {
     private var app: XCUIApplication!
 
     override func setUpWithError() throws {

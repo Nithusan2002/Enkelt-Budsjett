@@ -1,6 +1,6 @@
 import XCTest
 
-final class Simple_Budget___Budskjett_planlegger_gjort_enkeltUITestsLaunchTests: XCTestCase {
+final class SporOkonomiUITestsLaunchTests: XCTestCase {
 
     override class var runsForEachTargetApplicationUIConfiguration: Bool {
         true

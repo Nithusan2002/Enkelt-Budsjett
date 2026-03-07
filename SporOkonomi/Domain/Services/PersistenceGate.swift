@@ -28,7 +28,7 @@ enum PersistenceGate {
     private static let maxTelemetryEvents = 250
 
     static var isReadOnlyMode: Bool {
-        Simple_Budget___Budskjett_planlegger_gjort_enkeltApp.activeStoreMode == .memoryOnly
+        SporOkonomiApp.activeStoreMode == .memoryOnly
     }
 
     static func save(
@@ -68,7 +68,7 @@ enum PersistenceGate {
             logger.log("[\(feature)] \(operation): \(message, privacy: .public)")
         }
 
-        let mode = "\(Simple_Budget___Budskjett_planlegger_gjort_enkeltApp.activeStoreMode)"
+        let mode = "\(SporOkonomiApp.activeStoreMode)"
         let event = PersistenceTelemetryEvent(
             timestamp: .now,
             level: level,

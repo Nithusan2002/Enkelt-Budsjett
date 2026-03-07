@@ -16,9 +16,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "82F82F712F4CB67E00CA6205"
-               BuildableName = "Enkelt Budsjett.app"
-               BlueprintName = "Enkelt Budsjett"
-               ReferencedContainer = "container:Enkelt Budsjett.xcodeproj">
+               BuildableName = "SporOkonomi.app"
+               BlueprintName = "SporOkonomi"
+               ReferencedContainer = "container:SporOkonomi.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -36,9 +36,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "82F82F7E2F4CB68000CA6205"
-               BuildableName = "Enkelt BudsjettTests.xctest"
-               BlueprintName = "Enkelt BudsjettTests"
-               ReferencedContainer = "container:Enkelt Budsjett.xcodeproj">
+               BuildableName = "SporOkonomiTests.xctest"
+               BlueprintName = "SporOkonomiTests"
+               ReferencedContainer = "container:SporOkonomi.xcodeproj">
             </BuildableReference>
          </TestableReference>
          <TestableReference
@@ -47,9 +47,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "82F82F882F4CB68000CA6205"
-               BuildableName = "Enkelt BudsjettUITests.xctest"
-               BlueprintName = "Enkelt BudsjettUITests"
-               ReferencedContainer = "container:Enkelt Budsjett.xcodeproj">
+               BuildableName = "SporOkonomiUITests.xctest"
+               BlueprintName = "SporOkonomiUITests"
+               ReferencedContainer = "container:SporOkonomi.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -69,9 +69,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "82F82F712F4CB67E00CA6205"
-            BuildableName = "Enkelt Budsjett.app"
-            BlueprintName = "Enkelt Budsjett"
-            ReferencedContainer = "container:Enkelt Budsjett.xcodeproj">
+            BuildableName = "SporOkonomi.app"
+            BlueprintName = "SporOkonomi"
+            ReferencedContainer = "container:SporOkonomi.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -86,9 +86,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "82F82F712F4CB67E00CA6205"
-            BuildableName = "Enkelt Budsjett.app"
-            BlueprintName = "Enkelt Budsjett"
-            ReferencedContainer = "container:Enkelt Budsjett.xcodeproj">
+            BuildableName = "SporOkonomi.app"
+            BlueprintName = "SporOkonomi"
+            ReferencedContainer = "container:SporOkonomi.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

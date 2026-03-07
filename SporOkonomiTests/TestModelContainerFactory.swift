@@ -1,6 +1,6 @@
 import Foundation
 import SwiftData
-@testable import Simple_Budget___Budskjett_planlegger_gjort_enkelt
+@testable import SporOkonomi
 
 enum TestModelContainerFactory {
 
