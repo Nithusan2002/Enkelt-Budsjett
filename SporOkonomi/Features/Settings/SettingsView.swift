@@ -1161,14 +1161,14 @@ private struct AboutAppView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                VStack(spacing: 14) {
+                VStack(spacing: 8) {
                     Image("Spor-økonomi-applogo")
                         .resizable()
                         .scaledToFit()
-                        .frame(maxWidth: 320)
+                        .frame(height: 140)
                         .accessibilityHidden(true)
 
-                    VStack(spacing: 6) {
+                    VStack(spacing: 4) {
                         Text("Spor økonomi")
                             .font(.system(.title, design: .rounded).weight(.bold))
                             .multilineTextAlignment(.center)
@@ -1179,7 +1179,7 @@ private struct AboutAppView: View {
                     }
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.top, 8)
+                .padding(.top, 2)
 
                 aboutCard {
                     VStack(alignment: .leading, spacing: 12) {
