@@ -302,6 +302,13 @@ struct GroupListView: View {
             Text("Kategorier")
                 .appCardTitleStyle()
 
+            Button("Sett grense") {
+                onSetLimits()
+            }
+            .appProminentCTAStyle()
+            .controlSize(.large)
+            .disabled(isReadOnlyMode)
+
             if rows.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
                     Text(hasPlannedBudget ? "Ingen kategorier å vise ennå" : "Ingen grenser satt")
@@ -314,15 +321,6 @@ struct GroupListView: View {
                             : "Sett grenser for måneden for å få en enkel oversikt over brukt og igjen."
                     )
                     .appSecondaryStyle()
-
-                    if !hasPlannedBudget {
-                        Button("Sett grense") {
-                            onSetLimits()
-                        }
-                        .appProminentCTAStyle()
-                        .controlSize(.large)
-                        .disabled(isReadOnlyMode)
-                    }
                 }
             }
 
