@@ -293,7 +293,9 @@ struct GroupListView: View {
     let fixedByGroup: [String: Double]
     let hasPlannedBudget: Bool
     let hasTransactions: Bool
+    let isReadOnlyMode: Bool
     let onAddTransaction: () -> Void
+    let onSetLimits: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -312,6 +314,15 @@ struct GroupListView: View {
                             : "Sett grenser for måneden for å få en enkel oversikt over brukt og igjen."
                     )
                     .appSecondaryStyle()
+
+                    if !hasPlannedBudget {
+                        Button("Sett grense") {
+                            onSetLimits()
+                        }
+                        .appProminentCTAStyle()
+                        .controlSize(.large)
+                        .disabled(isReadOnlyMode)
+                    }
                 }
             }
 

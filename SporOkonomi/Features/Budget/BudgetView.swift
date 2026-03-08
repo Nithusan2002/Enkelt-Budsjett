@@ -113,9 +113,17 @@ struct BudgetView: View {
                     fixedByGroup: fixedByGroup,
                     hasPlannedBudget: hasPlannedBudget,
                     hasTransactions: !monthTransactions.isEmpty,
+                    isReadOnlyMode: isReadOnlyMode,
                     onAddTransaction: {
                         addTransactionInitialType = .expense
                         viewModel.showAddTransaction = true
+                    },
+                    onSetLimits: {
+                        if isReadOnlyMode {
+                            viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+                        } else {
+                            viewModel.showGroupLimitsSheet = true
+                        }
                     }
                 )
             }
