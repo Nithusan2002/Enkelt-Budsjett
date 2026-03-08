@@ -117,7 +117,8 @@ struct RecurringAndDemoTests {
         )
 
         let transactions = try context.fetch(FetchDescriptor<Transaction>())
-        #expect(transactions.contains(where: { $0.fixedItemID == fixedItem.id }))
+        let generatedTransactionExists = transactions.contains { $0.fixedItemID == fixedItem.id }
+        #expect(generatedTransactionExists)
     }
 
     @Test
@@ -238,8 +239,9 @@ struct RecurringAndDemoTests {
         #expect(transactions.count > 900)
 
         let grouped = Dictionary(grouping: transactions, by: { DateService.periodKey(from: $0.date) })
+        let allMonthsHaveMinimumTransactions = grouped.values.allSatisfy { $0.count >= 20 }
         #expect(grouped.keys.count == 36)
-        #expect(grouped.values.allSatisfy { $0.count >= 20 })
+        #expect(allMonthsHaveMinimumTransactions)
     }
 
     @Test
@@ -255,9 +257,10 @@ struct RecurringAndDemoTests {
         #expect(!buckets.isEmpty)
 
         let bucketIDs = Set(buckets.map(\.id))
-        #expect(snapshots.allSatisfy { snapshot in
+        let allSnapshotsCoverActiveBuckets = snapshots.allSatisfy { snapshot in
             Set(snapshot.bucketValues.map(\.bucketID)) == bucketIDs
-        })
+        }
+        #expect(allSnapshotsCoverActiveBuckets)
     }
 
     @Test
@@ -303,9 +306,10 @@ struct RecurringAndDemoTests {
 
         let fixedItems = try context.fetch(FetchDescriptor<FixedItem>())
         let titles = Set(fixedItems.map(\.title))
+        let allFixedItemsAreActive = fixedItems.allSatisfy(\.isActive)
 
         #expect(fixedItems.count >= 5)
-        #expect(fixedItems.allSatisfy(\.isActive))
+        #expect(allFixedItemsAreActive)
         #expect(titles.contains("Husleie"))
         #expect(titles.contains("Mobilabonnement"))
         #expect(titles.contains("Månedskort"))
@@ -326,13 +330,18 @@ struct RecurringAndDemoTests {
             periodKey: "2026-01",
             transactions: transactions
         )
+        let hasRent = transactions.contains { $0.fixedItemID == "fixed_demo_rent" && $0.recurringKey != nil }
+        let hasMobile = transactions.contains { $0.fixedItemID == "fixed_demo_mobile" && $0.recurringKey != nil }
+        let hasMonthPass = transactions.contains { $0.fixedItemID == "fixed_demo_month_pass" && $0.recurringKey != nil }
+        let hasSpotify = transactions.contains { $0.fixedItemID == "fixed_demo_spotify" && $0.recurringKey != nil }
+        let hasICloud = transactions.contains { $0.fixedItemID == "fixed_demo_icloud" && $0.recurringKey != nil }
 
         #expect(januaryFixedTotal > 0)
-        #expect(transactions.contains(where: { $0.fixedItemID == "fixed_demo_rent" && $0.recurringKey != nil }))
-        #expect(transactions.contains(where: { $0.fixedItemID == "fixed_demo_mobile" && $0.recurringKey != nil }))
-        #expect(transactions.contains(where: { $0.fixedItemID == "fixed_demo_month_pass" && $0.recurringKey != nil }))
-        #expect(transactions.contains(where: { $0.fixedItemID == "fixed_demo_spotify" && $0.recurringKey != nil }))
-        #expect(transactions.contains(where: { $0.fixedItemID == "fixed_demo_icloud" && $0.recurringKey != nil }))
+        #expect(hasRent)
+        #expect(hasMobile)
+        #expect(hasMonthPass)
+        #expect(hasSpotify)
+        #expect(hasICloud)
     }
 
     @Test

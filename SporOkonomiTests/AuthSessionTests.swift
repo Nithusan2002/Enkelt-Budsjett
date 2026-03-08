@@ -3,6 +3,8 @@ import SwiftData
 import Testing
 @testable import SporOkonomi
 
+private typealias Category = SporOkonomi.Category
+
 struct AuthSessionTests {
 
     @Test
