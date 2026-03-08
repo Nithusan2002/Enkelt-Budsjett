@@ -278,7 +278,7 @@ enum SavingsService {
                 .filter { $0.kind == .income }
                 .reduce(0) { $0 + $1.amount }
             let expense = transactions
-                .reduce(0) { $0 + max(BudgetService.budgetImpact($1), 0) }
+                .reduce(0) { $0 + BudgetService.budgetImpact($1) }
             return income - expense
         case .savingsCategoryOnly:
             let savingsIDs = Set(categories.filter { $0.type == .savings }.map(\.id))

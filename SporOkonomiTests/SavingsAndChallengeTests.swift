@@ -95,6 +95,28 @@ struct SavingsAndChallengeTests {
 
     @Test
     @MainActor
+    func savedYearToDateIncomeMinusExpenseAccountsForRefunds() {
+        let now = Calendar.current.date(from: DateComponents(year: 2026, month: 6, day: 15)) ?? .now
+        let monthStart = Calendar.current.date(from: DateComponents(year: 2026, month: 6, day: 1)) ?? now
+
+        let transactions = [
+            Transaction(date: monthStart, amount: 20_000, kind: .income),
+            Transaction(date: monthStart, amount: 5_000, kind: .expense),
+            Transaction(date: monthStart, amount: 1_000, kind: .refund)
+        ]
+
+        let saved = SavingsService.savedYearToDate(
+            definition: .incomeMinusExpense,
+            transactions: transactions,
+            categories: [],
+            now: now
+        )
+
+        #expect(saved == 16_000)
+    }
+
+    @Test
+    @MainActor
     func challengeSavingsDefinitionCountsTransactionsAcrossYearBoundary() {
         let startDate = Calendar.current.date(from: DateComponents(year: 2025, month: 12, day: 15, hour: 8)) ?? .now
         let endDate = Calendar.current.date(from: DateComponents(year: 2026, month: 1, day: 15, hour: 23, minute: 59)) ?? .now
