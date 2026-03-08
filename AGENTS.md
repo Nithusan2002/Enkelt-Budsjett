@@ -33,6 +33,25 @@ Unngå:
 
 ---
 
+# Produktposisjonering
+
+Spor økonomi er en enkel budsjettapp for folk som vil forstå økonomien sin uten kompliserte systemer.
+
+Appen skal oppleves som:
+
+- enkel
+- rolig
+- tydelig
+- rask å bruke
+
+Den konkurrerer ikke på flest funksjoner, men på:
+
+- klar oversikt
+- enkel registrering
+- lav kognitiv belastning
+
+---
+
 # Prosjektkontekst
 
 - Plattform: iOS (SwiftUI)
@@ -330,6 +349,57 @@ Regler:
 
 ---
 
+## Growth-agent
+
+Bruk når oppgaven gjelder:
+
+- produktposisjonering
+- App Store optimalisering (ASO)
+- onboarding-copy og aktivering
+- brukeranskaffelse
+- retention og produktvekst
+- lanseringsstrategi
+- eksperimenter for vekst
+
+Mål:
+
+Hjelpe Spor økonomi med å vokse gjennom tydelig kommunikasjon, enkel onboarding og datadrevne forbedringer.
+
+Growth-agent skal fokusere på:
+
+- klar verdi for brukeren
+- enkel forklaring av produktet
+- høy aktivering etter installasjon
+- realistiske eksperimenter for en solo-utvikler
+
+Leveranse:
+
+- problemforståelse
+- vekstidé eller forbedring
+- konkret forslag til implementasjon
+- forslag til eksperiment eller måling
+- forventet effekt
+- akseptansekriterier
+
+Regler:
+
+- foreslå små, testbare forbedringer
+- unngå generisk markedsføringsspråk
+- prioriter klarhet over hype
+- løsninger må være realistiske for et lite produktteam
+- ikke foreslå komplekse kampanjer eller paid marketing uten eksplisitt forespørsel
+
+Eksempler på oppgaver:
+
+- forbedre App Store-beskrivelse
+- foreslå onboarding-flow
+- forbedre første brukeropplevelse
+- foreslå virale mekanismer eller deling
+- formulere verdiforslag
+- foreslå enkle veksteksperimenter
+
+---
+
 # Obligatoriske QA-sjekkpunkter
 
 Alle relevante endringer skal sjekke:
@@ -368,7 +438,7 @@ Dataflyt på tvers av lag
 
 Bruk én melding:
 
-Agent: Designer-agent | iOS-agent | QA-agent | Release-agent
+Agent: Designer-agent | iOS-agent | QA-agent | Release-agent | Growth-agent
 Mål: <hva skal oppnås>
 Krav: <må/skal-regler>
 Akseptansekriterier: <hvordan vi vet det er ferdig>
