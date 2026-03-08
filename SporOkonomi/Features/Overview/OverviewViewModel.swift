@@ -42,8 +42,20 @@ final class OverviewViewModel: ObservableObject {
         )
     }
 
-    func savedYTD(definition: SavingsDefinition, transactions: [Transaction], categories: [Category]) -> Double {
-        SavingsService.savedYearToDate(definition: definition, transactions: transactions, categories: categories)
+    func savedYTD(transactions: [Transaction], categories: [Category]) -> Double {
+        SavingsService.savedYearToDate(
+            definition: .incomeMinusExpense,
+            transactions: transactions,
+            categories: categories
+        )
+    }
+
+    func registeredSavingYTD(transactions: [Transaction], categories: [Category]) -> Double {
+        SavingsService.savedYearToDate(
+            definition: .savingsCategoryOnly,
+            transactions: transactions,
+            categories: categories
+        )
     }
 
     func shouldShowEmptyState(

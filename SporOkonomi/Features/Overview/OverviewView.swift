@@ -21,7 +21,6 @@ struct OverviewView: View {
     private var latestSnapshot: InvestmentSnapshot? { viewModel.latestSnapshot(from: snapshots) }
     private var previousSnapshot: InvestmentSnapshot? { InvestmentService.previousSnapshot(snapshots) }
     private var preference: UserPreference? { preferences.first }
-    private var savingsDefinition: SavingsDefinition { preference?.savingsDefinition ?? .incomeMinusExpense }
     private var overviewTitle: String { viewModel.overviewTitle(firstName: preference?.firstName) }
     private var budgetStatus: OverviewBudgetStatus {
         viewModel.budgetStatus(plans: budgetPlans, transactions: transactions)
@@ -40,25 +39,15 @@ struct OverviewView: View {
     }
 
     private var savedYTD: Double {
-        viewModel.savedYTD(definition: savingsDefinition, transactions: transactions, categories: categories)
+        viewModel.savedYTD(transactions: transactions, categories: categories)
     }
 
-    private var savingsCategoryIDs: Set<String> {
-        Set(categories.filter { $0.type == .savings && $0.isActive }.map(\.id))
+    private var registeredSavingYTD: Double {
+        viewModel.registeredSavingYTD(transactions: transactions, categories: categories)
     }
 
     private var hasSavedData: Bool {
-        guard abs(savedYTD) >= 1 else { return false }
-        switch savingsDefinition {
-        case .incomeMinusExpense:
-            return transactions.contains { $0.kind != .transfer }
-        case .savingsCategoryOnly:
-            return transactions.contains { transaction in
-                if transaction.kind == .manualSaving { return true }
-                guard let categoryID = transaction.categoryID else { return false }
-                return savingsCategoryIDs.contains(categoryID)
-            }
-        }
+        abs(savedYTD) >= 1 || abs(registeredSavingYTD) >= 1
     }
 
     private var shouldShowPrimaryCTA: Bool {
@@ -208,6 +197,9 @@ struct OverviewView: View {
                         .font(.title3.weight(.semibold))
                         .monospacedDigit()
                         .foregroundStyle(savedYTD >= 0 ? AppTheme.positive : AppTheme.negative)
+                    Text("Inntekt minus utgifter")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(AppTheme.textSecondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(12)
@@ -374,16 +366,17 @@ struct OverviewView: View {
     }
 
     private var savedModule: some View {
-        let statusLine = areAmountsHidden
-            ? "Sparing hittil i år er skjult."
-            : viewModel.positiveStatusLine(savedAmount: savedYTD, period: "hittil i år", tone: .warm)
         return Button {
             navigationState.selectedTab = .budget
         } label: {
             VStack(alignment: .leading, spacing: 8) {
-                Text("Spart hittil")
+                Text("Registrert sparing")
                     .appCardTitleStyle()
-                Text(statusLine)
+                Text(areAmountsHidden ? "Beløp skjult" : displayedAmount(registeredSavingYTD))
+                    .font(.title3.weight(.semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(registeredSavingYTD >= 0 ? AppTheme.positive : AppTheme.textPrimary)
+                Text("Beløp du har ført til sparekategorier hittil i år.")
                     .appBodyStyle()
                     .foregroundStyle(AppTheme.textPrimary)
                 Text("Se detaljer i Budsjett")
@@ -395,8 +388,8 @@ struct OverviewView: View {
             .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Spart hittil")
-        .accessibilityValue(statusLine)
+        .accessibilityLabel("Registrert sparing")
+        .accessibilityValue(areAmountsHidden ? "Beløp skjult" : formatNOK(registeredSavingYTD))
     }
 
     private func overviewMetric(title: String, value: String, tone: Color) -> some View {

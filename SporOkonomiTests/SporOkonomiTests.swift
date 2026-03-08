@@ -20,6 +20,26 @@ struct SporOkonomiTests {
         #expect(value == 13000)
     }
 
+    @Test @MainActor func overviewUsesIncomeMinusExpenseAndShowsRegisteredSavingSeparately() async throws {
+        let now = Calendar.current.date(from: DateComponents(year: 2026, month: 6, day: 15)) ?? .now
+        let categories = [
+            Category(id: "cat_savings_account", name: "Sparekonto", type: .savings, sortOrder: 1),
+            Category(id: "cat_food", name: "Mat", type: .expense, sortOrder: 2)
+        ]
+        let transactions = [
+            Transaction(date: now, amount: 20_000, kind: .income),
+            Transaction(date: now, amount: 5_000, kind: .expense, categoryID: "cat_food"),
+            Transaction(date: now, amount: 2_000, kind: .manualSaving, categoryID: "cat_savings_account")
+        ]
+
+        let viewModel = OverviewViewModel()
+        let savedYTD = viewModel.savedYTD(transactions: transactions, categories: categories)
+        let registeredSavingYTD = viewModel.registeredSavingYTD(transactions: transactions, categories: categories)
+
+        #expect(savedYTD == 15_000)
+        #expect(registeredSavingYTD == 2_000)
+    }
+
     @Test @MainActor func calculatesRequiredMonthlySaving() async throws {
         let targetDate = Calendar.current.date(byAdding: .month, value: 10, to: .now) ?? .now
         let monthly = GoalService.requiredMonthlySaving(
