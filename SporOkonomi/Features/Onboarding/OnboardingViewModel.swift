@@ -90,14 +90,14 @@ final class OnboardingViewModel: ObservableObject {
 
     var summaryBodyText: String {
         hasMonthlyIncome
-            ? "Du har nå et enkelt utgangspunkt for denne måneden."
-            : "Du kan fortsatt komme i gang uten oppsett."
+            ? "Med inntekten din som utgangspunkt kan du følge hva du har igjen denne måneden."
+            : "Du kan fortsatt få oversikt over denne måneden uten oppsett."
     }
 
     var summaryHelpText: String {
         hasMonthlyIncome
-            ? "Legg til utgifter underveis, så blir oversikten mer presis."
-            : "Legg til inntekt eller utgifter når du vil, så bygger oversikten seg opp."
+            ? "Legg til utgifter underveis, så blir månedsoversikten mer presis."
+            : "Legg til inntekt eller utgifter når du vil, så bygger månedsoversikten seg opp."
     }
 
     var summaryAmountLabel: String? {

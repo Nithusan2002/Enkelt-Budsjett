@@ -163,4 +163,19 @@ struct OnboardingFeatureTests {
         #expect(fixedItems.isEmpty)
         #expect(transactions.isEmpty)
     }
+
+    @Test
+    @MainActor
+    func onboardingSummaryCopyConnectsToMonthlyOverview() {
+        let preference = UserPreference(onboardingCompleted: false)
+        let viewModel = OnboardingViewModel(preference: preference)
+
+        viewModel.monthlyIncomeText = "32 000"
+        #expect(viewModel.summaryBodyText.contains("denne måneden"))
+        #expect(viewModel.summaryHelpText.contains("månedsoversikten"))
+
+        viewModel.monthlyIncomeText = ""
+        #expect(viewModel.summaryBodyText.contains("oversikt over denne måneden"))
+        #expect(viewModel.summaryHelpText.contains("månedsoversikten"))
+    }
 }

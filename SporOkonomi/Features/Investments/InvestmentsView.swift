@@ -13,30 +13,12 @@ struct InvestmentsView: View {
     @StateObject private var viewModel = InvestmentsViewModel()
     @State private var showFullHistory = false
     @State private var checkInToastMessage: String?
-    @State private var historyFilter: InvestmentsHistoryFilter = .threeMonths
     @State private var selectedDistributionBucketID: String?
     private var isReadOnlyMode: Bool { PersistenceGate.isReadOnlyMode }
 
     private enum SectionAnchor: String {
         case development
         case distribution
-    }
-
-    private enum InvestmentsHistoryFilter: String, CaseIterable {
-        case threeMonths
-        case twelveMonths
-        case all
-
-        var title: String {
-            switch self {
-            case .threeMonths:
-                return "3 mnd"
-            case .twelveMonths:
-                return "12 mnd"
-            case .all:
-                return "Alle"
-            }
-        }
     }
 
     private var latest: InvestmentSnapshot? { viewModel.latestSnapshot(snapshots) }
@@ -61,10 +43,10 @@ struct InvestmentsView: View {
             List {
                 heroSection
                     .id(SectionAnchor.development.rawValue)
+                historySection
+                holdingsSection
                 distributionSection
                     .id(SectionAnchor.distribution.rawValue)
-                holdingsSection
-                historySection
                 administrationSection
             }
             .listStyle(.insetGrouped)
@@ -174,16 +156,16 @@ struct InvestmentsView: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Total beholdning")
+                        Text("Total verdi")
                             .appSecondaryStyle()
-                        Text("Basert på totalsummene du legger inn.")
+                        Text("Basert på snapshots du legger inn.")
                             .appSecondaryStyle()
                     }
                     Spacer()
                     Button {
                         openCheckIn()
                     } label: {
-                        Label("Ny innsjekk", systemImage: "arrow.triangle.2.circlepath")
+                        Label("Legg til snapshot", systemImage: "plus.circle")
                     }
                     .font(.footnote.weight(.semibold))
                     .buttonStyle(.bordered)
@@ -202,33 +184,17 @@ struct InvestmentsView: View {
                     .layoutPriority(2)
 
                 if latest == nil {
-                    Text("Legg inn første snapshot. Grovt tall holder.")
+                    Text("Ingen snapshots ennå. Legg til første snapshot når du er klar.")
                         .appSecondaryStyle()
-                } else if viewModel.showTrendChip {
-                    trendChip(changeKr: hero.changeKr, changePct: hero.changePct)
-                        .transition(.move(edge: .top).combined(with: .opacity))
+                } else {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(changeSummaryText(changeKr: hero.changeKr, changePct: hero.changePct))
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(hero.changeKr >= 0 ? AppTheme.positive : AppTheme.negative)
+                        Text(hero.lastCheckInText)
+                            .appSecondaryStyle()
+                    }
                 }
-
-                VStack(alignment: .leading, spacing: 6) {
-                    heroMetaRow(icon: "calendar", text: hero.lastCheckInText)
-                    heroMetaRow(icon: "clock", text: hero.nextCheckInText)
-                    heroMetaRow(icon: "bell", text: hero.reminderText)
-                }
-
-                Divider()
-                    .overlay(AppTheme.divider)
-                    .padding(.vertical, 2)
-
-                Text("Utvikling")
-                    .appCardTitleStyle()
-
-                InvestmentsDevelopmentChartView(
-                    points: viewModel.developmentChartPoints(snapshots: snapshots, buckets: buckets),
-                    period: $viewModel.developmentPeriod,
-                    onUpdateValues: openCheckIn,
-                    embedded: true,
-                    showStatusRow: false
-                )
             }
             .padding(16)
             .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 18))
@@ -345,7 +311,7 @@ struct InvestmentsView: View {
         let data = viewModel.distributionData(latestSnapshot: latest, buckets: buckets)
         return Section("Fordeling") {
             if data.isEmpty {
-                Text("Fordeling vises etter første snapshot.")
+                Text("Fordeling vises når du har lagt til første snapshot.")
                     .appSecondaryStyle()
             } else if viewModel.shouldShowDonut(distributionData: data) {
                 Chart(data, id: \.bucketID) { item in
@@ -433,16 +399,15 @@ struct InvestmentsView: View {
 
     private var historySection: some View {
         let allHistory = viewModel.history(snapshots)
-        let filteredHistory = filteredHistorySnapshots(allHistory, filter: historyFilter)
-        let history = showFullHistory ? filteredHistory : Array(filteredHistory.prefix(6))
-        return Section("Historikk") {
+        let history = showFullHistory ? allHistory : Array(allHistory.prefix(6))
+        return Section("Tidligere registreringer") {
             if allHistory.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Legg inn første snapshot (tar 20 sek)")
+                    Text("Ingen snapshots ennå")
                         .appCardTitleStyle()
-                    Text("Grovt tall er nok.")
+                    Text("Legg til første snapshot når du vil følge utviklingen over tid.")
                         .appSecondaryStyle()
-                    Button("Ny innsjekk") {
+                    Button("Legg til snapshot") {
                         openCheckIn()
                     }
                     .appProminentCTAStyle()
@@ -450,29 +415,21 @@ struct InvestmentsView: View {
                 }
                 .padding(12)
             } else {
-                Picker("Periode", selection: $historyFilter) {
-                    ForEach(InvestmentsHistoryFilter.allCases, id: \.rawValue) { filter in
-                        Text(filter.title).tag(filter)
-                    }
-                }
-                .pickerStyle(.segmented)
-
-                if filteredHistory.isEmpty {
-                    Text("Ingen innsjekker i valgt periode.")
-                        .appSecondaryStyle()
-                }
-
                 ForEach(history, id: \.periodKey) { snapshot in
                     HStack {
-                        Text(formatPeriodKeyAsDate(snapshot.periodKey))
-                            .appBodyStyle()
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(formatPeriodKeyAsDate(snapshot.periodKey))
+                                .appBodyStyle()
+                            Text(formatDate(snapshot.capturedAt))
+                                .appSecondaryStyle()
+                        }
                         Spacer()
                         Text(formatNOK(snapshot.totalValue))
                             .appBodyStyle()
                             .monospacedDigit()
                     }
                 }
-                if filteredHistory.count > 6 {
+                if allHistory.count > 6 {
                     Button(showFullHistory ? "Vis færre" : "Se alle") {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             showFullHistory.toggle()
@@ -482,9 +439,6 @@ struct InvestmentsView: View {
                     .foregroundStyle(AppTheme.primary)
                 }
             }
-        }
-        .onChange(of: historyFilter) { _, _ in
-            showFullHistory = false
         }
     }
 
@@ -499,33 +453,13 @@ struct InvestmentsView: View {
         }
     }
 
-    private func trendChip(changeKr: Double, changePct: Double?) -> some View {
-        let isPositive = changeKr >= 0
-        let arrow = isPositive ? "▲" : "▼"
-        let valueText = isPositive
-            ? "+\(formatNOK(abs(changeKr)))"
-            : "-\(formatNOK(abs(changeKr)))"
-        let pctText = changePct.map { " (\(formatPercent($0)))" } ?? ""
-
-        return Text("\(arrow) \(valueText)\(pctText) siden forrige innsjekk")
-            .font(.footnote.weight(.semibold))
-            .foregroundStyle(isPositive ? AppTheme.positive : AppTheme.negative)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background((isPositive ? AppTheme.positive : AppTheme.negative).opacity(0.12), in: Capsule())
-    }
-
-    private func heroMetaRow(icon: String, text: String) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(AppTheme.textSecondary)
-                .frame(width: 16)
-            Text(text)
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(AppTheme.textSecondary)
-            Spacer()
+    private func changeSummaryText(changeKr: Double, changePct: Double?) -> String {
+        guard changeKr != 0 || changePct != nil else {
+            return "Siden forrige registrering: ingen endring ennå"
         }
+        let sign = changeKr >= 0 ? "+" : "−"
+        let pctText = changePct.map { " (\(formatPercent($0)))" } ?? ""
+        return "Siden forrige registrering: \(sign)\(formatNOK(abs(changeKr)))\(pctText)"
     }
 
     private func bucketRow(_ row: InvestmentBucketRowData) -> some View {
@@ -634,20 +568,6 @@ struct InvestmentsView: View {
             return
         }
         viewModel.showCheckIn = true
-    }
-
-    private func filteredHistorySnapshots(
-        _ history: [InvestmentSnapshot],
-        filter: InvestmentsHistoryFilter
-    ) -> [InvestmentSnapshot] {
-        switch filter {
-        case .all:
-            return InvestmentsHistoryHelper.filteredHistorySnapshots(history, months: nil)
-        case .threeMonths:
-            return InvestmentsHistoryHelper.filteredHistorySnapshots(history, months: 3)
-        case .twelveMonths:
-            return InvestmentsHistoryHelper.filteredHistorySnapshots(history, months: 12)
-        }
     }
 
 }

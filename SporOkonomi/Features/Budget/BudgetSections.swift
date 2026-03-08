@@ -244,20 +244,22 @@ struct BudgetPrimaryActionCard: View {
     let hasPlannedBudget: Bool
     let hasTransactions: Bool
     let isReadOnlyMode: Bool
+    let onAddExpense: () -> Void
     let onSetLimits: () -> Void
 
+    private var shouldPrioritizeExpenseEntry: Bool {
+        hasPlannedBudget || hasTransactions
+    }
+
     private var title: String {
-        hasPlannedBudget ? "Juster grenser" : "Sett grenser"
+        shouldPrioritizeExpenseEntry ? "Legg til utgift" : "Sett grense"
     }
 
     private var subtitle: String {
-        if hasPlannedBudget {
-            return "Oppdater månedsgrensene når du vil justere planen."
+        if shouldPrioritizeExpenseEntry {
+            return "Legg til neste utgift her. Du kan endre grenser senere."
         }
-        if hasTransactions {
-            return "Forbruk spores allerede. Sett grenser når du vil følge hvor mye som gjenstår."
-        }
-        return "Du kan starte uten oppsett og legge inn grenser når måneden tar form."
+        return "Sett en enkel grense for måneden når du er klar."
     }
 
     var body: some View {
@@ -269,7 +271,11 @@ struct BudgetPrimaryActionCard: View {
                 .appSecondaryStyle()
 
             Button(title) {
-                onSetLimits()
+                if shouldPrioritizeExpenseEntry {
+                    onAddExpense()
+                } else {
+                    onSetLimits()
+                }
             }
             .appProminentCTAStyle()
             .controlSize(.large)
@@ -296,7 +302,7 @@ struct GroupListView: View {
 
             if rows.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text(hasPlannedBudget ? "Ingen kategorier å vise ennå" : "Ingen grenser satt ennå")
+                    Text(hasPlannedBudget ? "Ingen kategorier å vise ennå" : "Ingen grenser satt")
                         .font(.headline.weight(.semibold))
                         .foregroundStyle(AppTheme.textPrimary)
 

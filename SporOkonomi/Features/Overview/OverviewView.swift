@@ -7,6 +7,7 @@ struct OverviewView: View {
     @Query(sort: \Goal.createdAt, order: .reverse) private var goals: [Goal]
     @Query(sort: \InvestmentSnapshot.periodKey) private var snapshots: [InvestmentSnapshot]
     @Query(sort: \InvestmentBucket.sortOrder) private var buckets: [InvestmentBucket]
+    @Query private var budgetPlans: [BudgetPlan]
     @Query private var accounts: [Account]
     @Query private var transactions: [Transaction]
     @Query(sort: \Category.sortOrder) private var categories: [Category]
@@ -21,10 +22,17 @@ struct OverviewView: View {
     private var previousSnapshot: InvestmentSnapshot? { InvestmentService.previousSnapshot(snapshots) }
     private var preference: UserPreference? { preferences.first }
     private var savingsDefinition: SavingsDefinition { preference?.savingsDefinition ?? .incomeMinusExpense }
-    private var overviewTitle: String {
-        let name = preference?.firstName.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        guard !name.isEmpty else { return "Oversikt" }
-        return "\(name)´s oversikt"
+    private var overviewTitle: String { viewModel.overviewTitle(firstName: preference?.firstName) }
+    private var budgetStatus: OverviewBudgetStatus {
+        viewModel.budgetStatus(plans: budgetPlans, transactions: transactions)
+    }
+    private var shouldShowEmptyState: Bool {
+        viewModel.shouldShowEmptyState(
+            transactions: transactions,
+            snapshots: snapshots,
+            plans: budgetPlans,
+            accounts: accounts
+        )
     }
 
     private var currentWealth: Double {
@@ -76,16 +84,21 @@ struct OverviewView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                wealthHeroModule
-                quickStatsModule
-                investmentsSummaryModule
-                goalModule
-                if hasSavedData {
-                    savedModule
+            if shouldShowEmptyState {
+                emptyStateModule
+                    .padding()
+            } else {
+                VStack(alignment: .leading, spacing: 16) {
+                    monthlyStatusHeroModule
+                    quickStatsModule
+                    investmentsSummaryModule
+                    goalModule
+                    if hasSavedData {
+                        savedModule
+                    }
                 }
+                .padding()
             }
-            .padding()
         }
         .refreshable {
             viewModel.onAppear(preference: preference)
@@ -115,10 +128,10 @@ struct OverviewView: View {
         }
     }
 
-    private var wealthHeroModule: some View {
+    private var monthlyStatusHeroModule: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
-                Text("Total formue")
+                Text("Tilgjengelig nå")
                     .appSecondaryStyle()
                 Button {
                     areAmountsHidden.toggle()
@@ -135,47 +148,51 @@ struct OverviewView: View {
                 Spacer()
             }
 
-            Text(displayedAmount(displayedWealth))
+            Text(displayedAmount(budgetStatus.net))
                 .appBigNumberStyle()
                 .foregroundStyle(AppTheme.textPrimary)
-                .contentTransition(.numericText(value: displayedWealth))
+                .contentTransition(.numericText(value: budgetStatus.net))
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
 
-            HStack(spacing: 8) {
-                Label(checkInChipText(), systemImage: isCheckInDue ? "bell.badge.fill" : "calendar")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(isCheckInDue ? AppTheme.primary : AppTheme.textSecondary)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background((isCheckInDue ? AppTheme.primary : AppTheme.secondary).opacity(0.12), in: Capsule())
+            HStack(spacing: 12) {
+                overviewMetric(
+                    title: "Brukt så langt",
+                    value: displayedAmount(budgetStatus.spent),
+                    tone: AppTheme.textPrimary
+                )
 
-                Spacer()
+                overviewMetric(
+                    title: budgetStatus.hasPlan ? "Igjen denne måneden" : "Budsjett",
+                    value: budgetStatus.hasPlan ? displayedAmount(budgetStatus.remaining) : "Ikke satt",
+                    tone: budgetStatus.hasPlan
+                        ? (budgetStatus.remaining < 0 ? AppTheme.warning : AppTheme.textPrimary)
+                        : AppTheme.textSecondary
+                )
             }
 
-            if previousSnapshot != nil {
-                Text(changeSincePreviousText())
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(heroChange.kr >= 0 ? AppTheme.positive : AppTheme.negative)
-            }
+            Text(monthlyStatusText())
+                .appSecondaryStyle()
 
-            if shouldShowPrimaryCTA {
-                Button(latestSnapshot == nil ? "Ny innsjekk" : "Oppdater formue nå") {
-                    showCheckIn = true
-                }
-                .appProminentCTAStyle()
+            Button("Legg til") {
+                navigationState.selectedTab = .budget
             }
+            .appProminentCTAStyle()
 
-            Divider()
-                .overlay(AppTheme.divider)
-                .padding(.vertical, 4)
+            if isCheckInDue && latestSnapshot == nil {
+                Text("Du kan legge til snapshot senere i Investeringer.")
+                    .appSecondaryStyle()
+            } else if isCheckInDue {
+                Text("Neste snapshot kan fortsatt legges til senere i Investeringer.")
+                    .appSecondaryStyle()
+            }
         }
         .padding()
         .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Total formue")
-        .accessibilityValue(areAmountsHidden ? "Beløp skjult" : formatNOK(displayedWealth))
+        .accessibilityLabel("Tilgjengelig nå")
+        .accessibilityValue(areAmountsHidden ? "Beløp skjult" : formatNOK(budgetStatus.net))
     }
 
     private var quickStatsModule: some View {
@@ -260,7 +277,7 @@ struct OverviewView: View {
                                 .foregroundStyle(AppTheme.textPrimary)
                         }
 
-                        Text("Siden forrige registrering: ikke tilgjengelig ennå")
+                        Text("Ingen snapshots ennå")
                             .appSecondaryStyle()
                             .foregroundStyle(AppTheme.textSecondary)
                     }
@@ -274,6 +291,26 @@ struct OverviewView: View {
         .buttonStyle(.plain)
         .accessibilityLabel("Investeringsoppsummering")
         .accessibilityHint("Åpner investeringer")
+    }
+
+    private var emptyStateModule: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Ingen føringer ennå")
+                .appCardTitleStyle()
+
+            Text("Legg til en inntekt eller utgift for å få oversikt over måneden.")
+                .appBodyStyle()
+                .foregroundStyle(AppTheme.textSecondary)
+
+            Button("Legg til") {
+                navigationState.selectedTab = .budget
+            }
+            .appProminentCTAStyle()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
     }
 
     private var goalModule: some View {
@@ -362,25 +399,21 @@ struct OverviewView: View {
         .accessibilityValue(statusLine)
     }
 
-    private func checkInChipText() -> String {
-        if isCheckInDue {
-            return "Innsjekk klar"
+    private func overviewMetric(title: String, value: String, tone: Color) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .appSecondaryStyle()
+            Text(value)
+                .font(.headline.weight(.semibold))
+                .foregroundStyle(tone)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
         }
-        let day = min(max(preference?.checkInReminderDay ?? 5, 1), 28)
-        let calendar = Calendar.current
-        let now = Date()
-        var components = calendar.dateComponents([.year, .month], from: now)
-        components.day = day
-        let candidate = calendar.date(from: components) ?? now
-        let next = candidate >= now ? candidate : calendar.date(byAdding: .month, value: 1, to: candidate) ?? candidate
-        return "Neste innsjekk: \(formatDayMonth(next))"
-    }
-
-    private func formatDayMonth(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "nb_NO")
-        formatter.dateFormat = "dd.MM"
-        return formatter.string(from: date)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(AppTheme.background, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.divider, lineWidth: 1))
     }
 
     private func changeSincePreviousText() -> String {
@@ -392,6 +425,16 @@ struct OverviewView: View {
         }
         let sign = heroChange.kr >= 0 ? "+" : "−"
         return "Siden forrige registrering: \(sign)\(formatNOK(abs(heroChange.kr)))"
+    }
+
+    private func monthlyStatusText() -> String {
+        if transactions.isEmpty {
+            return "Dette er utgangspunktet ditt for denne måneden."
+        }
+        if budgetStatus.hasPlan {
+            return "Du har brukt \(displayedAmount(budgetStatus.spent)) og har \(displayedAmount(budgetStatus.remaining)) igjen denne måneden."
+        }
+        return "Du har registrert \(displayedAmount(budgetStatus.spent)) så langt denne måneden."
     }
 
     private func goalTrajectoryText(summary: GoalSummary) -> String {

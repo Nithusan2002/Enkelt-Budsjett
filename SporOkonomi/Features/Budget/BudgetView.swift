@@ -89,6 +89,10 @@ struct BudgetView: View {
                     hasPlannedBudget: hasPlannedBudget,
                     hasTransactions: !monthTransactions.isEmpty,
                     isReadOnlyMode: isReadOnlyMode,
+                    onAddExpense: {
+                        addTransactionInitialType = .expense
+                        viewModel.showAddTransaction = true
+                    },
                     onSetLimits: {
                         if isReadOnlyMode {
                             viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
@@ -140,16 +144,6 @@ struct BudgetView: View {
         .background(AppTheme.background)
         .navigationTitle("Budsjett")
         .safeAreaInset(edge: .bottom) {
-            if !viewModel.showAddTransaction {
-                BudgetBottomAddTransactionButton {
-                    addTransactionInitialType = .expense
-                    viewModel.showAddTransaction = true
-                }
-                .disabled(isReadOnlyMode)
-                .padding(.horizontal, 16)
-                .padding(.bottom, 8)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
             if isReadOnlyMode {
                 Text("Skrivende handlinger er låst fordi appen kjører uten varig lagring.")
                     .font(.footnote.weight(.semibold))

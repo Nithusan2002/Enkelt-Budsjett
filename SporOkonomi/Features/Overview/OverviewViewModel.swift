@@ -9,11 +9,22 @@ struct GoalSummary {
     let perMonth: Double
 }
 
+struct OverviewBudgetStatus {
+    let hasPlan: Bool
+    let remaining: Double
+    let net: Double
+    let spent: Double
+}
+
 @MainActor
 final class OverviewViewModel: ObservableObject {
     @Published var showGoalEditor = false
 
     func onAppear(preference: UserPreference?) {}
+
+    func overviewTitle(firstName: String?) -> String {
+        "Oversikt"
+    }
 
     func activeGoal(from goals: [Goal]) -> Goal? {
         goals.first(where: \.isActive)
@@ -33,6 +44,15 @@ final class OverviewViewModel: ObservableObject {
 
     func savedYTD(definition: SavingsDefinition, transactions: [Transaction], categories: [Category]) -> Double {
         SavingsService.savedYearToDate(definition: definition, transactions: transactions, categories: categories)
+    }
+
+    func shouldShowEmptyState(
+        transactions: [Transaction],
+        snapshots: [InvestmentSnapshot],
+        plans: [BudgetPlan],
+        accounts: [Account]
+    ) -> Bool {
+        transactions.isEmpty && snapshots.isEmpty && plans.isEmpty && accounts.isEmpty
     }
 
     func goalSummary(activeGoal: Goal?, currentWealth: Double) -> GoalSummary {
@@ -58,7 +78,7 @@ final class OverviewViewModel: ObservableObject {
         plans: [BudgetPlan],
         transactions: [Transaction],
         now: Date = .now
-    ) -> (hasPlan: Bool, remaining: Double, net: Double) {
+    ) -> OverviewBudgetStatus {
         let monthKey = DateService.periodKey(from: now)
         let hasPlan = plans.contains { $0.monthPeriodKey == monthKey && $0.plannedAmount > 0 }
         let planned = plans
@@ -68,7 +88,12 @@ final class OverviewViewModel: ObservableObject {
         let income = BudgetService.actualIncomeTotal(for: monthKey, transactions: transactions)
         let net = income - actual
         let remaining = planned - actual
-        return (hasPlan, remaining, net)
+        return OverviewBudgetStatus(
+            hasPlan: hasPlan,
+            remaining: remaining,
+            net: net,
+            spent: actual
+        )
     }
 
     func scopeText(activeGoal: Goal?) -> String {
