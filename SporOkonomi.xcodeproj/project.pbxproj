@@ -402,19 +402,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = K392629S8S;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Spor økonomi";
-				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleTypeRole = Editor;\n    CFBundleURLName = \"com.nithusan.SporOkonomi.auth\";\n    CFBundleURLSchemes =     (\n        sporokonomi\n    );\n}";
-				INFOPLIST_KEY_NSFaceIDUsageDescription = "Bruk Face ID for å låse opp appen.";
-				INFOPLIST_KEY_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_oEiVNV89KMbag_-jRoCpvw_pQNKoAPT";
-				INFOPLIST_KEY_SUPABASE_REDIRECT_HOST = "auth-callback";
-				INFOPLIST_KEY_SUPABASE_REDIRECT_SCHEME = sporokonomi;
-				INFOPLIST_KEY_SUPABASE_URL = "https://mxgjkrgikgfqccyzubxv.supabase.co";
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = SporOkonomiInfo.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -442,19 +431,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = K392629S8S;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Spor økonomi";
-				INFOPLIST_KEY_CFBundleURLTypes = "{\n    CFBundleTypeRole = Editor;\n    CFBundleURLName = \"com.nithusan.SporOkonomi.auth\";\n    CFBundleURLSchemes =     (\n        sporokonomi\n    );\n}";
-				INFOPLIST_KEY_NSFaceIDUsageDescription = "Bruk Face ID for å låse opp appen.";
-				INFOPLIST_KEY_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_oEiVNV89KMbag_-jRoCpvw_pQNKoAPT";
-				INFOPLIST_KEY_SUPABASE_REDIRECT_HOST = "auth-callback";
-				INFOPLIST_KEY_SUPABASE_REDIRECT_SCHEME = sporokonomi;
-				INFOPLIST_KEY_SUPABASE_URL = "https://mxgjkrgikgfqccyzubxv.supabase.co";
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = SporOkonomiInfo.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
