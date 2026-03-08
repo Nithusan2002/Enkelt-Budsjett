@@ -100,9 +100,9 @@ final class OverviewViewModel: ObservableObject {
         fixedItems: [FixedItem],
         now: Date = .now
     ) -> OverviewUpcomingFixedExpense? {
-        fixedItems
+        let upcomingExpenses: [OverviewUpcomingFixedExpense] = fixedItems
             .filter { $0.isActive && $0.kind == .expense }
-            .compactMap { item in
+            .compactMap { item -> OverviewUpcomingFixedExpense? in
                 guard let dueDate = nextDueDate(for: item, now: now) else { return nil }
                 return OverviewUpcomingFixedExpense(
                     title: item.title,
@@ -110,7 +110,9 @@ final class OverviewViewModel: ObservableObject {
                     dueDate: dueDate
                 )
             }
-            .sorted { $0.dueDate < $1.dueDate }
+
+        return upcomingExpenses
+            .sorted { lhs, rhs in lhs.dueDate < rhs.dueDate }
             .first
     }
 
