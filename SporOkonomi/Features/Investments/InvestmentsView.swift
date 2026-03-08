@@ -12,6 +12,7 @@ struct InvestmentsView: View {
 
     @StateObject private var viewModel = InvestmentsViewModel()
     @State private var showFullHistory = false
+    @State private var isHistoryExpanded = false
     @State private var checkInToastMessage: String?
     @State private var selectedDistributionBucketID: String?
     private var isReadOnlyMode: Bool { PersistenceGate.isReadOnlyMode }
@@ -43,11 +44,11 @@ struct InvestmentsView: View {
             List {
                 heroSection
                     .id(SectionAnchor.development.rawValue)
-                historySection
                 holdingsSection
                 distributionSection
                     .id(SectionAnchor.distribution.rawValue)
                 administrationSection
+                historySection
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
@@ -165,7 +166,7 @@ struct InvestmentsView: View {
                     Button {
                         openCheckIn()
                     } label: {
-                        Label("Legg til snapshot", systemImage: "plus.circle")
+                        Label("Legg til innsjekk", systemImage: "plus.circle")
                     }
                     .font(.footnote.weight(.semibold))
                     .buttonStyle(.bordered)
@@ -184,7 +185,7 @@ struct InvestmentsView: View {
                     .layoutPriority(2)
 
                 if latest == nil {
-                    Text("Ingen snapshots ennå. Legg til første snapshot når du er klar.")
+                    Text("Ingen innsjekker ennå. Legg til første innsjekk når du er klar.")
                         .appSecondaryStyle()
                 } else {
                     VStack(alignment: .leading, spacing: 6) {
@@ -195,6 +196,21 @@ struct InvestmentsView: View {
                             .appSecondaryStyle()
                     }
                 }
+
+                Divider()
+                    .overlay(AppTheme.divider)
+                    .padding(.vertical, 2)
+
+                Text("Utvikling")
+                    .appCardTitleStyle()
+
+                InvestmentsDevelopmentChartView(
+                    points: viewModel.developmentChartPoints(snapshots: snapshots, buckets: buckets),
+                    period: $viewModel.developmentPeriod,
+                    onUpdateValues: openCheckIn,
+                    embedded: true,
+                    showStatusRow: false
+                )
             }
             .padding(16)
             .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 18))
@@ -311,7 +327,7 @@ struct InvestmentsView: View {
         let data = viewModel.distributionData(latestSnapshot: latest, buckets: buckets)
         return Section("Fordeling") {
             if data.isEmpty {
-                Text("Fordeling vises når du har lagt til første snapshot.")
+                Text("Fordeling vises når du har lagt til første innsjekk.")
                     .appSecondaryStyle()
             } else if viewModel.shouldShowDonut(distributionData: data) {
                 Chart(data, id: \.bucketID) { item in
@@ -400,44 +416,51 @@ struct InvestmentsView: View {
     private var historySection: some View {
         let allHistory = viewModel.history(snapshots)
         let history = showFullHistory ? allHistory : Array(allHistory.prefix(6))
-        return Section("Tidligere registreringer") {
-            if allHistory.isEmpty {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Ingen snapshots ennå")
-                        .appCardTitleStyle()
-                    Text("Legg til første snapshot når du vil følge utviklingen over tid.")
-                        .appSecondaryStyle()
-                    Button("Legg til snapshot") {
-                        openCheckIn()
-                    }
-                    .appProminentCTAStyle()
-                    .disabled(isReadOnlyMode)
-                }
-                .padding(12)
-            } else {
-                ForEach(history, id: \.periodKey) { snapshot in
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(formatPeriodKeyAsDate(snapshot.periodKey))
-                                .appBodyStyle()
-                            Text(formatDate(snapshot.capturedAt))
-                                .appSecondaryStyle()
+        return Section {
+            DisclosureGroup(isExpanded: $isHistoryExpanded) {
+                if allHistory.isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Ingen innsjekker ennå")
+                            .appCardTitleStyle()
+                        Text("Legg til første innsjekk når du vil følge utviklingen over tid.")
+                            .appSecondaryStyle()
+                        Button("Legg til innsjekk") {
+                            openCheckIn()
                         }
-                        Spacer()
-                        Text(formatNOK(snapshot.totalValue))
-                            .appBodyStyle()
-                            .monospacedDigit()
+                        .appProminentCTAStyle()
+                        .disabled(isReadOnlyMode)
                     }
-                }
-                if allHistory.count > 6 {
-                    Button(showFullHistory ? "Vis færre" : "Se alle") {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            showFullHistory.toggle()
+                    .padding(.top, 8)
+                } else {
+                    VStack(alignment: .leading, spacing: 12) {
+                        ForEach(history, id: \.periodKey) { snapshot in
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(formatPeriodKeyAsDate(snapshot.periodKey))
+                                        .appBodyStyle()
+                                    Text(formatDate(snapshot.capturedAt))
+                                        .appSecondaryStyle()
+                                }
+                                Spacer()
+                                Text(formatNOK(snapshot.totalValue))
+                                    .appBodyStyle()
+                                    .monospacedDigit()
+                            }
+                        }
+                        if allHistory.count > 6 {
+                            Button(showFullHistory ? "Vis færre" : "Se alle") {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    showFullHistory.toggle()
+                                }
+                            }
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(AppTheme.primary)
                         }
                     }
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(AppTheme.primary)
                 }
+            } label: {
+                Text("Tidligere innsjekker")
+                    .appCardTitleStyle()
             }
         }
     }
@@ -455,11 +478,11 @@ struct InvestmentsView: View {
 
     private func changeSummaryText(changeKr: Double, changePct: Double?) -> String {
         guard changeKr != 0 || changePct != nil else {
-            return "Siden forrige registrering: ingen endring ennå"
+            return "Siden forrige innsjekk: ingen endring ennå"
         }
         let sign = changeKr >= 0 ? "+" : "−"
         let pctText = changePct.map { " (\(formatPercent($0)))" } ?? ""
-        return "Siden forrige registrering: \(sign)\(formatNOK(abs(changeKr)))\(pctText)"
+        return "Siden forrige innsjekk: \(sign)\(formatNOK(abs(changeKr)))\(pctText)"
     }
 
     private func bucketRow(_ row: InvestmentBucketRowData) -> some View {
