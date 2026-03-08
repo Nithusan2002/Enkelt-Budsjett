@@ -1,7 +1,5 @@
 import SwiftUI
 import SwiftData
-import Charts
-
 struct OverviewView: View {
     @EnvironmentObject private var navigationState: AppNavigationState
     @AppStorage("overview_amounts_hidden") private var areAmountsHidden = false
@@ -76,19 +74,12 @@ struct OverviewView: View {
         InvestmentService.monthChange(current: latestSnapshot, previous: previousSnapshot)
     }
 
-    private var developmentSnapshots: [InvestmentSnapshot] {
-        InvestmentService.filteredSnapshots(
-            range: viewModel.selectedRange,
-            snapshots: snapshots
-        )
-    }
-
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 wealthHeroModule
                 quickStatsModule
-                portfolioModule
+                investmentsSummaryModule
                 goalModule
                 if hasSavedData {
                     savedModule
@@ -178,91 +169,6 @@ struct OverviewView: View {
             Divider()
                 .overlay(AppTheme.divider)
                 .padding(.vertical, 4)
-
-            HStack {
-                Text("Utvikling")
-                    .appCardTitleStyle()
-                Spacer()
-                Picker("Periode", selection: $viewModel.selectedRange) {
-                    Text("I år").tag(GraphViewRange.yearToDate)
-                    Text("1 år").tag(GraphViewRange.oneYear)
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 220)
-            }
-
-            if developmentSnapshots.count < 2 {
-                Text("Legg inn én måned til for å se utvikling.")
-                    .appBodyStyle()
-                    .foregroundStyle(AppTheme.textSecondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
-                let first = developmentSnapshots.first
-                let last = developmentSnapshots.last
-                let delta = (last?.totalValue ?? 0) - (first?.totalValue ?? 0)
-                let isPositive = delta >= 0
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Chart(developmentSnapshots, id: \.periodKey) { snapshot in
-                        AreaMark(
-                            x: .value("Dato", snapshot.capturedAt),
-                            y: .value("Total", snapshot.totalValue)
-                        )
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [
-                                    AppTheme.secondary.opacity(0.28),
-                                    AppTheme.secondary.opacity(0.04)
-                                ],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-
-                        LineMark(
-                            x: .value("Dato", snapshot.capturedAt),
-                            y: .value("Total", snapshot.totalValue)
-                        )
-                        .lineStyle(StrokeStyle(lineWidth: 2.7, lineCap: .round, lineJoin: .round))
-                        .foregroundStyle(AppTheme.secondary)
-
-                        if snapshot.periodKey == last?.periodKey {
-                            PointMark(
-                                x: .value("Siste dato", snapshot.capturedAt),
-                                y: .value("Siste total", snapshot.totalValue)
-                            )
-                            .symbolSize(42)
-                            .foregroundStyle(AppTheme.primary)
-                        }
-                    }
-                    .chartXAxis(.hidden)
-                    .chartYAxis(.hidden)
-                    .frame(height: 104)
-                    .padding(.horizontal, 4)
-
-                    HStack {
-                        if let first {
-                            Text(formatMonthYearShort(first.capturedAt))
-                                .appSecondaryStyle()
-                        }
-                        Spacer()
-                        Text(displayedSignedAmount(delta, keepSignWhenHidden: true))
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(isPositive ? AppTheme.positive : AppTheme.negative)
-                            .monospacedDigit()
-                        Spacer()
-                        if let last {
-                            Text(formatMonthYearShort(last.capturedAt))
-                                .appSecondaryStyle()
-                        }
-                    }
-                }
-                .padding(10)
-                .background(AppTheme.background, in: RoundedRectangle(cornerRadius: 12))
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.divider, lineWidth: 1))
-                .accessibilityLabel("Utvikling")
-                .accessibilityValue(developmentAccessibilitySummary())
-            }
         }
         .padding()
         .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
@@ -315,13 +221,13 @@ struct OverviewView: View {
         }
     }
 
-    private var portfolioModule: some View {
+    private var investmentsSummaryModule: some View {
         Button {
-            openInvestments(focus: .distribution)
+            openInvestments()
         } label: {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Text("Porteføljefordeling")
+                    Text("Investeringer")
                         .appCardTitleStyle()
                     Spacer()
                     Text("Åpne")
@@ -329,47 +235,36 @@ struct OverviewView: View {
                 }
 
                 if let latestSnapshot {
-                    let positiveValues = latestSnapshot.bucketValues.filter { $0.amount > 0 }
-                    if positiveValues.count >= 2 {
-                        Chart(positiveValues, id: \.bucketID) { value in
-                            SectorMark(
-                                angle: .value("Beløp", value.amount),
-                                innerRadius: .ratio(0.55),
-                                angularInset: 2
-                            )
-                            .foregroundStyle(bucketColor(for: value.bucketID))
+                    VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Total verdi")
+                                .appSecondaryStyle()
+                            Text(displayedAmount(latestSnapshot.totalValue))
+                                .font(.title3.weight(.semibold))
+                                .monospacedDigit()
+                                .foregroundStyle(AppTheme.textPrimary)
                         }
-                        .frame(height: 160)
-                        .accessibilityLabel("Porteføljefordeling")
-                        .accessibilityValue(portfolioAccessibilitySummary(latestSnapshot))
 
-                        let topThree = positiveValues.sorted { $0.amount > $1.amount }.prefix(3)
-                        VStack(alignment: .leading, spacing: 4) {
-                            ForEach(Array(topThree), id: \.bucketID) { bucketValue in
-                                let share = latestSnapshot.totalValue > 0 ? bucketValue.amount / latestSnapshot.totalValue : 0
-                                HStack {
-                                    Text("\(bucketName(for: bucketValue.bucketID))")
-                                        .appSecondaryStyle()
-                                    Spacer()
-                                    Text(areAmountsHidden ? formatPercent(share) : "\(formatPercent(share)) · \(formatNOK(bucketValue.amount))")
-                                        .appSecondaryStyle()
-                                        .monospacedDigit()
-                                }
-                            }
-                        }
-                    } else if let only = positiveValues.first {
-                        Text(areAmountsHidden ? "\(bucketName(for: only.bucketID)): 100%" : "\(bucketName(for: only.bucketID)): 100% (\(formatNOK(only.amount)))")
-                            .appBodyStyle()
-                            .foregroundStyle(AppTheme.textPrimary)
-                    } else {
-                        Text("Legg inn første tall for å se fordeling.")
-                            .appBodyStyle()
-                            .foregroundStyle(AppTheme.textSecondary)
+                        Text(changeSincePreviousText())
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(heroChange.kr >= 0 ? AppTheme.positive : AppTheme.negative)
                     }
                 } else {
-                    Text("Legg inn første tall for å se fordeling.")
-                        .appBodyStyle()
-                        .foregroundStyle(AppTheme.textSecondary)
+                    VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Total verdi")
+                                .appSecondaryStyle()
+                            Text(displayedAmount(0))
+                                .font(.title3.weight(.semibold))
+                                .monospacedDigit()
+                                .foregroundStyle(AppTheme.textPrimary)
+                        }
+
+                        Text("Siden forrige registrering: ikke tilgjengelig ennå")
+                            .appSecondaryStyle()
+                            .foregroundStyle(AppTheme.textSecondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
             .padding()
@@ -377,7 +272,7 @@ struct OverviewView: View {
             .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Porteføljekort")
+        .accessibilityLabel("Investeringsoppsummering")
         .accessibilityHint("Åpner investeringer")
     }
 
@@ -467,17 +362,6 @@ struct OverviewView: View {
         .accessibilityValue(statusLine)
     }
 
-    private func bucketName(for id: String) -> String {
-        viewModel.bucketName(for: id, buckets: buckets)
-    }
-
-    private func bucketColor(for id: String) -> Color {
-        guard let bucket = buckets.first(where: { $0.id == id }) else {
-            return AppTheme.secondary
-        }
-        return AppTheme.portfolioColor(for: bucket)
-    }
-
     private func checkInChipText() -> String {
         if isCheckInDue {
             return "Innsjekk klar"
@@ -500,22 +384,14 @@ struct OverviewView: View {
     }
 
     private func changeSincePreviousText() -> String {
+        if previousSnapshot == nil {
+            return "Siden forrige registrering: ikke tilgjengelig ennå"
+        }
         if areAmountsHidden {
-            return "Siden forrige innsjekk: beløp skjult"
+            return "Siden forrige registrering: beløp skjult"
         }
         let sign = heroChange.kr >= 0 ? "+" : "−"
-        return "Siden forrige innsjekk: \(sign)\(formatNOK(abs(heroChange.kr)))"
-    }
-
-    private func developmentAccessibilitySummary() -> String {
-        if areAmountsHidden {
-            return "Utvikling finnes, men beløp er skjult."
-        }
-        guard let first = developmentSnapshots.first, let last = developmentSnapshots.last else {
-            return "Ingen utviklingsdata ennå."
-        }
-        let change = last.totalValue - first.totalValue
-        return "Fra \(formatNOK(first.totalValue)) til \(formatNOK(last.totalValue)), endring \(formatNOK(change))."
+        return "Siden forrige registrering: \(sign)\(formatNOK(abs(heroChange.kr)))"
     }
 
     private func goalTrajectoryText(summary: GoalSummary) -> String {
@@ -529,24 +405,6 @@ struct OverviewView: View {
             return "For å nå målet innen \(formatMonthYearShort(summary.targetDate)): månedlig beløp er skjult."
         }
         return "For å nå målet innen \(formatMonthYearShort(summary.targetDate)): ca. \(formatNOK(summary.perMonth)) per måned."
-    }
-
-    private func portfolioAccessibilitySummary(_ snapshot: InvestmentSnapshot) -> String {
-        let total = max(snapshot.totalValue, 0)
-        guard total > 0 else { return "Ingen fordeling ennå." }
-        let parts = snapshot.bucketValues
-            .sorted { $0.amount > $1.amount }
-            .prefix(3)
-            .map { value in
-                let share = value.amount / total
-                return "\(bucketName(for: value.bucketID)) \(formatPercent(share))"
-            }
-        return parts.joined(separator: ", ")
-    }
-
-    private func openInvestments(focus: InvestmentsSectionFocus) {
-        navigationState.investmentsFocus = focus
-        navigationState.selectedTab = .investments
     }
 
     private func displayedAmount(_ value: Double) -> String {
@@ -563,5 +421,9 @@ struct OverviewView: View {
         }
         let sign = value >= 0 ? "+" : "−"
         return "\(sign)\(formatNOK(abs(value)))"
+    }
+
+    private func openInvestments() {
+        navigationState.selectedTab = .investments
     }
 }

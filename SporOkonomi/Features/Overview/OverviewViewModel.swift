@@ -11,14 +11,9 @@ struct GoalSummary {
 
 @MainActor
 final class OverviewViewModel: ObservableObject {
-    @Published var selectedRange: GraphViewRange = .yearToDate
     @Published var showGoalEditor = false
 
-    func onAppear(preference: UserPreference?) {
-        if let preference {
-            selectedRange = preference.defaultGraphView == .last12Months ? .oneYear : preference.defaultGraphView
-        }
-    }
+    func onAppear(preference: UserPreference?) {}
 
     func activeGoal(from goals: [Goal]) -> Goal? {
         goals.first(where: \.isActive)
@@ -40,10 +35,6 @@ final class OverviewViewModel: ObservableObject {
         SavingsService.savedYearToDate(definition: definition, transactions: transactions, categories: categories)
     }
 
-    func chartData(snapshots: [InvestmentSnapshot], buckets: [InvestmentBucket]) -> [ChartPoint] {
-        InvestmentService.chartPoints(range: selectedRange, snapshots: snapshots, buckets: buckets)
-    }
-
     func goalSummary(activeGoal: Goal?, currentWealth: Double) -> GoalSummary {
         let targetAmount = activeGoal?.targetAmount ?? 0
         let targetDate = activeGoal?.targetDate ?? .now
@@ -61,10 +52,6 @@ final class OverviewViewModel: ObservableObject {
             monthsRemaining: monthsRemaining,
             perMonth: perMonth
         )
-    }
-
-    func bucketName(for id: String, buckets: [InvestmentBucket]) -> String {
-        buckets.first(where: { $0.id == id })?.name ?? id
     }
 
     func budgetStatus(
