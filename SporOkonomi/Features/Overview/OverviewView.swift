@@ -83,15 +83,28 @@ struct OverviewView: View {
         )
     }
 
+    private var shouldShowEmptyState: Bool {
+        viewModel.shouldShowEmptyState(
+            transactions: transactions,
+            snapshots: snapshots,
+            accounts: accounts,
+            goals: goals
+        )
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                wealthHeroModule
-                quickStatsModule
-                portfolioModule
-                goalModule
-                if hasSavedData {
-                    savedModule
+                if shouldShowEmptyState {
+                    emptyStateModule
+                } else {
+                    wealthHeroModule
+                    quickStatsModule
+                    portfolioModule
+                    goalModule
+                    if hasSavedData {
+                        savedModule
+                    }
                 }
             }
             .padding()
@@ -122,6 +135,28 @@ struct OverviewView: View {
                 displayedWealth = newValue
             }
         }
+    }
+
+    private var emptyStateModule: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(viewModel.emptyState.title)
+                .appCardTitleStyle()
+
+            Text(viewModel.emptyState.message)
+                .appBodyStyle()
+                .foregroundStyle(AppTheme.textSecondary)
+
+            Button(viewModel.emptyState.primaryActionTitle) {
+                navigationState.selectedTab = .budget
+            }
+            .appProminentCTAStyle()
+        }
+        .padding()
+        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(viewModel.emptyState.title)
+        .accessibilityValue(viewModel.emptyState.message)
     }
 
     private var wealthHeroModule: some View {

@@ -15,10 +15,7 @@ struct OnboardingFeatureTests {
         try context.save()
 
         let viewModel = OnboardingViewModel(preference: preference)
-        viewModel.selectGoal(.reduceSpending)
         viewModel.monthlyIncomeText = "50 000"
-        viewModel.monthlyBudgetText = "20 000"
-        viewModel.payday = 25
 
         viewModel.finish(preference: preference, context: context)
         viewModel.finish(preference: preference, context: context)
@@ -35,66 +32,41 @@ struct OnboardingFeatureTests {
 
     @Test
     @MainActor
-    func onboardingFlowHasExactlyFiveSteps() {
+    func onboardingFlowHasExactlyThreeSteps() {
         let preference = UserPreference(onboardingCompleted: false, onboardingFocus: .budget)
         let viewModel = OnboardingViewModel(preference: preference)
 
         let order = viewModel.orderedSteps
-        #expect(order.count == 5)
-        #expect(order.first == .goal)
-        #expect(order[1] == .minimumData)
-        #expect(order[2] == .template)
-        #expect(order[3] == .summary)
-        #expect(order.last == .firstAction)
+        #expect(order.count == 3)
+        #expect(order.first == .intro)
+        #expect(order[1] == .income)
+        #expect(order.last == .summary)
     }
 
     @Test
     @MainActor
-    func onboardingFinalActionTitleDependsOnGoal() {
+    func onboardingSkipIsAvailableOnAllSteps() {
         let preference = UserPreference(onboardingCompleted: false)
         let viewModel = OnboardingViewModel(preference: preference)
 
-        viewModel.selectGoal(.trackInvestments)
-        #expect(viewModel.firstActionPrimaryButtonTitle == "Legg til første investering")
-
-        viewModel.selectGoal(.getOverview)
-        #expect(viewModel.firstActionPrimaryButtonTitle == "Legg til første utgift")
+        for step in viewModel.orderedSteps {
+            viewModel.currentStep = step
+            #expect(viewModel.secondaryButtonTitle == "Hopp over")
+        }
     }
 
     @Test
     @MainActor
-    func onboardingIncomeRequirementDependsOnGoal() {
+    func onboardingIncomeStepAllowsEmptyValueButRejectsInvalidInput() {
         let preference = UserPreference(onboardingCompleted: false)
         let viewModel = OnboardingViewModel(preference: preference)
 
-        viewModel.currentStep = .minimumData
-        viewModel.selectGoal(.trackInvestments)
+        viewModel.currentStep = .income
         viewModel.monthlyIncomeText = ""
         #expect(viewModel.isPrimaryDisabled == false)
 
-        viewModel.selectGoal(.reduceSpending)
-        #expect(viewModel.isPrimaryDisabled == true)
-    }
-
-    @Test
-    @MainActor
-    func onboardingCanGoBackToPreviousStep() throws {
-        let container = try TestModelContainerFactory.makeInMemoryContainer()
-        let context = container.mainContext
-        let preference = UserPreference(onboardingCompleted: false, onboardingCurrentStep: OnboardingStep.minimumData.rawValue)
-        context.insert(preference)
-        try context.save()
-
-        let viewModel = OnboardingViewModel(preference: preference)
-
-        #expect(viewModel.canGoBack)
-        #expect(viewModel.backButtonTitle == "Tilbake")
-
-        viewModel.back(preference: preference, context: context)
-
-        #expect(viewModel.currentStep == .goal)
-        #expect(preference.onboardingCurrentStep == OnboardingStep.goal.rawValue)
-        #expect(viewModel.canGoBack == false)
+        viewModel.monthlyIncomeText = "32 000"
+        #expect(viewModel.isPrimaryDisabled == false)
     }
 
     @Test
@@ -153,7 +125,6 @@ struct OnboardingFeatureTests {
         try context.save()
 
         let viewModel = OnboardingViewModel(preference: preference)
-        viewModel.selectGoal(.getOverview)
         viewModel.monthlyIncomeText = "45 000"
         viewModel.finish(preference: preference, context: context)
 
@@ -162,5 +133,34 @@ struct OnboardingFeatureTests {
 
         #expect(bucketNames == ["Fond", "Aksjer", "BSU", "Buffer"])
         #expect(!bucketNames.contains("Krypto"))
+    }
+
+    @Test
+    @MainActor
+    func onboardingLegacyStoredStepMapsToClosestSimplifiedStep() {
+        let preference = UserPreference(onboardingCompleted: false, onboardingCurrentStep: 4)
+        let viewModel = OnboardingViewModel(preference: preference)
+
+        #expect(viewModel.currentStep == .summary)
+    }
+
+    @Test
+    @MainActor
+    func onboardingSkipCompletesWithoutCreatingIncomeData() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+        let preference = UserPreference(onboardingCompleted: false)
+        context.insert(preference)
+        try context.save()
+
+        let viewModel = OnboardingViewModel(preference: preference)
+        viewModel.skipAll(preference: preference, context: context)
+
+        let fixedItems = try context.fetch(FetchDescriptor<FixedItem>())
+        let transactions = try context.fetch(FetchDescriptor<Transaction>())
+
+        #expect(preference.onboardingCompleted)
+        #expect(fixedItems.isEmpty)
+        #expect(transactions.isEmpty)
     }
 }

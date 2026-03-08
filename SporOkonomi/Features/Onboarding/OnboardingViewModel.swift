@@ -3,24 +3,20 @@ import Combine
 import SwiftData
 
 enum OnboardingStep: Int, CaseIterable {
-    case goal
-    case minimumData
-    case template
+    case intro
+    case income
     case summary
-    case firstAction
-}
 
-enum BudgetStarterPackage: String, CaseIterable {
-    case simple
-    case family
-    case student
-    case none
-}
-
-enum OnboardingGoalChoice: String, CaseIterable {
-    case getOverview
-    case reduceSpending
-    case trackInvestments
+    static func fromStoredValue(_ rawValue: Int) -> OnboardingStep {
+        switch rawValue {
+        case intro.rawValue:
+            return .intro
+        case income.rawValue:
+            return .income
+        default:
+            return .summary
+        }
+    }
 }
 
 @MainActor
@@ -29,11 +25,7 @@ final class OnboardingViewModel: ObservableObject {
     @Published var focus: OnboardingFocus
     @Published var tone: AppToneStyle
 
-    @Published var selectedGoal: OnboardingGoalChoice
     @Published var monthlyIncomeText = ""
-    @Published var payday = 25
-    @Published var monthlyBudgetText = ""
-    @Published var budgetPackage: BudgetStarterPackage = .simple
 
     @Published var errorMessage: String?
 
@@ -43,16 +35,7 @@ final class OnboardingViewModel: ObservableObject {
     init(preference: UserPreference) {
         self.focus = preference.onboardingFocus
         self.tone = preference.toneStyle
-        self.currentStep = OnboardingStep(rawValue: preference.onboardingCurrentStep) ?? .goal
-
-        switch preference.onboardingFocus {
-        case .budget:
-            self.selectedGoal = .reduceSpending
-        case .investments:
-            self.selectedGoal = .trackInvestments
-        case .both:
-            self.selectedGoal = .getOverview
-        }
+        self.currentStep = OnboardingStep.fromStoredValue(preference.onboardingCurrentStep)
     }
 
     var orderedSteps: [OnboardingStep] {
@@ -78,77 +61,56 @@ final class OnboardingViewModel: ObservableObject {
 
     var primaryButtonTitle: String {
         switch currentStep {
-        case .goal, .minimumData, .template:
+        case .intro:
+            return "Kom i gang"
+        case .income:
             return "Fortsett"
         case .summary:
-            return "Fullfør oppsett"
-        case .firstAction:
-            return firstActionPrimaryButtonTitle
+            return "Gå til oversikt"
         }
-    }
-
-    var backButtonTitle: String? {
-        canGoBack ? "Tilbake" : nil
     }
 
     var secondaryButtonTitle: String? {
-        switch currentStep {
-        case .goal:
-            return "Hopp over"
-        case .firstAction:
-            return "Gå til oversikt"
-        default:
-            return nil
-        }
-    }
-
-    var canGoBack: Bool {
-        guard let idx = orderedSteps.firstIndex(of: currentStep) else { return false }
-        return idx > 0
+        "Hopp over"
     }
 
     var isPrimaryDisabled: Bool {
         switch currentStep {
-        case .minimumData:
-            return isMonthlyIncomeRequired && parseDouble(monthlyIncomeText) == nil
+        case .income:
+            let trimmed = monthlyIncomeText.trimmingCharacters(in: .whitespacesAndNewlines)
+            return !trimmed.isEmpty && parseDouble(trimmed) == nil
         default:
             return false
         }
     }
 
-    var isMonthlyIncomeRequired: Bool {
-        selectedGoal != .trackInvestments
+    var summaryTitle: String {
+        "Slik starter oversikten din"
     }
 
-    var monthlyIncomeLabel: String {
-        isMonthlyIncomeRequired ? "Månedlig inntekt" : "Månedlig inntekt (valgfritt)"
+    var summaryBodyText: String {
+        hasMonthlyIncome
+            ? "Du har nå et enkelt utgangspunkt for denne måneden."
+            : "Du kan fortsatt komme i gang uten oppsett."
     }
 
-    var minimumDataHelpText: String {
-        if isMonthlyIncomeRequired {
-            return "Kun inntekt og lønnsdato er nødvendig nå."
-        }
-        return "Lønnsdato er nødvendig nå. Inntekt er valgfritt for investeringsmål."
+    var summaryHelpText: String {
+        hasMonthlyIncome
+            ? "Legg til utgifter underveis, så blir oversikten mer presis."
+            : "Legg til inntekt eller utgifter når du vil, så bygger oversikten seg opp."
     }
 
-    var firstActionPrimaryButtonTitle: String {
-        selectedGoal == .trackInvestments ? "Legg til første investering" : "Legg til første utgift"
+    var summaryAmountLabel: String? {
+        guard hasMonthlyIncome, let monthlyIncome else { return nil }
+        return formatNOK(monthlyIncome)
     }
 
-    func selectGoal(_ goal: OnboardingGoalChoice) {
-        selectedGoal = goal
-        switch goal {
-        case .getOverview:
-            focus = .both
-        case .reduceSpending:
-            focus = .budget
-        case .trackInvestments:
-            focus = .investments
-        }
+    var hasMonthlyIncome: Bool {
+        monthlyIncome != nil
     }
 
-    func selectTemplate(_ template: BudgetStarterPackage) {
-        budgetPackage = template
+    private var monthlyIncome: Double? {
+        parseDouble(monthlyIncomeText)
     }
 
     func markCurrentStepSeen() {
@@ -160,10 +122,7 @@ final class OnboardingViewModel: ObservableObject {
         guard !viewedSteps.contains(currentStep) else { return }
         viewedSteps.insert(currentStep)
         logEvent("onboarding_step_viewed_\(eventName(for: currentStep))")
-
-        if currentStep == .firstAction {
-            logEvent("onboarding_aha_seen")
-        }
+        if currentStep == .summary { logEvent("onboarding_aha_seen") }
     }
 
     func next(preference: UserPreference, context: ModelContext) {
@@ -181,22 +140,8 @@ final class OnboardingViewModel: ObservableObject {
         }
     }
 
-    func back(preference: UserPreference, context: ModelContext) {
-        do {
-            try saveStepState(preference: preference, context: context)
-            guard let idx = orderedSteps.firstIndex(of: currentStep), idx > 0 else { return }
-            let previousStep = orderedSteps[idx - 1]
-            preference.onboardingCurrentStep = previousStep.rawValue
-            try context.guardedSave(feature: "Onboarding", operation: "save_step_transition")
-            currentStep = previousStep
-        } catch {
-            let message = (error as? LocalizedError)?.errorDescription ?? "Kunne ikke gå tilbake. Prøv igjen."
-            setError(message)
-        }
-    }
-
     func primaryAction(preference: UserPreference, context: ModelContext) {
-        if currentStep == .firstAction {
+        if currentStep == .summary {
             finish(preference: preference, context: context)
         } else {
             next(preference: preference, context: context)
@@ -204,46 +149,33 @@ final class OnboardingViewModel: ObservableObject {
     }
 
     func secondaryAction(preference: UserPreference, context: ModelContext) {
-        switch currentStep {
-        case .goal:
-            skipAll(preference: preference, context: context)
-        case .firstAction:
-            finish(preference: preference, context: context)
-        default:
-            break
-        }
+        skipAll(preference: preference, context: context)
     }
 
     func skipAll(preference: UserPreference, context: ModelContext) {
         monthlyIncomeText = ""
-        monthlyBudgetText = ""
-        budgetPackage = .none
         logEvent("onboarding_abandoned")
         finish(preference: preference, context: context)
     }
 
     func finish(preference: UserPreference, context: ModelContext) {
-        let monthlyBudget = parseDouble(monthlyBudgetText)
-        let monthlyIncome = parseDouble(monthlyIncomeText)
-        let selectedBudgetCategories = categories(for: budgetPackage)
-
         do {
             try OnboardingService.complete(
                 context: context,
                 preference: preference,
                 firstName: "",
-                focus: focus,
+                focus: .both,
                 tone: tone,
                 firstWealthTotal: nil,
                 goalAmount: nil,
                 goalDate: nil,
                 snapshotValues: [:],
                 snapshotInputProvided: false,
-                budgetCategories: selectedBudgetCategories,
-                monthlyBudget: monthlyBudget,
+                budgetCategories: [],
+                monthlyBudget: nil,
                 monthlyIncome: monthlyIncome,
-                incomeDayOfMonth: payday,
-                budgetTrackOnly: budgetPackage == .none,
+                incomeDayOfMonth: 25,
+                budgetTrackOnly: true,
                 reminderEnabled: false,
                 reminderDay: 5,
                 reminderHour: 18,
@@ -256,43 +188,6 @@ final class OnboardingViewModel: ObservableObject {
         } catch {
             let message = (error as? LocalizedError)?.errorDescription ?? "Kunne ikke fullføre onboarding. Prøv igjen."
             setError(message)
-        }
-    }
-
-    func titleForFocus(_ value: OnboardingFocus) -> String {
-        switch value {
-        case .budget: return "Budsjett"
-        case .investments: return "Investeringer"
-        case .both: return "Begge"
-        }
-    }
-
-    func title(for package: BudgetStarterPackage) -> String {
-        switch package {
-        case .simple: return "Enkel"
-        case .family: return "Familie"
-        case .student: return "Student"
-        case .none: return "Ingen mal nå"
-        }
-    }
-
-    func subtitle(for package: BudgetStarterPackage) -> String {
-        switch package {
-        case .simple: return "Mat, Bolig, Transport, Fritid, Sparing"
-        case .family: return "Mat, Bolig, Transport, Barn, Sparing"
-        case .student: return "Mat, Transport, Abonnement, Uteliv, Sparing"
-        case .none: return "Opprett kategorier manuelt senere"
-        }
-    }
-
-    func title(for goal: OnboardingGoalChoice) -> String {
-        switch goal {
-        case .getOverview:
-            return "Få oversikt"
-        case .reduceSpending:
-            return "Redusere forbruk"
-        case .trackInvestments:
-            return "Følge investeringer"
         }
     }
 
@@ -309,26 +204,11 @@ final class OnboardingViewModel: ObservableObject {
         try context.guardedSave(feature: "Onboarding", operation: "save_step_state")
     }
 
-    private func categories(for package: BudgetStarterPackage) -> [String] {
-        switch package {
-        case .simple:
-            return ["Mat", "Bolig", "Transport", "Fritid", "Sparing"]
-        case .family:
-            return ["Mat", "Bolig", "Transport", "Barnehage", "Sparing"]
-        case .student:
-            return ["Mat", "Transport", "Abonnement", "Uteliv", "Sparing"]
-        case .none:
-            return []
-        }
-    }
-
     private func eventName(for step: OnboardingStep) -> String {
         switch step {
-        case .goal: return "goal"
-        case .minimumData: return "minimum_data"
-        case .template: return "template"
+        case .intro: return "intro"
+        case .income: return "income"
         case .summary: return "summary"
-        case .firstAction: return "first_action"
         }
     }
 

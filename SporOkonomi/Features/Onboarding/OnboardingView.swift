@@ -5,7 +5,6 @@ struct OnboardingView: View {
     @Environment(\.modelContext) private var modelContext
     let preference: UserPreference
     @StateObject private var viewModel: OnboardingViewModel
-    @State private var showOptionalBudget = false
 
     init(preference: UserPreference) {
         self.preference = preference
@@ -72,97 +71,46 @@ struct OnboardingView: View {
     @ViewBuilder
     private var stepContent: some View {
         switch viewModel.currentStep {
-        case .goal:
-            goalStep
-        case .minimumData:
-            minimumDataStep
-        case .template:
-            templateStep
+        case .intro:
+            introStep
+        case .income:
+            incomeStep
         case .summary:
             summaryStep
-        case .firstAction:
-            firstActionStep
         }
     }
 
-    private var goalStep: some View {
+    private var introStep: some View {
         VStack(spacing: 18) {
             heroIcon(systemName: "eye")
 
             VStack(spacing: 8) {
-                Text("Hva vil du oppnå først?")
+                Text("Få roligere oversikt")
                     .appCardTitleStyle()
-                Text("Vi tilpasser oppstarten. Du kan endre alt senere.")
+                Text("Spor økonomi hjelper deg å se hva du har igjen denne måneden, uten komplisert oppsett.")
                     .appBodyStyle()
             }
             .multilineTextAlignment(.center)
-
-            VStack(alignment: .leading, spacing: 10) {
-                ForEach(OnboardingGoalChoice.allCases, id: \.rawValue) { goal in
-                    Button {
-                        viewModel.selectGoal(goal)
-                    } label: {
-                        HStack {
-                            Text(viewModel.title(for: goal))
-                                .appBodyStyle()
-                            Spacer()
-                            if viewModel.selectedGoal == goal {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(AppTheme.primary)
-                            }
-                        }
-                        .padding(12)
-                        .background(AppTheme.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.divider, lineWidth: 1))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(viewModel.title(for: goal))
-                }
-            }
-            .frame(maxWidth: 460, alignment: .leading)
         }
         .frame(maxWidth: .infinity, alignment: .center)
-        .padding(.top, 24)
+        .padding(.top, 36)
     }
 
-    private var minimumDataStep: some View {
+    private var incomeStep: some View {
         VStack(spacing: 18) {
             VStack(spacing: 8) {
-                Text("La oss sette et enkelt utgangspunkt")
+                Text("Hva får du inn i måneden?")
                     .appCardTitleStyle()
-                Text(viewModel.minimumDataHelpText)
+                Text("Et grovt beløp er nok. Du kan endre det senere.")
                     .appBodyStyle()
             }
             .multilineTextAlignment(.center)
 
             VStack(alignment: .leading, spacing: 12) {
                 currencyField(
-                    label: viewModel.monthlyIncomeLabel,
-                    placeholder: "f.eks. 45 000",
+                    label: "Månedlig inntekt",
+                    placeholder: "f.eks. 32 000",
                     text: $viewModel.monthlyIncomeText
-                )
-
-                Stepper(value: $viewModel.payday, in: 1...28) {
-                    Text("Lønnsdato: \(viewModel.payday)")
-                        .appBodyStyle()
-                }
-                .accessibilityLabel("Lønnsdato")
-
-                DisclosureGroup(
-                    isExpanded: $showOptionalBudget,
-                    content: {
-                        currencyField(
-                            label: "Månedsbudsjett (valgfritt)",
-                            placeholder: "f.eks. 22 000",
-                            text: $viewModel.monthlyBudgetText
-                        )
-                        .padding(.top, 8)
-                    },
-                    label: {
-                        Text("Legg til månedsbudsjett (valgfritt)")
-                            .appBodyStyle()
-                    }
                 )
                 .padding(12)
                 .background(AppTheme.surface)
@@ -175,93 +123,38 @@ struct OnboardingView: View {
         .padding(.top, 24)
     }
 
-    private var templateStep: some View {
+    private var summaryStep: some View {
         VStack(spacing: 18) {
+            heroIcon(systemName: "checkmark.circle")
+
             VStack(spacing: 8) {
-                Text("Velg en startmal")
+                Text(viewModel.summaryTitle)
                     .appCardTitleStyle()
-                Text("Malen oppretter kategorier du kan redigere senere.")
+                Text(viewModel.summaryBodyText)
                     .appBodyStyle()
             }
             .multilineTextAlignment(.center)
 
             VStack(alignment: .leading, spacing: 10) {
-                ForEach(BudgetStarterPackage.allCases, id: \.rawValue) { template in
-                    Button {
-                        viewModel.selectTemplate(template)
-                    } label: {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(viewModel.title(for: template))
-                                    .appBodyStyle()
-                                Text(viewModel.subtitle(for: template))
-                                    .appSecondaryStyle()
-                            }
-                            Spacer()
-                            if viewModel.budgetPackage == template {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(AppTheme.primary)
-                            }
-                        }
-                        .padding(12)
-                        .background(AppTheme.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.divider, lineWidth: 1))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(viewModel.title(for: template))
+                if let amountLabel = viewModel.summaryAmountLabel {
+                    summaryRow("Månedlig inntekt", value: amountLabel)
+                } else {
+                    Text("Du kan legge til inntekt eller utgifter når du trenger det.")
+                        .appBodyStyle()
+                        .foregroundStyle(AppTheme.textPrimary)
                 }
-            }
-            .frame(maxWidth: 460, alignment: .leading)
-        }
-        .frame(maxWidth: .infinity, alignment: .center)
-        .padding(.top, 24)
-    }
 
-    private var summaryStep: some View {
-        VStack(spacing: 18) {
-            Text("Slik ser oppsettet ditt ut")
-                .appCardTitleStyle()
-                .multilineTextAlignment(.center)
-
-            VStack(alignment: .leading, spacing: 10) {
-                summaryRow("Månedlig inntekt", value: monthlyIncomeSummary)
-                summaryRow("Lønnsdato", value: "Dag \(viewModel.payday)")
-                summaryRow("Valgt mål", value: viewModel.title(for: viewModel.selectedGoal))
-                summaryRow("Valgt mal", value: viewModel.title(for: viewModel.budgetPackage))
+                Text(viewModel.summaryHelpText)
+                    .appSecondaryStyle()
             }
             .padding(12)
             .background(AppTheme.surface)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.divider, lineWidth: 1))
             .frame(maxWidth: 460, alignment: .leading)
-
-            Text("Du kan endre alt senere i Innstillinger.")
-                .appSecondaryStyle()
-                .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, alignment: .center)
         .padding(.top, 24)
-    }
-
-    private var firstActionStep: some View {
-        VStack(spacing: 18) {
-            heroIcon(systemName: "sparkles")
-
-            Text("Bra start")
-                .appCardTitleStyle()
-            Text("Ett lite steg nå gir deg bedre oversikt med én gang.")
-                .appBodyStyle()
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 420)
-        }
-        .frame(maxWidth: .infinity, alignment: .center)
-        .padding(.top, 36)
-    }
-
-    private var monthlyIncomeSummary: String {
-        let trimmed = viewModel.monthlyIncomeText.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? "Ikke satt" : "kr \(trimmed)"
     }
 
     private var footerButtons: some View {
@@ -274,31 +167,17 @@ struct OnboardingView: View {
             .disabled(viewModel.isPrimaryDisabled)
             .accessibilityLabel(viewModel.primaryButtonTitle)
 
-            HStack(spacing: 16) {
-                if let backTitle = viewModel.backButtonTitle {
-                    Button(backTitle) {
-                        viewModel.back(preference: preference, context: modelContext)
-                    }
-                    .appSecondaryStyle()
-                    .accessibilityLabel(backTitle)
+            if let secondary = viewModel.secondaryButtonTitle {
+                Button(secondary) {
+                    viewModel.secondaryAction(preference: preference, context: modelContext)
                 }
-
-                if let secondary = viewModel.secondaryButtonTitle {
-                    Button(secondary) {
-                        viewModel.secondaryAction(preference: preference, context: modelContext)
-                    }
-                    .appSecondaryStyle()
-                    .accessibilityLabel(secondary)
-                }
+                .appSecondaryStyle()
+                .accessibilityLabel(secondary)
+                .frame(maxWidth: .infinity, alignment: .center)
             }
-            .frame(maxWidth: .infinity, alignment: .center)
         }
         .frame(maxWidth: 420, alignment: .center)
         .frame(maxWidth: .infinity, alignment: .center)
-    }
-
-    private var isHeroStep: Bool {
-        viewModel.currentStep == .goal || viewModel.currentStep == .firstAction
     }
 
     private func heroIcon(systemName: String) -> some View {
