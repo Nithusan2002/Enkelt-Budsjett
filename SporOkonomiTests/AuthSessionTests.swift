@@ -189,7 +189,7 @@ struct AuthSessionTests {
     @Test
     func supabaseConfigurationRequiresExplicitValues() {
         do {
-            try SupabaseConfiguration.load(
+            _ = try SupabaseConfiguration.load(
                 projectURLString: nil,
                 publishableKey: nil,
                 redirectScheme: nil,
@@ -197,7 +197,32 @@ struct AuthSessionTests {
             )
             Issue.record("Expected missingConfiguration to be thrown")
         } catch let error as AuthServiceError {
-            #expect(error == .missingConfiguration)
+            #expect(
+                error == .missingConfiguration(
+                    "Supabase mangler `SUPABASE_URL` og `SUPABASE_PUBLISHABLE_KEY` i appens Info.plist."
+                )
+            )
+        } catch {
+            Issue.record("Expected AuthServiceError.missingConfiguration, got \(error)")
+        }
+    }
+
+    @Test
+    func supabaseConfigurationReportsWhichKeyIsMissing() {
+        do {
+            _ = try SupabaseConfiguration.load(
+                projectURLString: "https://example.supabase.co",
+                publishableKey: nil,
+                redirectScheme: nil,
+                redirectHost: nil
+            )
+            Issue.record("Expected missingConfiguration to be thrown")
+        } catch let error as AuthServiceError {
+            #expect(
+                error == .missingConfiguration(
+                    "Supabase mangler `SUPABASE_PUBLISHABLE_KEY` i appens Info.plist."
+                )
+            )
         } catch {
             Issue.record("Expected AuthServiceError.missingConfiguration, got \(error)")
         }

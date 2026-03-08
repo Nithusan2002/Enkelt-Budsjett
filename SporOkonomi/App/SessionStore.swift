@@ -44,6 +44,8 @@ final class SessionStore: ObservableObject {
         } else {
             do {
                 self.authClient = try SupabaseAuthClient(configuration: SupabaseConfiguration.load())
+            } catch let error as AuthServiceError {
+                self.authClient = UnconfiguredAuthClient(configurationError: error)
             } catch {
                 self.authClient = UnconfiguredAuthClient()
             }
@@ -275,16 +277,22 @@ final class SessionStore: ObservableObject {
 }
 
 private struct UnconfiguredAuthClient: AuthClientProtocol {
+    private let configurationError: AuthServiceError
+
+    init(configurationError: AuthServiceError = .missingConfiguration()) {
+        self.configurationError = configurationError
+    }
+
     func signUp(email: String, password: String, displayName: String?) async throws -> AuthClientSession? {
-        throw AuthServiceError.missingConfiguration
+        throw configurationError
     }
 
     func signIn(email: String, password: String) async throws -> AuthClientSession {
-        throw AuthServiceError.missingConfiguration
+        throw configurationError
     }
 
     func signInWithGoogle() async throws -> AuthClientSession {
-        throw AuthServiceError.missingConfiguration
+        throw configurationError
     }
 
     func restoreSession() async throws -> AuthClientSession? { nil }

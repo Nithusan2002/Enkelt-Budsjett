@@ -5,7 +5,7 @@ import Security
 import UIKit
 
 enum AuthServiceError: LocalizedError, Equatable {
-    case missingConfiguration
+    case missingConfiguration(String? = nil)
     case missingOAuthConfiguration
     case invalidResponse
     case invalidCredentials
@@ -17,7 +17,10 @@ enum AuthServiceError: LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case .missingConfiguration:
+        case .missingConfiguration(let detail):
+            if let detail, !detail.isEmpty {
+                return detail
+            }
             return "Supabase er ikke konfigurert i appen ennå."
         case .missingOAuthConfiguration:
             return "Google-innlogging er ikke konfigurert i appen ennå."
@@ -95,16 +98,35 @@ struct SupabaseConfiguration {
         redirectScheme: String?,
         redirectHost: String?
     ) throws -> SupabaseConfiguration {
-        guard let projectURLString,
-              let url = URL(string: projectURLString),
-              let publishableKey,
-              !publishableKey.isEmpty else {
-            throw AuthServiceError.missingConfiguration
+        let normalizedProjectURLString = normalized(projectURLString)
+        let normalizedPublishableKey = normalized(publishableKey)
+
+        if normalizedProjectURLString == nil, normalizedPublishableKey == nil {
+            throw AuthServiceError.missingConfiguration(
+                "Supabase mangler `SUPABASE_URL` og `SUPABASE_PUBLISHABLE_KEY` i appens Info.plist."
+            )
+        }
+        if normalizedProjectURLString == nil {
+            throw AuthServiceError.missingConfiguration(
+                "Supabase mangler `SUPABASE_URL` i appens Info.plist."
+            )
+        }
+        if normalizedPublishableKey == nil {
+            throw AuthServiceError.missingConfiguration(
+                "Supabase mangler `SUPABASE_PUBLISHABLE_KEY` i appens Info.plist."
+            )
+        }
+
+        guard let projectURLString = normalizedProjectURLString,
+              let url = URL(string: projectURLString) else {
+            throw AuthServiceError.missingConfiguration(
+                "`SUPABASE_URL` i appens Info.plist er ikke en gyldig URL."
+            )
         }
 
         return SupabaseConfiguration(
             projectURL: url,
-            publishableKey: publishableKey,
+            publishableKey: normalizedPublishableKey ?? "",
             redirectScheme: normalized(redirectScheme),
             redirectHost: normalized(redirectHost)
         )
