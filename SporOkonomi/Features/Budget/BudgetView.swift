@@ -144,13 +144,23 @@ struct BudgetView: View {
         .background(AppTheme.background)
         .navigationTitle("Budsjett")
         .safeAreaInset(edge: .bottom) {
-            if isReadOnlyMode {
-                Text("Skrivende handlinger er låst fordi appen kjører uten varig lagring.")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(AppTheme.textSecondary)
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 8)
+            VStack(spacing: 8) {
+                BudgetBottomAddTransactionButton {
+                    addTransactionInitialType = .expense
+                    viewModel.showAddTransaction = true
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .disabled(isReadOnlyMode)
+
+                if isReadOnlyMode {
+                    Text("Skrivende handlinger er låst fordi appen kjører uten varig lagring.")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(AppTheme.textSecondary)
+                        .padding(.horizontal, 16)
+                }
             }
+            .padding(.bottom, 8)
         }
         .sheet(isPresented: $showMonthPicker) {
             BudgetMonthPickerSheet(
