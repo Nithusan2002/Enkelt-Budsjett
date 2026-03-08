@@ -10,7 +10,6 @@ struct BudgetView: View {
 
     @StateObject private var viewModel = BudgetViewModel()
     @State private var showMonthPicker = false
-    @State private var addTransactionInitialType: TransactionKind?
     private var isReadOnlyMode: Bool { PersistenceGate.isReadOnlyMode }
 
     private var periodKey: String { viewModel.periodKey() }
@@ -31,12 +30,6 @@ struct BudgetView: View {
             periodTransactions: monthTransactions
         )
     }
-    private var incomeRows: [BudgetIncomeRow] {
-        viewModel.incomeRows(categories: categories, periodTransactions: monthTransactions)
-    }
-    private var savingsRows: [BudgetSavingsRow] {
-        viewModel.savingsRows(categories: categories, periodTransactions: monthTransactions)
-    }
     private var summary: BudgetSummaryData {
         viewModel.summary(groupRows: groupRows, periodTransactions: monthTransactions)
     }
@@ -45,9 +38,6 @@ struct BudgetView: View {
     }
     private var overBudgetCount: Int {
         groupRows.filter(\.isOverBudget).count
-    }
-    private var fixedTotalThisMonth: Double {
-        FixedItemsService.fixedTotalForMonth(periodKey: periodKey, transactions: transactions)
     }
     private var groupsWithoutLimitWithSpendCount: Int {
         viewModel.groupsWithoutLimitWithSpendCount(groupRows: groupRows)
@@ -98,38 +88,9 @@ struct BudgetView: View {
                     }
                 )
 
-                NavigationLink {
-                    BudgetDetailsView(
-                        fixedTotalThisMonth: fixedTotalThisMonth,
-                        incomeRows: incomeRows,
-                        savingsRows: savingsRows
-                    )
-                } label: {
-                    HStack {
-                        Text("Se detaljer")
-                            .appBodyStyle()
-                        Spacer()
-                        Text("Faste poster, inntekter og sparing")
-                            .appSecondaryStyle()
-                        Image(systemName: "chevron.right")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(AppTheme.textSecondary)
-                    }
-                    .padding()
-                    .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
-                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.divider, lineWidth: 1))
-                }
-                .buttonStyle(.plain)
-
                 GroupListView(
                     rows: groupRows,
-                    fixedByGroup: fixedByGroup,
-                    hasPlannedBudget: hasPlannedBudget,
-                    hasTransactions: !monthTransactions.isEmpty,
-                    onAddTransaction: {
-                        addTransactionInitialType = .expense
-                        viewModel.showAddTransaction = true
-                    }
+                    hasPlannedBudget: hasPlannedBudget
                 )
             }
             .padding()
@@ -140,16 +101,6 @@ struct BudgetView: View {
         .background(AppTheme.background)
         .navigationTitle("Budsjett")
         .safeAreaInset(edge: .bottom) {
-            if !viewModel.showAddTransaction {
-                BudgetBottomAddTransactionButton {
-                    addTransactionInitialType = .expense
-                    viewModel.showAddTransaction = true
-                }
-                .disabled(isReadOnlyMode)
-                .padding(.horizontal, 16)
-                .padding(.bottom, 8)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
             if isReadOnlyMode {
                 Text("Skrivende handlinger er låst fordi appen kjører uten varig lagring.")
                     .font(.footnote.weight(.semibold))
@@ -171,7 +122,7 @@ struct BudgetView: View {
         .sheet(isPresented: $viewModel.showAddTransaction) {
             AddTransactionSheet(
                 categories: categories.filter(\.isActive),
-                initialType: addTransactionInitialType,
+                initialType: nil,
                 initialTransaction: nil
             ) { date, amount, kind, categoryID, note in
                 viewModel.addTransaction(
