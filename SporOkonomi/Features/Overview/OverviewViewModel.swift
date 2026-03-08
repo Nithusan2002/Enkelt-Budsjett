@@ -9,22 +9,10 @@ struct GoalSummary {
     let perMonth: Double
 }
 
-struct OverviewEmptyState {
-    let title: String
-    let message: String
-    let primaryActionTitle: String
-}
-
 @MainActor
 final class OverviewViewModel: ObservableObject {
     @Published var selectedRange: GraphViewRange = .yearToDate
     @Published var showGoalEditor = false
-
-    let emptyState = OverviewEmptyState(
-        title: "Ingen føringer ennå",
-        message: "Legg til en inntekt eller utgift for å få oversikt over måneden.",
-        primaryActionTitle: "Legg til"
-    )
 
     func onAppear(preference: UserPreference?) {
         if let preference {
@@ -128,14 +116,5 @@ final class OverviewViewModel: ObservableObject {
                 .replacingOccurrences(of: "{x}", with: formatNOK(savedAmount))
                 .replacingOccurrences(of: "{p}", with: period)
         }
-    }
-
-    func shouldShowEmptyState(
-        transactions: [Transaction],
-        snapshots: [InvestmentSnapshot],
-        accounts: [Account],
-        goals: [Goal]
-    ) -> Bool {
-        transactions.isEmpty && snapshots.isEmpty && accounts.isEmpty && goals.isEmpty
     }
 }
