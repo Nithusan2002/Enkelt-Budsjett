@@ -85,23 +85,6 @@ struct BudgetView: View {
                     }
                 )
 
-                BudgetPrimaryActionCard(
-                    hasPlannedBudget: hasPlannedBudget,
-                    hasTransactions: !monthTransactions.isEmpty,
-                    isReadOnlyMode: isReadOnlyMode,
-                    onAddExpense: {
-                        addTransactionInitialType = .expense
-                        viewModel.showAddTransaction = true
-                    },
-                    onSetLimits: {
-                        if isReadOnlyMode {
-                            viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
-                        } else {
-                            viewModel.showGroupLimitsSheet = true
-                        }
-                    }
-                )
-
                 NavigationLink {
                     BudgetDetailsView(
                         fixedTotalThisMonth: fixedTotalThisMonth,
