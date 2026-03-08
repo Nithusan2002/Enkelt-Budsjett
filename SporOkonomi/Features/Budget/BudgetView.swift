@@ -49,6 +49,9 @@ struct BudgetView: View {
     private var fixedTotalThisMonth: Double {
         FixedItemsService.fixedTotalForMonth(periodKey: periodKey, transactions: transactions)
     }
+    private var groupsWithoutLimitWithSpendCount: Int {
+        viewModel.groupsWithoutLimitWithSpendCount(groupRows: groupRows)
+    }
 
     var body: some View {
         ScrollView {
@@ -67,9 +70,31 @@ struct BudgetView: View {
                     expenseTotal: summary.expenseTotal,
                     planned: summary.planned,
                     overBudgetCount: overBudgetCount,
+                    groupsWithoutLimitWithSpendCount: groupsWithoutLimitWithSpendCount,
+                    hasTransactions: !monthTransactions.isEmpty,
                     isOverBudgetFilterActive: viewModel.selectedFilter == .overLimit,
                     onToggleOverBudget: {
                         viewModel.selectedFilter = viewModel.selectedFilter == .overLimit ? .all : .overLimit
+                    },
+                    onSetLimits: {
+                        if isReadOnlyMode {
+                            viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+                        } else {
+                            viewModel.showGroupLimitsSheet = true
+                        }
+                    }
+                )
+
+                BudgetPrimaryActionCard(
+                    hasPlannedBudget: hasPlannedBudget,
+                    hasTransactions: !monthTransactions.isEmpty,
+                    isReadOnlyMode: isReadOnlyMode,
+                    onSetLimits: {
+                        if isReadOnlyMode {
+                            viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+                        } else {
+                            viewModel.showGroupLimitsSheet = true
+                        }
                     }
                 )
 
@@ -101,12 +126,9 @@ struct BudgetView: View {
                     fixedByGroup: fixedByGroup,
                     hasPlannedBudget: hasPlannedBudget,
                     hasTransactions: !monthTransactions.isEmpty,
-                    onSetLimits: {
-                        if isReadOnlyMode {
-                            viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
-                        } else {
-                            viewModel.showGroupLimitsSheet = true
-                        }
+                    onAddTransaction: {
+                        addTransactionInitialType = .expense
+                        viewModel.showAddTransaction = true
                     }
                 )
             }
@@ -165,6 +187,7 @@ struct BudgetView: View {
             SetGroupLimitsSheet(
                 periodKey: periodKey,
                 groupPlans: groupPlans,
+                groupRows: groupRows,
                 fixedByGroup: fixedByGroup,
                 viewModel: viewModel
             )

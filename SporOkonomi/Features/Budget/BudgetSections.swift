@@ -170,8 +170,11 @@ struct BudgetHeroCardView: View {
     let expenseTotal: Double
     let planned: Double
     let overBudgetCount: Int
+    let groupsWithoutLimitWithSpendCount: Int
+    let hasTransactions: Bool
     let isOverBudgetFilterActive: Bool
     let onToggleOverBudget: () -> Void
+    let onSetLimits: () -> Void
 
     private var spentSoFar: Double {
         hasPlannedBudget ? trackedActual : expenseTotal
@@ -184,12 +187,34 @@ struct BudgetHeroCardView: View {
 
     private var statusText: String {
         guard hasPlannedBudget else {
-            return "Ingen grenser satt ennå. Sett grenser når du vil styre per kategori."
+            if hasTransactions {
+                return "Dette inkluderer forbruk og sparing i valgt måned."
+            }
+            return "Når du registrerer transaksjoner, ser du forbruk og sparing samlet her."
         }
         if remaining >= 0 {
-            return "Du har \(formatNOK(remaining)) igjen av budsjettet."
+            return "Du har \(formatNOK(remaining)) igjen i grupper med satt grense."
         }
-        return "Du har brukt \(formatNOK(abs(remaining))) over budsjett."
+        return "Du har brukt \(formatNOK(abs(remaining))) mer enn planlagt i grupper med satt grense."
+    }
+
+    private var helperText: String {
+        guard hasPlannedBudget else {
+            return "Sett grenser for å se hvor mye du har igjen per måned."
+        }
+        if groupsWithoutLimitWithSpendCount > 0 {
+            let suffix = groupsWithoutLimitWithSpendCount == 1 ? "" : "r"
+            return "\(groupsWithoutLimitWithSpendCount) gruppe\(suffix) spores uten grense og teller ikke i månedsmålet ennå."
+        }
+        return "Beregnet ut fra grupper med satt grense."
+    }
+
+    private var filterButtonText: String {
+        if isOverBudgetFilterActive {
+            return "Vis alle grupper"
+        }
+        let suffix = overBudgetCount == 1 ? "" : "r"
+        return "Vis \(overBudgetCount) gruppe\(suffix) over budsjett"
     }
 
     var body: some View {
@@ -219,15 +244,33 @@ struct BudgetHeroCardView: View {
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(statusTone)
 
+            Text(helperText)
+                .appSecondaryStyle()
+
+            if !hasPlannedBudget {
+                Button("Sett grenser") {
+                    onSetLimits()
+                }
+                .appProminentCTAStyle()
+                .controlSize(.large)
+                .padding(.top, 4)
+            }
+
             if overBudgetCount > 0 {
+                if hasPlannedBudget && remaining < 0 {
+                    HStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(AppTheme.warning)
+                        Text("Du er over budsjett denne måneden. Se gruppene som trenger oppfølging.")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(AppTheme.warning)
+                    }
+                }
+
                 Button {
                     onToggleOverBudget()
                 } label: {
-                    Text(
-                        isOverBudgetFilterActive
-                            ? "Vis alle kategorier"
-                            : "Se \(overBudgetCount) kategori(er) over budsjett"
-                    )
+                    Text(filterButtonText)
                         .font(.footnote.weight(.semibold))
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
@@ -250,35 +293,87 @@ struct BudgetHeroCardView: View {
 
 }
 
+struct BudgetPrimaryActionCard: View {
+    let hasPlannedBudget: Bool
+    let hasTransactions: Bool
+    let isReadOnlyMode: Bool
+    let onSetLimits: () -> Void
+
+    private var title: String {
+        hasPlannedBudget ? "Juster grenser" : "Sett grenser"
+    }
+
+    private var subtitle: String {
+        if hasPlannedBudget {
+            return "Oppdater månedsgrensene når du vil justere planen."
+        }
+        if hasTransactions {
+            return "Forbruk spores allerede. Sett grenser når du vil følge hvor mye som gjenstår."
+        }
+        return "Du kan starte uten oppsett og legge inn grenser når måneden tar form."
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title)
+                .appCardTitleStyle()
+
+            Text(subtitle)
+                .appSecondaryStyle()
+
+            Button(title) {
+                onSetLimits()
+            }
+            .appProminentCTAStyle()
+            .controlSize(.large)
+            .disabled(isReadOnlyMode)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.divider, lineWidth: 1))
+    }
+}
+
 struct GroupListView: View {
     let rows: [BudgetGroupRow]
     let fixedByGroup: [String: Double]
     let hasPlannedBudget: Bool
     let hasTransactions: Bool
-    let onSetLimits: () -> Void
+    let onAddTransaction: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("Kategorier")
-                    .appCardTitleStyle()
-                Spacer()
-                Button(hasPlannedBudget ? "Juster grenser" : "Sett grenser") {
-                    onSetLimits()
-                }
-                .font(.footnote.weight(.semibold))
-                .buttonStyle(.plain)
-                .foregroundStyle(AppTheme.primary)
-            }
+            Text("Grupper")
+                .appCardTitleStyle()
 
-            if !hasPlannedBudget {
-                Text("Ingen grenser satt ennå. Du kan fortsatt følge forbruket, og legge til grenser når du vil.")
+            if !hasPlannedBudget && hasTransactions {
+                Text("Forbruk spores allerede. Grupper uten grense teller ikke i månedsmålet ennå.")
                     .appSecondaryStyle()
             }
 
             if rows.isEmpty {
-                Text(hasTransactions ? "Ingen aktive kategorier å vise." : "Legg til første utgift for å starte sporing.")
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(hasTransactions ? "Ingen grupper å vise ennå" : "Ingen utgifter registrert ennå")
+                        .font(.headline.weight(.semibold))
+                        .foregroundStyle(AppTheme.textPrimary)
+
+                    Text(
+                        hasTransactions
+                            ? "Når du får utgifter i en gruppe, dukker den opp her."
+                            : "Legg til første transaksjon for å begynne å spore måneden."
+                    )
                     .appSecondaryStyle()
+
+                    if !hasTransactions {
+                        Button("Legg til transaksjon") {
+                            onAddTransaction()
+                        }
+                        .buttonStyle(.plain)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(AppTheme.primary)
+                    }
+                }
             }
 
             ForEach(rows) { row in
@@ -492,13 +587,13 @@ struct AddTransactionSheet: View {
                                         }
                                     }
                                     .pickerStyle(.segmented)
-
-                                    Text(expenseMode == .saving ? "Viser kun sparekategorier." : "Viser kun utgiftskategorier.")
-                                        .appSecondaryStyle()
                                 }
 
+                                Text(categoryModeHelpText)
+                                    .appSecondaryStyle()
+
                                 if availableCategories.isEmpty {
-                                    Text("Ingen kategorier for valgt type.")
+                                    Text(categoryEmptyStateText)
                                         .appSecondaryStyle()
                                 } else {
                                     Button {
@@ -689,6 +784,35 @@ struct AddTransactionSheet: View {
     private var selectedCategory: Category? {
         guard let selectedCategoryID else { return nil }
         return availableCategories.first(where: { $0.id == selectedCategoryID })
+    }
+
+    private var categoryModeHelpText: String {
+        guard let selectedType else { return "" }
+        switch selectedType {
+        case .expense:
+            if expenseMode == .saving {
+                return "Sparing trekkes fra det som er tilgjengelig denne måneden og vises også i sparingsoversikten."
+            }
+            return "Forbruk føres på utgiftskategorier og påvirker gruppen det tilhører."
+        case .income:
+            return "Inntekter påvirker ikke brukt-beløpet, men vises i månedsdetaljene."
+        default:
+            return ""
+        }
+    }
+
+    private var categoryEmptyStateText: String {
+        guard let selectedType else { return "Velg type først." }
+        switch selectedType {
+        case .income:
+            return "Ingen inntektskategorier er tilgjengelige ennå."
+        case .expense:
+            return expenseMode == .saving
+                ? "Ingen sparekategorier er tilgjengelige ennå."
+                : "Ingen utgiftskategorier er tilgjengelige ennå."
+        default:
+            return "Ingen kategorier er tilgjengelige ennå."
+        }
     }
 
     private var entryHeading: String {
@@ -983,6 +1107,29 @@ struct GroupRowView: View {
         max(row.spent - fixedSpent, 0)
     }
 
+    private var statusLabel: (String, Color) {
+        if !row.hasLimit {
+            return ("Ingen grense satt", AppTheme.textSecondary)
+        }
+        if row.isOverBudget {
+            return ("Over budsjett", AppTheme.warning)
+        }
+        if row.isNearLimit {
+            return ("Nær grensen", AppTheme.secondary)
+        }
+        return ("Innenfor", AppTheme.positive)
+    }
+
+    private var summaryText: String {
+        guard let remaining = row.remaining else {
+            return "Forbruk spores, men teller ikke i månedsmålet ennå."
+        }
+        if remaining >= 0 {
+            return "\(formatNOK(remaining)) igjen i denne gruppen."
+        }
+        return "\(formatNOK(abs(remaining))) over grensen i denne gruppen."
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
@@ -1009,6 +1156,9 @@ struct GroupRowView: View {
                     .tint(row.isOverBudget ? AppTheme.warning : AppTheme.secondary)
             }
 
+            Text(summaryText)
+                .appSecondaryStyle()
+
             if fixedSpent > 0 {
                 Text("Fast: \(formatNOK(fixedSpent)) • Variabel: \(formatNOK(variableSpent))")
                     .font(.footnote)
@@ -1017,11 +1167,7 @@ struct GroupRowView: View {
             }
 
             HStack {
-                if row.isOverBudget {
-                    statusPill(text: "Over", color: AppTheme.warning)
-                } else if row.isNearLimit {
-                    statusPill(text: "Nær grensen", color: AppTheme.textSecondary)
-                }
+                statusPill(text: statusLabel.0, color: statusLabel.1)
                 Spacer()
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.semibold))
@@ -1066,6 +1212,7 @@ struct SetGroupLimitsSheet: View {
 
     let periodKey: String
     let groupPlans: [BudgetGroupPlan]
+    let groupRows: [BudgetGroupRow]
     let fixedByGroup: [String: Double]
     @ObservedObject var viewModel: BudgetViewModel
 
@@ -1085,24 +1232,28 @@ struct SetGroupLimitsSheet: View {
         groupPlans.contains { $0.monthPeriodKey == periodKey }
     }
 
+    private var previousValues: [BudgetGroup: Double?] {
+        viewModel.copyPreviousMonthGroupPlans(periodKey: periodKey, groupPlans: groupPlans)
+    }
+
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    Text("Du trenger bare å sette de du vil. Tomt = kun sporing.")
+                    Text("Sett bare grensene du trenger. Tomt betyr at gruppen spores uten å telle i månedsmålet.")
                         .appSecondaryStyle()
                 }
 
-                Section("Grupper") {
+                Section("Månedsgrenser") {
                     ForEach(BudgetGroup.allCases) { group in
                         VStack(alignment: .leading, spacing: 6) {
                             HStack {
-                                Text(group.title)
+                                Text("Månedsgrense for \(group.title)")
                                 Spacer()
                                 HStack(spacing: 6) {
                                     Text("kr")
                                         .foregroundStyle(AppTheme.textSecondary)
-                                    TextField("Tomt", text: binding(for: group))
+                                    TextField("Ingen grense satt", text: binding(for: group))
                                         .keyboardType(.decimalPad)
                                         .multilineTextAlignment(.trailing)
                                         .monospacedDigit()
@@ -1110,12 +1261,26 @@ struct SetGroupLimitsSheet: View {
                                 }
                             }
 
+                            Text(previousMonthText(for: group))
+                                .appSecondaryStyle()
+
+                            Text("Brukt hittil: \(formatNOK(viewModel.currentSpent(for: group, groupRows: groupRows)))")
+                                .font(.footnote)
+                                .foregroundStyle(AppTheme.textSecondary)
+                                .monospacedDigit()
+
                             let fixedTotal = fixedByGroup[group.rawValue] ?? 0
                             if fixedTotal > 0 {
                                 Text("Faste poster: \(formatNOK(fixedTotal))")
                                     .font(.footnote)
                                     .foregroundStyle(AppTheme.textSecondary)
                                     .monospacedDigit()
+                            }
+
+                            if let suggestionText = suggestionText(for: group) {
+                                Text(suggestionText)
+                                    .font(.footnote)
+                                    .foregroundStyle(AppTheme.textSecondary)
                             }
 
                             if let entered = parsedValue(for: group),
@@ -1132,8 +1297,8 @@ struct SetGroupLimitsSheet: View {
                 }
 
                 Section {
-                    Button("Kopier forrige måned") {
-                        let previous = viewModel.copyPreviousMonthGroupPlans(periodKey: periodKey, groupPlans: groupPlans)
+                    Button("Kopier fra forrige måned") {
+                        let previous = previousValues
                         for group in BudgetGroup.allCases {
                             if let value = previous[group] ?? nil, value > 0 {
                                 values[group] = AppAmountInput.format(value)
@@ -1149,7 +1314,7 @@ struct SetGroupLimitsSheet: View {
                     }
                 }
             }
-            .navigationTitle("Grenser")
+            .navigationTitle("Månedsgrenser")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Avbryt") { dismiss() }
@@ -1204,6 +1369,19 @@ struct SetGroupLimitsSheet: View {
         let raw = values[group, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
         guard !raw.isEmpty else { return nil }
         return AppAmountInput.parse(raw)
+    }
+
+    private func previousMonthText(for group: BudgetGroup) -> String {
+        if let previous = previousValues[group] ?? nil, previous > 0 {
+            return "Forrige måned: \(formatNOK(previous))"
+        }
+        return "Forrige måned: Ingen grense satt"
+    }
+
+    private func suggestionText(for group: BudgetGroup) -> String? {
+        guard values[group, default: ""].trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        guard let previous = previousValues[group] ?? nil, previous > 0 else { return nil }
+        return "Forslag: Start med \(formatNOK(previous)) og juster ved behov."
     }
 
 }

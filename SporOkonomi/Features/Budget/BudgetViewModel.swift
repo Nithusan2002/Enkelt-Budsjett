@@ -36,6 +36,11 @@ struct BudgetGroupRow: Identifiable {
         let ratio = spent / planned
         return ratio >= 0.8 && ratio <= 1.0
     }
+
+    var remaining: Double? {
+        guard let planned else { return nil }
+        return planned - spent
+    }
 }
 
 @MainActor
@@ -297,6 +302,14 @@ final class BudgetViewModel: ObservableObject {
             totals[category.groupKey, default: 0] += impact
         }
         return totals
+    }
+
+    func groupsWithoutLimitWithSpendCount(groupRows: [BudgetGroupRow]) -> Int {
+        groupRows.filter { !$0.hasLimit && $0.spent > 0 }.count
+    }
+
+    func currentSpent(for group: BudgetGroup, groupRows: [BudgetGroupRow]) -> Double {
+        groupRows.first(where: { $0.group == group })?.spent ?? 0
     }
 
     func monthTransactions(periodKey: String, transactions: [Transaction]) -> [Transaction] {
