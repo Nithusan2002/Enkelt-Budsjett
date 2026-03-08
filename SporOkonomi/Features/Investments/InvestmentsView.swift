@@ -4,6 +4,7 @@ import Charts
 import UIKit
 
 struct InvestmentsView: View {
+    @EnvironmentObject private var navigationState: AppNavigationState
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \InvestmentBucket.sortOrder) private var buckets: [InvestmentBucket]
     @Query(sort: \InvestmentSnapshot.periodKey) private var snapshots: [InvestmentSnapshot]
@@ -12,16 +13,39 @@ struct InvestmentsView: View {
     @StateObject private var viewModel = InvestmentsViewModel()
     @State private var showFullHistory = false
     @State private var checkInToastMessage: String?
+    @State private var historyFilter: InvestmentsHistoryFilter = .threeMonths
+    @State private var selectedDistributionBucketID: String?
     private var isReadOnlyMode: Bool { PersistenceGate.isReadOnlyMode }
 
-    private var latest: InvestmentSnapshot? { viewModel.latestSnapshot(snapshots) }
-    private var previous: InvestmentSnapshot? { viewModel.previousSnapshot(snapshots) }
-    private var history: [InvestmentSnapshot] { viewModel.history(snapshots) }
-    private var visibleHistory: [InvestmentSnapshot] {
-        showFullHistory ? history : Array(history.prefix(8))
+    private enum SectionAnchor: String {
+        case development
+        case distribution
     }
-    private var changeSincePrevious: (kr: Double, pct: Double?) {
-        viewModel.monthChange(current: latest, previous: previous)
+
+    private enum InvestmentsHistoryFilter: String, CaseIterable {
+        case threeMonths
+        case twelveMonths
+        case all
+
+        var title: String {
+            switch self {
+            case .threeMonths:
+                return "3 mnd"
+            case .twelveMonths:
+                return "12 mnd"
+            case .all:
+                return "Alle"
+            }
+        }
+    }
+
+    private var latest: InvestmentSnapshot? { viewModel.latestSnapshot(snapshots) }
+    private var hero: InvestmentHeroData { viewModel.heroData(snapshots: snapshots, preference: preferences.first) }
+    private var bucketRows: [InvestmentBucketRowData] {
+        viewModel.bucketRows(buckets: buckets, snapshots: snapshots, range: viewModel.selectedRange)
+    }
+    private var filteredSnapshots: [InvestmentSnapshot] {
+        viewModel.filteredSnapshots(snapshots, range: viewModel.selectedRange)
     }
     private var activeBuckets: [InvestmentBucket] {
         buckets.filter(\.isActive)
@@ -33,126 +57,422 @@ struct InvestmentsView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                heroCard
-                historyCard
+        ScrollViewReader { proxy in
+            List {
+                heroSection
+                    .id(SectionAnchor.development.rawValue)
+                distributionSection
+                    .id(SectionAnchor.distribution.rawValue)
+                holdingsSection
+                historySection
+                administrationSection
             }
-            .padding()
-        }
-        .background(AppTheme.background)
-        .navigationTitle("Investeringer")
-        .refreshable {
-            viewModel.refreshData(snapshots: snapshots)
-        }
-        .sheet(isPresented: $viewModel.showCheckIn) {
-            InvestmentCheckInWizardView(
-                buckets: buckets,
-                snapshots: snapshots,
-                onRequestNewType: {
+            .listStyle(.insetGrouped)
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background)
+            .navigationTitle("Investeringer")
+            .refreshable {
+                viewModel.refreshData(snapshots: snapshots)
+            }
+            .sheet(isPresented: $viewModel.showCheckIn) {
+                InvestmentCheckInWizardView(
+                    buckets: buckets,
+                    snapshots: snapshots,
+                    onRequestNewType: {
+                        viewModel.resetAddBucketState()
+                        viewModel.showAddBucketSheet = true
+                    },
+                    onSaved: { wasNewSnapshot, periodKey in
+                        showCheckInToast(
+                            wasNewSnapshot
+                                ? "Innsjekk lagret for \(periodKey) ✓"
+                                : "Innsjekk oppdatert for \(periodKey) ✓"
+                        )
+                    }
+                )
+            }
+            .sheet(isPresented: $viewModel.showAddBucketSheet) {
+                AddInvestmentBucketSheet(
+                    name: $viewModel.newBucketName,
+                    selectedColorHex: $viewModel.selectedBucketColorHex,
+                    errorMessage: viewModel.addBucketError
+                ) {
+                    viewModel.addBucket(context: modelContext, existingBuckets: buckets)
+                } onCancel: {
                     viewModel.resetAddBucketState()
-                    viewModel.showAddBucketSheet = true
-                },
-                onSaved: { wasNewSnapshot, periodKey in
-                    showCheckInToast(
-                        wasNewSnapshot
-                            ? "Snapshot lagret for \(periodKey) ✓"
-                            : "Snapshot oppdatert for \(periodKey) ✓"
+                }
+            }
+            .sheet(item: $viewModel.selectedBucketForEdit) { bucket in
+                EditInvestmentBucketSheet(
+                    bucket: bucket,
+                    existingBuckets: buckets
+                )
+            }
+            .navigationDestination(for: String.self) { bucketID in
+                if let bucket = buckets.first(where: { $0.id == bucketID }) {
+                    BucketDetailView(bucket: bucket, snapshots: snapshots)
+                } else {
+                    Text("Finner ikke beholdning")
+                        .appSecondaryStyle()
+                }
+            }
+            .onAppear {
+                if !isReadOnlyMode {
+                    viewModel.ensureDefaultBuckets(context: modelContext, existingBuckets: buckets)
+                }
+                viewModel.onAppear(preference: preferences.first, snapshots: snapshots)
+            }
+            .onChange(of: snapshotToken) { _, _ in
+                viewModel.refreshData(snapshots: snapshots)
+            }
+            .onChange(of: viewModel.developmentPeriod) { _, period in
+                switch period {
+                case .sixMonths, .last12Months:
+                    viewModel.selectedRange = .oneYear
+                case .total:
+                    viewModel.selectedRange = .max
+                }
+            }
+            .onChange(of: navigationState.investmentsFocus) { _, focus in
+                guard let focus else { return }
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    proxy.scrollTo(focus.rawValue, anchor: .top)
+                }
+                navigationState.investmentsFocus = nil
+            }
+            .safeAreaInset(edge: .bottom) {
+                if let checkInToastMessage {
+                    Text(checkInToastMessage)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(AppTheme.textPrimary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .background(AppTheme.surfaceElevated, in: Capsule())
+                        .overlay(Capsule().stroke(AppTheme.divider, lineWidth: 1))
+                        .padding(.bottom, 6)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+            .alert(
+                "Kunne ikke lagre endringer",
+                isPresented: Binding(
+                    get: { viewModel.persistenceErrorMessage != nil },
+                    set: { if !$0 { viewModel.clearPersistenceError() } }
+                )
+            ) {
+                Button("OK", role: .cancel) {
+                    viewModel.clearPersistenceError()
+                }
+            } message: {
+                Text(viewModel.persistenceErrorMessage ?? "Prøv igjen litt senere.")
+            }
+        }
+    }
+
+    private var heroSection: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Total beholdning")
+                            .appSecondaryStyle()
+                        Text("Basert på totalsummene du legger inn.")
+                            .appSecondaryStyle()
+                    }
+                    Spacer()
+                    Button {
+                        openCheckIn()
+                    } label: {
+                        Label("Ny innsjekk", systemImage: "arrow.triangle.2.circlepath")
+                    }
+                    .font(.footnote.weight(.semibold))
+                    .buttonStyle(.bordered)
+                    .tint(AppTheme.primary)
+                    .disabled(isReadOnlyMode)
+                }
+
+                Text(formatNOK(viewModel.displayedTotal))
+                    .appBigNumberStyle()
+                    .foregroundStyle(AppTheme.textPrimary)
+                    .contentTransition(.numericText(value: viewModel.displayedTotal))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.68)
+                    .allowsTightening(true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .layoutPriority(2)
+
+                if latest == nil {
+                    Text("Legg inn første snapshot. Grovt tall holder.")
+                        .appSecondaryStyle()
+                } else if viewModel.showTrendChip {
+                    trendChip(changeKr: hero.changeKr, changePct: hero.changePct)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+
+                VStack(alignment: .leading, spacing: 6) {
+                    heroMetaRow(icon: "calendar", text: hero.lastCheckInText)
+                    heroMetaRow(icon: "clock", text: hero.nextCheckInText)
+                    heroMetaRow(icon: "bell", text: hero.reminderText)
+                }
+
+                Divider()
+                    .overlay(AppTheme.divider)
+                    .padding(.vertical, 2)
+
+                Text("Utvikling")
+                    .appCardTitleStyle()
+
+                InvestmentsDevelopmentChartView(
+                    points: viewModel.developmentChartPoints(snapshots: snapshots, buckets: buckets),
+                    period: $viewModel.developmentPeriod,
+                    onUpdateValues: openCheckIn,
+                    embedded: true,
+                    showStatusRow: false
+                )
+            }
+            .padding(16)
+            .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 18))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18)
+                    .stroke(AppTheme.divider, lineWidth: 1)
+            )
+            .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0))
+            .listRowBackground(Color.clear)
+        }
+    }
+
+    private var holdingsSection: some View {
+        Section("Beholdning") {
+            if bucketRows.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Ingen aktive beholdninger ennå.")
+                        .appSecondaryStyle()
+                    Button("Legg til type") {
+                        viewModel.resetAddBucketState()
+                        viewModel.showAddBucketSheet = true
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(AppTheme.primary)
+                    .disabled(isReadOnlyMode)
+                }
+            } else {
+                ForEach(bucketRows) { row in
+                    NavigationLink(value: row.id) {
+                        bucketRow(row)
+                    }
+                    .moveDisabled(isReadOnlyMode)
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        if let bucket = buckets.first(where: { $0.id == row.id }) {
+                            Button("Rediger") {
+                                guard !isReadOnlyMode else {
+                                    viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+                                    return
+                                }
+                                viewModel.selectedBucketForEdit = bucket
+                            }
+                            .tint(AppTheme.secondary)
+
+                            Button("Skjul", role: .destructive) {
+                                guard !isReadOnlyMode else {
+                                    viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+                                    return
+                                }
+                                viewModel.hideBucket(bucket, context: modelContext)
+                            }
+                        }
+                    }
+                }
+                .onMove { source, destination in
+                    guard !isReadOnlyMode else {
+                        viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+                        return
+                    }
+                    viewModel.moveActiveBuckets(
+                        from: source,
+                        to: destination,
+                        allBuckets: buckets,
+                        context: modelContext
                     )
                 }
-            )
+            }
         }
-        .sheet(isPresented: $viewModel.showAddBucketSheet) {
-            AddInvestmentBucketSheet(
-                name: $viewModel.newBucketName,
-                selectedColorHex: $viewModel.selectedBucketColorHex,
-                errorMessage: viewModel.addBucketError
-            ) {
-                viewModel.addBucket(context: modelContext, existingBuckets: buckets)
-            } onCancel: {
+    }
+
+    private var administrationSection: some View {
+        let hiddenBuckets = buckets.filter { !$0.isActive }
+        return Section("Administrasjon") {
+            Button {
                 viewModel.resetAddBucketState()
+                viewModel.showAddBucketSheet = true
+            } label: {
+                Label("Legg til beholdningstype", systemImage: "plus.circle")
             }
-        }
-        .sheet(item: $viewModel.selectedBucketForEdit) { bucket in
-            EditInvestmentBucketSheet(
-                bucket: bucket,
-                existingBuckets: buckets
-            )
-        }
-        .onAppear {
-            if !isReadOnlyMode {
-                viewModel.ensureDefaultBuckets(context: modelContext, existingBuckets: buckets)
-            }
-            viewModel.onAppear(preference: preferences.first, snapshots: snapshots)
-        }
-        .onChange(of: snapshotToken) { _, _ in
-            viewModel.refreshData(snapshots: snapshots)
-        }
-        .safeAreaInset(edge: .bottom) {
-            if let checkInToastMessage {
-                Text(checkInToastMessage)
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(AppTheme.textPrimary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(AppTheme.surfaceElevated, in: Capsule())
-                    .overlay(Capsule().stroke(AppTheme.divider, lineWidth: 1))
-                    .padding(.bottom, 6)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
-        }
-        .alert(
-            "Kunne ikke lagre endringer",
-            isPresented: Binding(
-                get: { viewModel.persistenceErrorMessage != nil },
-                set: { if !$0 { viewModel.clearPersistenceError() } }
-            )
-        ) {
-            Button("OK", role: .cancel) {
-                viewModel.clearPersistenceError()
-            }
-        } message: {
-            Text(viewModel.persistenceErrorMessage ?? "Prøv igjen litt senere.")
-        }
-    }
-
-    private var heroCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Total verdi")
-                .appSecondaryStyle()
-
-            Text(formatNOK(viewModel.displayedTotal))
-                .appBigNumberStyle()
-                .foregroundStyle(AppTheme.textPrimary)
-                .contentTransition(.numericText(value: viewModel.displayedTotal))
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-
-            Text(changeSummaryText())
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(changeColor)
-
-            Text(latest.map { "Sist registrert \(formatDate($0.capturedAt))" } ?? "Ingen snapshots registrert ennå.")
-                .appSecondaryStyle()
-
-            Button("Legg til snapshot") {
-                openCheckIn()
-            }
-            .appProminentCTAStyle()
+            .foregroundStyle(AppTheme.primary)
             .disabled(isReadOnlyMode)
+
+            if hiddenBuckets.isEmpty {
+                Text("Ingen skjulte beholdningstyper.")
+                    .appSecondaryStyle()
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Skjulte beholdninger")
+                        .appSecondaryStyle()
+                    ForEach(hiddenBuckets) { bucket in
+                        HStack {
+                            Circle()
+                                .fill(AppTheme.portfolioColor(for: bucket))
+                                .frame(width: 10, height: 10)
+                            Text(bucket.name)
+                                .appBodyStyle()
+                            Spacer()
+                            Button("Vis igjen") {
+                                guard !isReadOnlyMode else {
+                                    viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+                                    return
+                                }
+                                viewModel.restoreBucket(bucket, context: modelContext, existingBuckets: buckets)
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(AppTheme.primary)
+                        }
+                    }
+                }
+            }
         }
-        .padding()
-        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
     }
 
-    private var historyCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Historikk")
-                    .appCardTitleStyle()
-                Spacer()
-                if history.count > 8 {
+    private var distributionSection: some View {
+        let data = viewModel.distributionData(latestSnapshot: latest, buckets: buckets)
+        return Section("Fordeling") {
+            if data.isEmpty {
+                Text("Fordeling vises etter første snapshot.")
+                    .appSecondaryStyle()
+            } else if viewModel.shouldShowDonut(distributionData: data) {
+                Chart(data, id: \.bucketID) { item in
+                    SectorMark(
+                        angle: .value("Beløp", item.amount),
+                        innerRadius: .ratio(0.58),
+                        outerRadius: .ratio(selectedDistributionBucketID == nil || selectedDistributionBucketID == item.bucketID ? 1.0 : 0.93),
+                        angularInset: selectedDistributionBucketID == item.bucketID ? 4 : 2
+                    )
+                    .foregroundStyle(portfolioColor(bucketID: item.bucketID, fallbackName: item.bucketName))
+                }
+                .frame(height: 180)
+                .accessibilityLabel("Fordeling av beholdning")
+                .accessibilityValue(distributionAccessibilitySummary(data))
+
+                ForEach(data, id: \.bucketID) { item in
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.18)) {
+                            if selectedDistributionBucketID == item.bucketID {
+                                selectedDistributionBucketID = nil
+                            } else {
+                                selectedDistributionBucketID = item.bucketID
+                            }
+                        }
+                    } label: {
+                        HStack {
+                            Circle()
+                                .fill(portfolioColor(bucketID: item.bucketID, fallbackName: item.bucketName))
+                                .frame(width: 10, height: 10)
+                            Text(item.bucketName)
+                                .appBodyStyle()
+                            Spacer()
+                            Text(formatPercent(item.percent))
+                                .appSecondaryStyle()
+                            Text(formatNOK(item.amount))
+                                .appBodyStyle()
+                                .monospacedDigit()
+                        }
+                        .padding(.vertical, 4)
+                        .padding(.horizontal, 6)
+                        .background(
+                            selectedDistributionBucketID == item.bucketID
+                                ? AppTheme.surfaceElevated
+                                : Color.clear,
+                            in: RoundedRectangle(cornerRadius: 8)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                if let selected = data.first(where: { $0.bucketID == selectedDistributionBucketID }) {
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(portfolioColor(bucketID: selected.bucketID, fallbackName: selected.bucketName))
+                            .frame(width: 8, height: 8)
+                        Text(selected.bucketName)
+                            .font(.footnote.weight(.semibold))
+                        Text("· Andel \(formatPercent(selected.percent))")
+                            .appSecondaryStyle()
+                        if let row = bucketRows.first(where: { $0.id == selected.bucketID }) {
+                            Text("· \(changeAmountText(changeKr: row.changeKr))")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(row.changeKr >= 0 ? AppTheme.positive : AppTheme.negative)
+                                .monospacedDigit()
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.top, 4)
+                }
+            } else if let only = data.first {
+                HStack {
+                    Circle()
+                        .fill(portfolioColor(bucketID: only.bucketID, fallbackName: only.bucketName))
+                        .frame(width: 10, height: 10)
+                    Text("\(only.bucketName): \(formatPercent(only.percent))")
+                        .appBodyStyle()
+                    Spacer()
+                    Text(formatNOK(only.amount))
+                        .appBodyStyle()
+                        .monospacedDigit()
+                }
+            }
+        }
+    }
+
+    private var historySection: some View {
+        let allHistory = viewModel.history(snapshots)
+        let filteredHistory = filteredHistorySnapshots(allHistory, filter: historyFilter)
+        let history = showFullHistory ? filteredHistory : Array(filteredHistory.prefix(6))
+        return Section("Historikk") {
+            if allHistory.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Legg inn første snapshot (tar 20 sek)")
+                        .appCardTitleStyle()
+                    Text("Grovt tall er nok.")
+                        .appSecondaryStyle()
+                    Button("Ny innsjekk") {
+                        openCheckIn()
+                    }
+                    .appProminentCTAStyle()
+                    .disabled(isReadOnlyMode)
+                }
+                .padding(12)
+            } else {
+                Picker("Periode", selection: $historyFilter) {
+                    ForEach(InvestmentsHistoryFilter.allCases, id: \.rawValue) { filter in
+                        Text(filter.title).tag(filter)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                if filteredHistory.isEmpty {
+                    Text("Ingen innsjekker i valgt periode.")
+                        .appSecondaryStyle()
+                }
+
+                ForEach(history, id: \.periodKey) { snapshot in
+                    HStack {
+                        Text(formatPeriodKeyAsDate(snapshot.periodKey))
+                            .appBodyStyle()
+                        Spacer()
+                        Text(formatNOK(snapshot.totalValue))
+                            .appBodyStyle()
+                            .monospacedDigit()
+                    }
+                }
+                if filteredHistory.count > 6 {
                     Button(showFullHistory ? "Vis færre" : "Se alle") {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             showFullHistory.toggle()
@@ -162,52 +482,10 @@ struct InvestmentsView: View {
                     .foregroundStyle(AppTheme.primary)
                 }
             }
-
-            if history.isEmpty {
-                Text("Legg inn første snapshot for å bygge historikk.")
-                    .appSecondaryStyle()
-            } else {
-                ForEach(visibleHistory, id: \.periodKey) { snapshot in
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(formatDate(snapshot.capturedAt))
-                                .appBodyStyle()
-                            Text(snapshot.periodKey)
-                                .appSecondaryStyle()
-                        }
-                        Spacer()
-                        Text(formatNOK(snapshot.totalValue))
-                            .font(.subheadline.weight(.semibold))
-                            .monospacedDigit()
-                            .foregroundStyle(AppTheme.textPrimary)
-                    }
-                    .padding(.vertical, 4)
-                }
-            }
         }
-        .padding()
-        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
-    }
-
-    private var changeColor: Color {
-        if latest == nil || previous == nil {
-            return AppTheme.textSecondary
+        .onChange(of: historyFilter) { _, _ in
+            showFullHistory = false
         }
-        if changeSincePrevious.kr > 0 { return AppTheme.positive }
-        if changeSincePrevious.kr < 0 { return AppTheme.negative }
-        return AppTheme.textSecondary
-    }
-
-    private func changeSummaryText() -> String {
-        guard latest != nil else {
-            return "Grovt tall holder for å komme i gang."
-        }
-        guard previous != nil else {
-            return "Siden forrige registrering: Ingen tidligere snapshot."
-        }
-        let sign = changeSincePrevious.kr >= 0 ? "+" : "−"
-        return "Siden forrige registrering: \(sign)\(formatNOK(abs(changeSincePrevious.kr)))"
     }
 
     private func showCheckInToast(_ message: String) {
@@ -219,6 +497,128 @@ struct InvestmentsView: View {
                 checkInToastMessage = nil
             }
         }
+    }
+
+    private func trendChip(changeKr: Double, changePct: Double?) -> some View {
+        let isPositive = changeKr >= 0
+        let arrow = isPositive ? "▲" : "▼"
+        let valueText = isPositive
+            ? "+\(formatNOK(abs(changeKr)))"
+            : "-\(formatNOK(abs(changeKr)))"
+        let pctText = changePct.map { " (\(formatPercent($0)))" } ?? ""
+
+        return Text("\(arrow) \(valueText)\(pctText) siden forrige innsjekk")
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(isPositive ? AppTheme.positive : AppTheme.negative)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background((isPositive ? AppTheme.positive : AppTheme.negative).opacity(0.12), in: Capsule())
+    }
+
+    private func heroMetaRow(icon: String, text: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(AppTheme.textSecondary)
+                .frame(width: 16)
+            Text(text)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(AppTheme.textSecondary)
+            Spacer()
+        }
+    }
+
+    private func bucketRow(_ row: InvestmentBucketRowData) -> some View {
+        let bucketColor = portfolioColor(bucketID: row.id, fallbackName: row.name)
+        let changeColor: Color = {
+            if row.changeKr > 0 { return AppTheme.positive }
+            if row.changeKr < 0 { return AppTheme.negative }
+            return AppTheme.textSecondary
+        }()
+
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                Circle()
+                    .fill(bucketColor)
+                    .frame(width: 9, height: 9)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(row.name)
+                        .appCardTitleStyle()
+                        .lineLimit(1)
+                    Text(formatNOK(row.amount))
+                        .appBodyStyle()
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                sparkline(series: row.sparkline, color: bucketColor)
+                    .frame(width: 78, height: 30)
+                    .accessibilityHidden(true)
+
+                VStack(alignment: .trailing, spacing: 1) {
+                    Text(changeAmountText(changeKr: row.changeKr))
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(changeColor)
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                    if let pct = row.changePct {
+                        Text("(\(formatPercent(pct)))")
+                            .font(.caption)
+                            .foregroundStyle(changeColor)
+                            .monospacedDigit()
+                            .lineLimit(1)
+                    }
+                }
+                .frame(width: 108, alignment: .trailing)
+            }
+
+            Text("Sist oppdatert \(formatDate(row.lastUpdated ?? .now))")
+                .appSecondaryStyle()
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func sparkline(series: [Double], color: Color) -> some View {
+        let points = viewModel.bucketSparklinePoints(series)
+        return Chart(points) { point in
+            LineMark(
+                x: .value("Index", point.index),
+                y: .value("Beløp", point.value)
+            )
+            .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+            .foregroundStyle(color)
+        }
+        .chartXAxis(.hidden)
+        .chartYAxis(.hidden)
+        .chartPlotStyle { plot in
+            plot.background(Color.clear)
+        }
+    }
+
+    private func changeAmountText(changeKr: Double) -> String {
+        changeKr >= 0 ? "+\(formatNOK(abs(changeKr)))" : "-\(formatNOK(abs(changeKr)))"
+    }
+
+    private func portfolioColor(bucketID: String, fallbackName: String) -> Color {
+        if let bucket = buckets.first(where: { $0.id == bucketID }) {
+            return AppTheme.portfolioColor(for: bucket)
+        }
+        return AppTheme.portfolioColor(for: fallbackName)
+    }
+
+    private func distributionAccessibilitySummary(_ data: [(bucketID: String, bucketName: String, amount: Double, percent: Double)]) -> String {
+        guard !data.isEmpty else { return "Ingen fordeling ennå." }
+        return data
+            .sorted { $0.percent > $1.percent }
+            .prefix(3)
+            .map { "\($0.bucketName) \(formatPercent($0.percent))" }
+            .joined(separator: ", ")
     }
 
     private func openCheckIn() {
@@ -235,6 +635,21 @@ struct InvestmentsView: View {
         }
         viewModel.showCheckIn = true
     }
+
+    private func filteredHistorySnapshots(
+        _ history: [InvestmentSnapshot],
+        filter: InvestmentsHistoryFilter
+    ) -> [InvestmentSnapshot] {
+        switch filter {
+        case .all:
+            return InvestmentsHistoryHelper.filteredHistorySnapshots(history, months: nil)
+        case .threeMonths:
+            return InvestmentsHistoryHelper.filteredHistorySnapshots(history, months: 3)
+        case .twelveMonths:
+            return InvestmentsHistoryHelper.filteredHistorySnapshots(history, months: 12)
+        }
+    }
+
 }
 
 private struct AddInvestmentBucketSheet: View {

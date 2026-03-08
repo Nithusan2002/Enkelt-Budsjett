@@ -9,12 +9,6 @@ struct GoalSummary {
     let perMonth: Double
 }
 
-struct OverviewUpcomingFixedExpense {
-    let title: String
-    let amount: Double
-    let dueDate: Date
-}
-
 @MainActor
 final class OverviewViewModel: ObservableObject {
     @Published var selectedRange: GraphViewRange = .yearToDate
@@ -77,7 +71,7 @@ final class OverviewViewModel: ObservableObject {
         plans: [BudgetPlan],
         transactions: [Transaction],
         now: Date = .now
-    ) -> (hasPlan: Bool, remaining: Double, net: Double, spent: Double, planned: Double) {
+    ) -> (hasPlan: Bool, remaining: Double, net: Double) {
         let monthKey = DateService.periodKey(from: now)
         let hasPlan = plans.contains { $0.monthPeriodKey == monthKey && $0.plannedAmount > 0 }
         let planned = plans
@@ -87,33 +81,7 @@ final class OverviewViewModel: ObservableObject {
         let income = BudgetService.actualIncomeTotal(for: monthKey, transactions: transactions)
         let net = income - actual
         let remaining = planned - actual
-        return (hasPlan, remaining, net, actual, planned)
-    }
-
-    func availableNowAmount(
-        budgetStatus: (hasPlan: Bool, remaining: Double, net: Double, spent: Double, planned: Double)
-    ) -> Double {
-        budgetStatus.hasPlan ? budgetStatus.remaining : budgetStatus.net
-    }
-
-    func upcomingFixedExpense(
-        fixedItems: [FixedItem],
-        now: Date = .now
-    ) -> OverviewUpcomingFixedExpense? {
-        let upcomingExpenses: [OverviewUpcomingFixedExpense] = fixedItems
-            .filter { $0.isActive && $0.kind == .expense }
-            .compactMap { item -> OverviewUpcomingFixedExpense? in
-                guard let dueDate = nextDueDate(for: item, now: now) else { return nil }
-                return OverviewUpcomingFixedExpense(
-                    title: item.title,
-                    amount: abs(item.amount),
-                    dueDate: dueDate
-                )
-            }
-
-        return upcomingExpenses
-            .sorted { lhs, rhs in lhs.dueDate < rhs.dueDate }
-            .first
+        return (hasPlan, remaining, net)
     }
 
     func scopeText(activeGoal: Goal?) -> String {
@@ -148,29 +116,5 @@ final class OverviewViewModel: ObservableObject {
                 .replacingOccurrences(of: "{x}", with: formatNOK(savedAmount))
                 .replacingOccurrences(of: "{p}", with: period)
         }
-    }
-
-    private func nextDueDate(for item: FixedItem, now: Date) -> Date? {
-        let calendar = Calendar.current
-        let startOfToday = calendar.startOfDay(for: now)
-        let itemStart = calendar.startOfDay(for: item.startDate)
-        let itemEnd = item.endDate.map { calendar.startOfDay(for: $0) }
-
-        for monthOffset in 0...12 {
-            guard let monthDate = calendar.date(byAdding: .month, value: monthOffset, to: startOfToday),
-                  let dayRange = calendar.range(of: .day, in: .month, for: monthDate) else {
-                continue
-            }
-
-            var components = calendar.dateComponents([.year, .month], from: monthDate)
-            components.day = min(max(item.dayOfMonth, 1), dayRange.count)
-
-            guard let dueDate = calendar.date(from: components) else { continue }
-            if dueDate < startOfToday || dueDate < itemStart { continue }
-            if let itemEnd, dueDate > itemEnd { continue }
-            return dueDate
-        }
-
-        return nil
     }
 }

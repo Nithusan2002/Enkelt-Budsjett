@@ -180,36 +180,106 @@ struct BudgetHeroCardView: View {
         hasPlannedBudget ? trackedActual : expenseTotal
     }
 
+    private var statusTone: Color {
+        if !hasPlannedBudget { return AppTheme.textSecondary }
+        return remaining < 0 ? AppTheme.warning : AppTheme.positive
+    }
+
+    private var statusText: String {
+        guard hasPlannedBudget else {
+            if hasTransactions {
+                return "Dette inkluderer forbruk og sparing i valgt måned."
+            }
+            return "Når du registrerer transaksjoner, ser du forbruk og sparing samlet her."
+        }
+        if remaining >= 0 {
+            return "Du har \(formatNOK(remaining)) igjen i grupper med satt grense."
+        }
+        return "Du har brukt \(formatNOK(abs(remaining))) mer enn planlagt i grupper med satt grense."
+    }
+
+    private var helperText: String {
+        guard hasPlannedBudget else {
+            return "Sett grenser for å se hvor mye du har igjen per måned."
+        }
+        if groupsWithoutLimitWithSpendCount > 0 {
+            let suffix = groupsWithoutLimitWithSpendCount == 1 ? "" : "r"
+            return "\(groupsWithoutLimitWithSpendCount) gruppe\(suffix) spores uten grense og teller ikke i månedsmålet ennå."
+        }
+        return "Beregnet ut fra grupper med satt grense."
+    }
+
+    private var filterButtonText: String {
+        if isOverBudgetFilterActive {
+            return "Vis alle grupper"
+        }
+        let suffix = overBudgetCount == 1 ? "" : "r"
+        return "Vis \(overBudgetCount) gruppe\(suffix) over budsjett"
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Denne måneden")
-                .appCardTitleStyle()
+        VStack(alignment: .leading, spacing: 12) {
+            if hasPlannedBudget {
+                Text("Gjenstår denne måneden")
+                    .appSecondaryStyle()
+                Text(formatNOK(remaining))
+                    .appBigNumberStyle()
+                    .foregroundStyle(remaining < 0 ? AppTheme.warning : AppTheme.textPrimary)
 
-            HStack(spacing: 12) {
-                budgetMetric(
-                    title: "Igjen denne måneden",
-                    valueText: hasPlannedBudget ? formatNOK(remaining) : "Ikke satt",
-                    tone: hasPlannedBudget
-                        ? (remaining < 0 ? AppTheme.warning : AppTheme.textPrimary)
-                        : AppTheme.textSecondary
-                )
+                Text("Brukt \(formatNOK(spentSoFar)) av \(formatNOK(planned))")
+                    .appSecondaryStyle()
 
-                budgetMetric(
-                    title: "Brukt så langt",
-                    valueText: formatNOK(spentSoFar),
-                    tone: AppTheme.textPrimary
-                )
+                let progress = clampedProgress(value: spentSoFar, total: planned)
+                ProgressView(value: progress.value, total: progress.total)
+                    .tint(remaining < 0 ? AppTheme.warning : AppTheme.secondary)
+            } else {
+                Text("Brukt denne måneden")
+                    .appSecondaryStyle()
+                Text(formatNOK(expenseTotal))
+                    .appBigNumberStyle()
+                    .foregroundStyle(AppTheme.textPrimary)
             }
 
-            if hasPlannedBudget {
-                Text("\(formatNOK(spentSoFar)) brukt av \(formatNOK(planned)) denne måneden.")
-                    .appSecondaryStyle()
-            } else if hasTransactions {
-                Text("Sett grenser for å se hva som er igjen denne måneden.")
-                    .appSecondaryStyle()
-            } else {
-                Text("Når du har satt grenser, ser du hva som er brukt og hva som er igjen her.")
-                    .appSecondaryStyle()
+            Text(statusText)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(statusTone)
+
+            Text(helperText)
+                .appSecondaryStyle()
+
+            if !hasPlannedBudget {
+                Button("Sett grenser") {
+                    onSetLimits()
+                }
+                .appProminentCTAStyle()
+                .controlSize(.large)
+                .padding(.top, 4)
+            }
+
+            if overBudgetCount > 0 {
+                if hasPlannedBudget && remaining < 0 {
+                    HStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(AppTheme.warning)
+                        Text("Du er over budsjett denne måneden. Se gruppene som trenger oppfølging.")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(AppTheme.warning)
+                    }
+                }
+
+                Button {
+                    onToggleOverBudget()
+                } label: {
+                    Text(filterButtonText)
+                        .font(.footnote.weight(.semibold))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(
+                            (isOverBudgetFilterActive ? AppTheme.secondary : AppTheme.warning).opacity(0.12),
+                            in: Capsule()
+                        )
+                }
+                .buttonStyle(.plain)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -219,23 +289,6 @@ struct BudgetHeroCardView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(hasPlannedBudget ? "Igjen å bruke" : "Forbruk hittil")
         .accessibilityValue(hasPlannedBudget ? formatNOK(remaining) : formatNOK(expenseTotal))
-    }
-
-    private func budgetMetric(title: String, valueText: String, tone: Color) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-                .appSecondaryStyle()
-            Text(valueText)
-                .font(.title3.weight(.semibold))
-                .monospacedDigit()
-                .foregroundStyle(tone)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(AppTheme.background, in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.divider, lineWidth: 1))
     }
 
 }
@@ -252,9 +305,12 @@ struct BudgetPrimaryActionCard: View {
 
     private var subtitle: String {
         if hasPlannedBudget {
-            return "Juster grensene når planen for måneden trenger en enkel oppdatering."
+            return "Oppdater månedsgrensene når du vil justere planen."
         }
-        return "Sett grenser for å se hva som er brukt og hva som er igjen denne måneden."
+        if hasTransactions {
+            return "Forbruk spores allerede. Sett grenser når du vil følge hvor mye som gjenstår."
+        }
+        return "Du kan starte uten oppsett og legge inn grenser når måneden tar form."
     }
 
     var body: some View {
@@ -281,31 +337,51 @@ struct BudgetPrimaryActionCard: View {
 
 struct GroupListView: View {
     let rows: [BudgetGroupRow]
+    let fixedByGroup: [String: Double]
     let hasPlannedBudget: Bool
+    let hasTransactions: Bool
+    let onAddTransaction: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Kategorier")
+            Text("Grupper")
                 .appCardTitleStyle()
+
+            if !hasPlannedBudget && hasTransactions {
+                Text("Forbruk spores allerede. Grupper uten grense teller ikke i månedsmålet ennå.")
+                    .appSecondaryStyle()
+            }
 
             if rows.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text(hasPlannedBudget ? "Ingen kategorier å vise ennå" : "Ingen grenser satt ennå")
+                    Text(hasTransactions ? "Ingen grupper å vise ennå" : "Ingen utgifter registrert ennå")
                         .font(.headline.weight(.semibold))
                         .foregroundStyle(AppTheme.textPrimary)
 
                     Text(
-                        hasPlannedBudget
-                            ? "Kategorier med aktivitet dukker opp her etter hvert som måneden fylles."
-                            : "Sett grenser for måneden for å få en enkel oversikt over brukt og igjen."
+                        hasTransactions
+                            ? "Når du får utgifter i en gruppe, dukker den opp her."
+                            : "Legg til første transaksjon for å begynne å spore måneden."
                     )
                     .appSecondaryStyle()
+
+                    if !hasTransactions {
+                        Button("Legg til transaksjon") {
+                            onAddTransaction()
+                        }
+                        .buttonStyle(.plain)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(AppTheme.primary)
+                    }
                 }
             }
 
             ForEach(rows) { row in
                 NavigationLink(value: row.group) {
-                    GroupRowView(row: row)
+                    GroupRowView(
+                        row: row,
+                        fixedSpent: fixedByGroup[row.group.rawValue] ?? 0
+                    )
                 }
                 .buttonStyle(.plain)
             }
@@ -1057,33 +1133,91 @@ struct CategoryPickerSheet: View {
 
 struct GroupRowView: View {
     let row: BudgetGroupRow
+    let fixedSpent: Double
+
+    private var planned: Double? {
+        guard let value = row.planned, value > 0 else { return nil }
+        return value
+    }
+
+    private var progressValue: Double {
+        guard let planned else { return 0 }
+        return min(max(row.spent, 0), max(planned, 1))
+    }
+
+    private var progressTotal: Double {
+        clampedProgress(value: row.spent, total: planned ?? 1).total
+    }
+
+    private var variableSpent: Double {
+        max(row.spent - fixedSpent, 0)
+    }
+
+    private var statusLabel: (String, Color) {
+        if !row.hasLimit {
+            return ("Ingen grense satt", AppTheme.textSecondary)
+        }
+        if row.isOverBudget {
+            return ("Over budsjett", AppTheme.warning)
+        }
+        if row.isNearLimit {
+            return ("Nær grensen", AppTheme.secondary)
+        }
+        return ("Innenfor", AppTheme.positive)
+    }
+
+    private var summaryText: String {
+        guard let remaining = row.remaining else {
+            return "Forbruk spores, men teller ikke i månedsmålet ennå."
+        }
+        if remaining >= 0 {
+            return "\(formatNOK(remaining)) igjen i denne gruppen."
+        }
+        return "\(formatNOK(abs(remaining))) over grensen i denne gruppen."
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
                 Text(row.title)
                     .font(.headline.weight(.semibold))
                     .foregroundStyle(AppTheme.textPrimary)
-
                 Spacer()
+                if let planned {
+                    Text("\(formatNOK(row.spent)) / \(formatNOK(planned))")
+                        .font(.subheadline.weight(.semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(AppTheme.textPrimary)
+                } else {
+                    Text("\(formatNOK(row.spent)) brukt hittil")
+                        .font(.subheadline.weight(.semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(AppTheme.textPrimary)
+                }
+            }
 
+            if planned != nil {
+                let progress = clampedProgress(value: progressValue, total: progressTotal)
+                ProgressView(value: progress.value, total: progress.total)
+                    .tint(row.isOverBudget ? AppTheme.warning : AppTheme.secondary)
+            }
+
+            Text(summaryText)
+                .appSecondaryStyle()
+
+            if fixedSpent > 0 {
+                Text("Fast: \(formatNOK(fixedSpent)) • Variabel: \(formatNOK(variableSpent))")
+                    .font(.footnote)
+                    .foregroundStyle(AppTheme.textSecondary)
+                    .monospacedDigit()
+            }
+
+            HStack {
+                statusPill(text: statusLabel.0, color: statusLabel.1)
+                Spacer()
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(AppTheme.textSecondary)
-            }
-
-            HStack(spacing: 12) {
-                valueBlock(title: "Brukt", value: row.spent, tone: AppTheme.textPrimary)
-                valueBlock(
-                    title: "Igjen",
-                    value: row.remaining ?? 0,
-                    tone: remainingTone
-                )
-            }
-
-            if !row.hasLimit {
-                Text("Ingen grense satt ennå.")
-                    .appSecondaryStyle()
             }
         }
         .padding(.vertical, 8)
@@ -1093,30 +1227,27 @@ struct GroupRowView: View {
     }
 
     private var accessibilityValue: String {
-        if let remaining = row.remaining, let planned = row.planned {
-            return "Brukt \(formatNOK(row.spent)) av \(formatNOK(planned)), \(formatNOK(remaining)) igjen"
+        if let planned {
+            let status: String
+            if row.isOverBudget {
+                status = "over budsjett"
+            } else if row.isNearLimit {
+                status = "nær grensen"
+            } else {
+                status = "innenfor"
+            }
+            return "Brukt \(formatNOK(row.spent)) av \(formatNOK(planned)), \(status)"
         }
         return "Brukt \(formatNOK(row.spent)), ingen grense"
     }
 
-    private var remainingTone: Color {
-        guard let remaining = row.remaining else { return AppTheme.textSecondary }
-        return remaining < 0 ? AppTheme.warning : AppTheme.positive
-    }
-
-    private func valueBlock(title: String, value: Double, tone: Color) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .appSecondaryStyle()
-            Text(formatNOK(value))
-                .font(.subheadline.weight(.semibold))
-                .monospacedDigit()
-                .foregroundStyle(tone)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(10)
-        .background(AppTheme.background, in: RoundedRectangle(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(AppTheme.divider, lineWidth: 1))
+    private func statusPill(text: String, color: Color) -> some View {
+        Text(text)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(color)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(color.opacity(0.12), in: Capsule())
     }
 }
 
