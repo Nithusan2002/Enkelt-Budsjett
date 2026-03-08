@@ -507,6 +507,7 @@ struct AddTransactionSheet: View {
 
     let categories: [Category]
     let initialType: TransactionKind?
+    let initialTransaction: Transaction?
     let onSave: (Date, Double, TransactionKind, String?, String) -> Void
 
     @State private var date: Date = .now
@@ -553,6 +554,10 @@ struct AddTransactionSheet: View {
 
     private var isValid: Bool {
         selectedType != nil && parsedAmount > 0 && selectedCategoryID != nil
+    }
+
+    private var isEditing: Bool {
+        initialTransaction != nil
     }
 
     var body: some View {
@@ -648,6 +653,25 @@ struct AddTransactionSheet: View {
                                         .appSecondaryStyle()
                                 }
 
+                                Divider()
+                                    .overlay(AppTheme.divider)
+
+                                VStack(alignment: .leading, spacing: 10) {
+                                    Text("Dato")
+                                        .appSecondaryStyle()
+                                    DatePicker(
+                                        "Dato",
+                                        selection: $date,
+                                        displayedComponents: .date
+                                    )
+                                    .labelsHidden()
+                                }
+
+                                if initialTransaction?.fixedItemID != nil {
+                                    Text("Denne endringen gjelder bare denne måneden, ikke malen for faste poster.")
+                                        .appSecondaryStyle()
+                                }
+
                                 if attemptedSave && selectedCategoryID == nil {
                                     Text("Velg kategori for å lagre.")
                                         .font(.footnote.weight(.semibold))
@@ -668,32 +692,36 @@ struct AddTransactionSheet: View {
                 .padding()
             }
             .background(AppTheme.background)
-            .navigationTitle("Legg til transaksjon")
+            .navigationTitle(isEditing ? "Rediger transaksjon" : "Legg til transaksjon")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Avbryt") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Lagre") {
+                    Button(isEditing ? "Lagre endring" : "Lagre") {
                         attemptedSave = true
                         guard isValid else { return }
                         onSave(date, parsedAmount, transactionKindForSave, selectedCategoryID, note)
                         persistLastCategoryIfNeeded()
                         amountFocused = false
-                        let haptic = UIImpactFeedbackGenerator(style: .light)
-                        haptic.impactOccurred()
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            showSavedBanner = true
-                            showPostSaveActions = true
+                        if isEditing {
+                            dismiss()
+                        } else {
+                            let haptic = UIImpactFeedbackGenerator(style: .light)
+                            haptic.impactOccurred()
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                showSavedBanner = true
+                                showPostSaveActions = true
+                            }
+                            resetForNextEntry()
                         }
-                        resetForNextEntry()
                     }
                     .disabled(!isValid)
                 }
             }
             .appKeyboardDismissToolbar()
             .safeAreaInset(edge: .bottom) {
-                if showSavedBanner || showPostSaveActions {
+                if !isEditing && (showSavedBanner || showPostSaveActions) {
                     VStack(spacing: 8) {
                         if showSavedBanner {
                             Text("Lagret ✓")
@@ -736,21 +764,10 @@ struct AddTransactionSheet: View {
                 }
             }
             .onAppear {
-                if selectedType == nil, let initialType {
-                    switch initialType {
-                    case .income:
-                        selectedType = .income
-                        expenseMode = .spending
-                    case .manualSaving:
-                        selectedType = .expense
-                        expenseMode = .saving
-                    case .expense:
-                        selectedType = .expense
-                        expenseMode = .spending
-                    case .refund, .transfer:
-                        selectedType = .expense
-                        expenseMode = .spending
-                    }
+                if let initialTransaction {
+                    configureForTransaction(initialTransaction)
+                } else if selectedType == nil, let initialType {
+                    configureForType(initialType)
                 }
                 preselectCategoryForCurrentType()
             }
@@ -816,6 +833,9 @@ struct AddTransactionSheet: View {
     }
 
     private var entryHeading: String {
+        if isEditing {
+            return transactionKindForSave == .manualSaving ? "Rediger sparing" : (transactionKindForSave == .income ? "Rediger inntekt" : "Rediger utgift")
+        }
         guard let selectedType else { return "Ny transaksjon" }
         switch selectedType {
         case .expense:
@@ -830,6 +850,10 @@ struct AddTransactionSheet: View {
     private func preselectCategoryForCurrentType() {
         if availableCategories.isEmpty {
             selectedCategoryID = nil
+            return
+        }
+        if let selectedCategoryID,
+           availableCategories.contains(where: { $0.id == selectedCategoryID }) {
             return
         }
         switch selectedType ?? .expense {
@@ -880,6 +904,28 @@ struct AddTransactionSheet: View {
         selectedCategoryID = nil
         selectedType = nil
         attemptedSave = false
+    }
+
+    private func configureForType(_ type: TransactionKind) {
+        switch type {
+        case .income:
+            selectedType = .income
+            expenseMode = .spending
+        case .manualSaving:
+            selectedType = .expense
+            expenseMode = .saving
+        case .expense, .refund, .transfer:
+            selectedType = .expense
+            expenseMode = .spending
+        }
+    }
+
+    private func configureForTransaction(_ transaction: Transaction) {
+        date = transaction.date
+        amountText = AppAmountInput.format(abs(transaction.amount))
+        note = transaction.note
+        selectedCategoryID = transaction.categoryID
+        configureForType(transaction.kind)
     }
 
     private func typeCard(title: String, systemImage: String, type: TransactionKind) -> some View {
@@ -1388,6 +1434,8 @@ struct SetGroupLimitsSheet: View {
 
 struct BudgetGroupDetailView: View {
     @Environment(\.modelContext) private var modelContext
+    @State private var editingTransaction: Transaction?
+    @State private var transactionFilter: BudgetDetailTransactionFilter = .all
 
     let group: BudgetGroup
     let periodKey: String
@@ -1396,6 +1444,10 @@ struct BudgetGroupDetailView: View {
     let transactions: [Transaction]
     @Binding var showAddTransaction: Bool
     @ObservedObject var viewModel: BudgetViewModel
+
+    private var isReadOnlyMode: Bool {
+        PersistenceGate.isReadOnlyMode
+    }
 
     private var planned: Double? {
         groupPlans.first { $0.monthPeriodKey == periodKey && $0.groupKey == group.rawValue }?.plannedAmount
@@ -1411,6 +1463,40 @@ struct BudgetGroupDetailView: View {
 
     private var rows: [Transaction] {
         viewModel.transactionsForGroup(group, periodKey: periodKey, categories: categories, transactions: transactions)
+    }
+
+    private var filteredRows: [Transaction] {
+        rows.filter { transaction in
+            switch transactionFilter {
+            case .all:
+                return true
+            case .spending:
+                return transaction.kind == .expense
+            case .saving:
+                return transaction.kind == .manualSaving
+            case .fixed:
+                return transaction.recurringKey != nil
+            }
+        }
+    }
+
+    private var groupedTransactions: [(title: String, rows: [Transaction])] {
+        let calendar = Calendar.current
+        let grouped = Dictionary(grouping: filteredRows) { transaction in
+            calendar.startOfDay(for: transaction.date)
+        }
+
+        return grouped
+            .map { day, rows in
+                (
+                    title: transactionSectionTitle(for: day),
+                    rows: rows.sorted { $0.date > $1.date }
+                )
+            }
+            .sorted { lhs, rhs in
+                guard let lhsDate = lhs.rows.first?.date, let rhsDate = rhs.rows.first?.date else { return false }
+                return lhsDate > rhsDate
+            }
     }
 
     private var spentByCategory: [(name: String, spent: Double)] {
@@ -1483,35 +1569,115 @@ struct BudgetGroupDetailView: View {
                 .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.divider, lineWidth: 1))
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Transaksjoner")
-                        .appCardTitleStyle()
-                    if rows.isEmpty {
-                        Text("Ingen transaksjoner i \(group.title.lowercased()) ennå.")
+                    HStack {
+                        Text("Transaksjoner")
+                            .appCardTitleStyle()
+                        Spacer()
+                        Text("\(filteredRows.count)")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(AppTheme.textSecondary)
+                    }
+
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(BudgetDetailTransactionFilter.allCases) { filter in
+                                Button {
+                                    transactionFilter = filter
+                                } label: {
+                                    Text(filter.title)
+                                        .font(.footnote.weight(.semibold))
+                                        .foregroundStyle(transactionFilter == filter ? AppTheme.onPrimary : AppTheme.textPrimary)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 8)
+                                        .background(
+                                            transactionFilter == filter ? AppTheme.primary : AppTheme.surfaceElevated,
+                                            in: Capsule()
+                                        )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+
+                    if filteredRows.isEmpty {
+                        Text(emptyTransactionsText)
                             .appSecondaryStyle()
                     }
-                    ForEach(rows, id: \.persistentModelID) { transaction in
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(formatDate(transaction.date))
-                                    .appSecondaryStyle()
-                                if transaction.recurringKey != nil {
-                                    Text("Fast post")
-                                        .font(.caption2.weight(.semibold))
-                                        .padding(.horizontal, 6)
-                                        .padding(.vertical, 2)
-                                        .background(AppTheme.primary.opacity(0.12), in: Capsule())
+
+                    ForEach(groupedTransactions, id: \.title) { section in
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(section.title)
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(AppTheme.textSecondary)
+
+                            ForEach(section.rows, id: \.persistentModelID) { transaction in
+                                Button {
+                                    editingTransaction = transaction
+                                } label: {
+                                    HStack(alignment: .top, spacing: 12) {
+                                        VStack(alignment: .leading, spacing: 6) {
+                                            Text(categoryTitle(for: transaction))
+                                                .font(.subheadline.weight(.semibold))
+                                                .foregroundStyle(AppTheme.textPrimary)
+
+                                            if !transaction.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                                Text(transaction.note)
+                                                    .font(.footnote)
+                                                    .foregroundStyle(AppTheme.textSecondary)
+                                                    .lineLimit(2)
+                                            }
+
+                                            HStack(spacing: 6) {
+                                                transactionMetaPill(
+                                                    text: transactionKindLabel(for: transaction),
+                                                    color: transaction.kind == .manualSaving ? AppTheme.secondary : AppTheme.textSecondary
+                                                )
+
+                                                if transaction.recurringKey != nil {
+                                                    transactionMetaPill(text: "Fast post", color: AppTheme.primary)
+                                                }
+
+                                                Text(transactionTimeLabel(transaction.date))
+                                                    .font(.caption2)
+                                                    .foregroundStyle(AppTheme.textSecondary)
+                                            }
+                                        }
+
+                                        Spacer()
+
+                                        VStack(alignment: .trailing, spacing: 4) {
+                                            Text(formatNOK(BudgetService.trackedBudgetImpact(transaction)))
+                                                .foregroundStyle(transactionAmountColor(for: transaction))
+                                                .monospacedDigit()
+                                            Text("Hold inne for valg")
+                                                .font(.caption2)
+                                                .foregroundStyle(AppTheme.textSecondary)
+                                        }
+                                    }
+                                    .padding(.vertical, 6)
                                 }
-                            }
-                            Spacer()
-                            Text(formatNOK(BudgetService.trackedBudgetImpact(transaction)))
-                                .foregroundStyle(BudgetService.trackedBudgetImpact(transaction) >= 0 ? AppTheme.textPrimary : AppTheme.positive)
-                                .monospacedDigit()
-                        }
-                        .contextMenu {
-                            Button(role: .destructive) {
-                                viewModel.deleteTransaction(context: modelContext, transaction: transaction)
-                            } label: {
-                                Label("Slett", systemImage: "trash")
+                                .buttonStyle(.plain)
+                                .contextMenu {
+                                    Button {
+                                        guard !isReadOnlyMode else {
+                                            viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+                                            return
+                                        }
+                                        editingTransaction = transaction
+                                    } label: {
+                                        Label("Rediger", systemImage: "pencil")
+                                    }
+
+                                    Button(role: .destructive) {
+                                        guard !isReadOnlyMode else {
+                                            viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+                                            return
+                                        }
+                                        viewModel.deleteTransaction(context: modelContext, transaction: transaction)
+                                    } label: {
+                                        Label("Slett", systemImage: "trash")
+                                    }
+                                }
                             }
                         }
                     }
@@ -1531,6 +1697,127 @@ struct BudgetGroupDetailView: View {
                     showAddTransaction = true
                 }
             }
+        }
+        .sheet(
+            isPresented: Binding(
+                get: { editingTransaction != nil },
+                set: { if !$0 { editingTransaction = nil } }
+            )
+        ) {
+            if let transaction = editingTransaction {
+                AddTransactionSheet(
+                    categories: categories.filter(\.isActive),
+                    initialType: transaction.kind,
+                    initialTransaction: transaction
+                ) { date, amount, kind, categoryID, note in
+                    viewModel.updateTransaction(
+                        context: modelContext,
+                        transaction: transaction,
+                        date: date,
+                        amount: amount,
+                        kind: kind,
+                        categoryID: categoryID,
+                        note: note
+                    )
+                }
+            }
+        }
+    }
+
+    private var emptyTransactionsText: String {
+        switch transactionFilter {
+        case .all:
+            return "Ingen transaksjoner i \(group.title.lowercased()) ennå."
+        case .spending:
+            return "Ingen forbrukstransaksjoner i denne gruppen ennå."
+        case .saving:
+            return "Ingen sparing registrert i denne gruppen ennå."
+        case .fixed:
+            return "Ingen faste poster i denne gruppen denne måneden."
+        }
+    }
+
+    private func categoryTitle(for transaction: Transaction) -> String {
+        guard let categoryID = transaction.categoryID,
+              let category = categories.first(where: { $0.id == categoryID }) else {
+            return group.title
+        }
+        return category.name
+    }
+
+    private func transactionKindLabel(for transaction: Transaction) -> String {
+        switch transaction.kind {
+        case .manualSaving:
+            return "Sparing"
+        case .income:
+            return "Inntekt"
+        case .refund:
+            return "Refusjon"
+        case .transfer:
+            return "Overføring"
+        case .expense:
+            return "Forbruk"
+        }
+    }
+
+    private func transactionAmountColor(for transaction: Transaction) -> Color {
+        switch transaction.kind {
+        case .manualSaving:
+            return AppTheme.secondary
+        case .income, .refund:
+            return AppTheme.positive
+        case .transfer, .expense:
+            return AppTheme.textPrimary
+        }
+    }
+
+    private func transactionSectionTitle(for date: Date) -> String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(date) {
+            return "I dag"
+        }
+        if calendar.isDateInYesterday(date) {
+            return "I går"
+        }
+        return formatDate(date)
+    }
+
+    private func transactionTimeLabel(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = .current
+        formatter.timeStyle = .short
+        formatter.dateStyle = .none
+        return formatter.string(from: date)
+    }
+
+    private func transactionMetaPill(text: String, color: Color) -> some View {
+        Text(text)
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(color)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(color.opacity(0.12), in: Capsule())
+    }
+}
+
+private enum BudgetDetailTransactionFilter: String, CaseIterable, Identifiable {
+    case all
+    case spending
+    case saving
+    case fixed
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .all:
+            return "Alle"
+        case .spending:
+            return "Forbruk"
+        case .saving:
+            return "Sparing"
+        case .fixed:
+            return "Faste"
         }
     }
 }

@@ -426,6 +426,33 @@ final class BudgetViewModel: ObservableObject {
         }
     }
 
+    func updateTransaction(
+        context: ModelContext,
+        transaction: Transaction,
+        date: Date,
+        amount: Double,
+        kind: TransactionKind,
+        categoryID: String?,
+        note: String
+    ) {
+        guard !PersistenceGate.isReadOnlyMode else {
+            persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+            return
+        }
+
+        transaction.date = date
+        transaction.amount = abs(amount)
+        transaction.kind = kind
+        transaction.categoryID = categoryID
+        transaction.note = note
+
+        do {
+            try context.guardedSave(feature: "Budget", operation: "update_transaction")
+        } catch {
+            setPersistenceError(error, fallback: "Kunne ikke oppdatere transaksjon.")
+        }
+    }
+
     func clearPersistenceError() {
         persistenceErrorMessage = nil
     }

@@ -201,4 +201,45 @@ struct BudgetFeatureTests {
         #expect(rows.first?.title == "Sparekonto (generelt)")
         #expect(rows.first?.amount == 1_100)
     }
+
+    @Test
+    @MainActor
+    func budgetUpdateTransactionPersistsEditedValues() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = ModelContext(container)
+        let originalDate = Calendar.current.date(from: DateComponents(year: 2026, month: 3, day: 10)) ?? .now
+        let updatedDate = Calendar.current.date(from: DateComponents(year: 2026, month: 3, day: 18)) ?? .now
+
+        let originalCategory = Category(id: "cat_food", name: "Mat", type: .expense, sortOrder: 1)
+        let updatedCategory = Category(id: "cat_savings", name: "Sparekonto", type: .savings, sortOrder: 2)
+        context.insert(originalCategory)
+        context.insert(updatedCategory)
+
+        let transaction = Transaction(
+            date: originalDate,
+            amount: 450,
+            kind: .expense,
+            categoryID: originalCategory.id,
+            note: "Lunsj"
+        )
+        context.insert(transaction)
+        try context.save()
+
+        let viewModel = BudgetViewModel()
+        viewModel.updateTransaction(
+            context: context,
+            transaction: transaction,
+            date: updatedDate,
+            amount: 950,
+            kind: .manualSaving,
+            categoryID: updatedCategory.id,
+            note: "Flyttet til sparing"
+        )
+
+        #expect(transaction.date == updatedDate)
+        #expect(transaction.amount == 950)
+        #expect(transaction.kind == .manualSaving)
+        #expect(transaction.categoryID == updatedCategory.id)
+        #expect(transaction.note == "Flyttet til sparing")
+    }
 }

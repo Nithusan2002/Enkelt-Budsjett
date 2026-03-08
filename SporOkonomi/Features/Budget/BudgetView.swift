@@ -171,7 +171,8 @@ struct BudgetView: View {
         .sheet(isPresented: $viewModel.showAddTransaction) {
             AddTransactionSheet(
                 categories: categories.filter(\.isActive),
-                initialType: addTransactionInitialType
+                initialType: addTransactionInitialType,
+                initialTransaction: nil
             ) { date, amount, kind, categoryID, note in
                 viewModel.addTransaction(
                     context: modelContext,
