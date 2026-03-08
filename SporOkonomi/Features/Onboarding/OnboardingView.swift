@@ -211,7 +211,7 @@ struct OnboardingView: View {
                 Text("kr")
                     .appSecondaryStyle()
                 TextField(placeholder, text: monetaryBinding(text))
-                    .keyboardType(.numbersAndPunctuation)
+                    .keyboardType(.numberPad)
                     .multilineTextAlignment(.trailing)
                     .monospacedDigit()
             }
