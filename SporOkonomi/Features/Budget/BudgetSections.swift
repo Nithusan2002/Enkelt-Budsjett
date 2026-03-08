@@ -180,106 +180,36 @@ struct BudgetHeroCardView: View {
         hasPlannedBudget ? trackedActual : expenseTotal
     }
 
-    private var statusTone: Color {
-        if !hasPlannedBudget { return AppTheme.textSecondary }
-        return remaining < 0 ? AppTheme.warning : AppTheme.positive
-    }
-
-    private var statusText: String {
-        guard hasPlannedBudget else {
-            if hasTransactions {
-                return "Dette inkluderer forbruk og sparing i valgt måned."
-            }
-            return "Når du registrerer transaksjoner, ser du forbruk og sparing samlet her."
-        }
-        if remaining >= 0 {
-            return "Du har \(formatNOK(remaining)) igjen i grupper med satt grense."
-        }
-        return "Du har brukt \(formatNOK(abs(remaining))) mer enn planlagt i grupper med satt grense."
-    }
-
-    private var helperText: String {
-        guard hasPlannedBudget else {
-            return "Sett grenser for å se hvor mye du har igjen per måned."
-        }
-        if groupsWithoutLimitWithSpendCount > 0 {
-            let suffix = groupsWithoutLimitWithSpendCount == 1 ? "" : "r"
-            return "\(groupsWithoutLimitWithSpendCount) gruppe\(suffix) spores uten grense og teller ikke i månedsmålet ennå."
-        }
-        return "Beregnet ut fra grupper med satt grense."
-    }
-
-    private var filterButtonText: String {
-        if isOverBudgetFilterActive {
-            return "Vis alle grupper"
-        }
-        let suffix = overBudgetCount == 1 ? "" : "r"
-        return "Vis \(overBudgetCount) gruppe\(suffix) over budsjett"
-    }
-
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Denne måneden")
+                .appCardTitleStyle()
+
+            HStack(spacing: 12) {
+                budgetMetric(
+                    title: "Igjen denne måneden",
+                    valueText: hasPlannedBudget ? formatNOK(remaining) : "Ikke satt",
+                    tone: hasPlannedBudget
+                        ? (remaining < 0 ? AppTheme.warning : AppTheme.textPrimary)
+                        : AppTheme.textSecondary
+                )
+
+                budgetMetric(
+                    title: "Brukt så langt",
+                    valueText: formatNOK(spentSoFar),
+                    tone: AppTheme.textPrimary
+                )
+            }
+
             if hasPlannedBudget {
-                Text("Gjenstår denne måneden")
+                Text("\(formatNOK(spentSoFar)) brukt av \(formatNOK(planned)) denne måneden.")
                     .appSecondaryStyle()
-                Text(formatNOK(remaining))
-                    .appBigNumberStyle()
-                    .foregroundStyle(remaining < 0 ? AppTheme.warning : AppTheme.textPrimary)
-
-                Text("Brukt \(formatNOK(spentSoFar)) av \(formatNOK(planned))")
+            } else if hasTransactions {
+                Text("Sett grenser for å se hva som er igjen denne måneden.")
                     .appSecondaryStyle()
-
-                let progress = clampedProgress(value: spentSoFar, total: planned)
-                ProgressView(value: progress.value, total: progress.total)
-                    .tint(remaining < 0 ? AppTheme.warning : AppTheme.secondary)
             } else {
-                Text("Brukt denne måneden")
+                Text("Når du har satt grenser, ser du hva som er brukt og hva som er igjen her.")
                     .appSecondaryStyle()
-                Text(formatNOK(expenseTotal))
-                    .appBigNumberStyle()
-                    .foregroundStyle(AppTheme.textPrimary)
-            }
-
-            Text(statusText)
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(statusTone)
-
-            Text(helperText)
-                .appSecondaryStyle()
-
-            if !hasPlannedBudget {
-                Button("Sett grenser") {
-                    onSetLimits()
-                }
-                .appProminentCTAStyle()
-                .controlSize(.large)
-                .padding(.top, 4)
-            }
-
-            if overBudgetCount > 0 {
-                if hasPlannedBudget && remaining < 0 {
-                    HStack(spacing: 8) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(AppTheme.warning)
-                        Text("Du er over budsjett denne måneden. Se gruppene som trenger oppfølging.")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(AppTheme.warning)
-                    }
-                }
-
-                Button {
-                    onToggleOverBudget()
-                } label: {
-                    Text(filterButtonText)
-                        .font(.footnote.weight(.semibold))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(
-                            (isOverBudgetFilterActive ? AppTheme.secondary : AppTheme.warning).opacity(0.12),
-                            in: Capsule()
-                        )
-                }
-                .buttonStyle(.plain)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -289,6 +219,23 @@ struct BudgetHeroCardView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(hasPlannedBudget ? "Igjen å bruke" : "Forbruk hittil")
         .accessibilityValue(hasPlannedBudget ? formatNOK(remaining) : formatNOK(expenseTotal))
+    }
+
+    private func budgetMetric(title: String, valueText: String, tone: Color) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .appSecondaryStyle()
+            Text(valueText)
+                .font(.title3.weight(.semibold))
+                .monospacedDigit()
+                .foregroundStyle(tone)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(AppTheme.background, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.divider, lineWidth: 1))
     }
 
 }
