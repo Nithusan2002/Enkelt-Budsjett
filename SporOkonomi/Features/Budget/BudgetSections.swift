@@ -344,35 +344,21 @@ struct GroupListView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Grupper")
+            Text("Kategorier")
                 .appCardTitleStyle()
-
-            if !hasPlannedBudget && hasTransactions {
-                Text("Forbruk spores allerede. Grupper uten grense teller ikke i månedsmålet ennå.")
-                    .appSecondaryStyle()
-            }
 
             if rows.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text(hasTransactions ? "Ingen grupper å vise ennå" : "Ingen utgifter registrert ennå")
+                    Text(hasPlannedBudget ? "Ingen kategorier å vise ennå" : "Ingen grenser satt ennå")
                         .font(.headline.weight(.semibold))
                         .foregroundStyle(AppTheme.textPrimary)
 
                     Text(
-                        hasTransactions
-                            ? "Når du får utgifter i en gruppe, dukker den opp her."
-                            : "Legg til første transaksjon for å begynne å spore måneden."
+                        hasPlannedBudget
+                            ? "Kategorier med aktivitet dukker opp her etter hvert som måneden fylles."
+                            : "Sett grenser for måneden for å få en enkel oversikt over brukt og igjen."
                     )
                     .appSecondaryStyle()
-
-                    if !hasTransactions {
-                        Button("Legg til transaksjon") {
-                            onAddTransaction()
-                        }
-                        .buttonStyle(.plain)
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(AppTheme.primary)
-                    }
                 }
             }
 
@@ -1135,89 +1121,26 @@ struct GroupRowView: View {
     let row: BudgetGroupRow
     let fixedSpent: Double
 
-    private var planned: Double? {
-        guard let value = row.planned, value > 0 else { return nil }
-        return value
-    }
-
-    private var progressValue: Double {
-        guard let planned else { return 0 }
-        return min(max(row.spent, 0), max(planned, 1))
-    }
-
-    private var progressTotal: Double {
-        clampedProgress(value: row.spent, total: planned ?? 1).total
-    }
-
-    private var variableSpent: Double {
-        max(row.spent - fixedSpent, 0)
-    }
-
-    private var statusLabel: (String, Color) {
-        if !row.hasLimit {
-            return ("Ingen grense satt", AppTheme.textSecondary)
-        }
-        if row.isOverBudget {
-            return ("Over budsjett", AppTheme.warning)
-        }
-        if row.isNearLimit {
-            return ("Nær grensen", AppTheme.secondary)
-        }
-        return ("Innenfor", AppTheme.positive)
-    }
-
-    private var summaryText: String {
-        guard let remaining = row.remaining else {
-            return "Forbruk spores, men teller ikke i månedsmålet ennå."
-        }
-        if remaining >= 0 {
-            return "\(formatNOK(remaining)) igjen i denne gruppen."
-        }
-        return "\(formatNOK(abs(remaining))) over grensen i denne gruppen."
-    }
-
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
                 Text(row.title)
                     .font(.headline.weight(.semibold))
                     .foregroundStyle(AppTheme.textPrimary)
                 Spacer()
-                if let planned {
-                    Text("\(formatNOK(row.spent)) / \(formatNOK(planned))")
-                        .font(.subheadline.weight(.semibold))
-                        .monospacedDigit()
-                        .foregroundStyle(AppTheme.textPrimary)
-                } else {
-                    Text("\(formatNOK(row.spent)) brukt hittil")
-                        .font(.subheadline.weight(.semibold))
-                        .monospacedDigit()
-                        .foregroundStyle(AppTheme.textPrimary)
-                }
-            }
-
-            if planned != nil {
-                let progress = clampedProgress(value: progressValue, total: progressTotal)
-                ProgressView(value: progress.value, total: progress.total)
-                    .tint(row.isOverBudget ? AppTheme.warning : AppTheme.secondary)
-            }
-
-            Text(summaryText)
-                .appSecondaryStyle()
-
-            if fixedSpent > 0 {
-                Text("Fast: \(formatNOK(fixedSpent)) • Variabel: \(formatNOK(variableSpent))")
-                    .font(.footnote)
-                    .foregroundStyle(AppTheme.textSecondary)
-                    .monospacedDigit()
-            }
-
-            HStack {
-                statusPill(text: statusLabel.0, color: statusLabel.1)
-                Spacer()
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(AppTheme.textSecondary)
+            }
+
+            HStack(spacing: 12) {
+                valueBlock(title: "Brukt", value: row.spent, tone: AppTheme.textPrimary)
+                valueBlock(title: "Igjen", value: row.remaining ?? 0, tone: remainingTone)
+            }
+
+            if !row.hasLimit {
+                Text("Ingen grense satt ennå.")
+                    .appSecondaryStyle()
             }
         }
         .padding(.vertical, 8)
@@ -1227,27 +1150,30 @@ struct GroupRowView: View {
     }
 
     private var accessibilityValue: String {
-        if let planned {
-            let status: String
-            if row.isOverBudget {
-                status = "over budsjett"
-            } else if row.isNearLimit {
-                status = "nær grensen"
-            } else {
-                status = "innenfor"
-            }
-            return "Brukt \(formatNOK(row.spent)) av \(formatNOK(planned)), \(status)"
+        if let remaining = row.remaining, let planned = row.planned {
+            return "Brukt \(formatNOK(row.spent)) av \(formatNOK(planned)), \(formatNOK(remaining)) igjen"
         }
         return "Brukt \(formatNOK(row.spent)), ingen grense"
     }
 
-    private func statusPill(text: String, color: Color) -> some View {
-        Text(text)
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(color)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(color.opacity(0.12), in: Capsule())
+    private var remainingTone: Color {
+        guard let remaining = row.remaining else { return AppTheme.textSecondary }
+        return remaining < 0 ? AppTheme.warning : AppTheme.positive
+    }
+
+    private func valueBlock(title: String, value: Double, tone: Color) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .appSecondaryStyle()
+            Text(formatNOK(value))
+                .font(.subheadline.weight(.semibold))
+                .monospacedDigit()
+                .foregroundStyle(tone)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
+        .background(AppTheme.background, in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(AppTheme.divider, lineWidth: 1))
     }
 }
 
