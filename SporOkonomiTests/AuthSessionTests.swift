@@ -204,6 +204,7 @@ struct AuthSessionTests {
     }
 
     @Test
+    @MainActor
     func restoreSessionRefreshesExpiredAccessToken() async throws {
         let configuration = try SupabaseConfiguration.load(
             projectURLString: "https://example.supabase.co",
@@ -266,6 +267,65 @@ struct AuthSessionTests {
         #expect(tokenStore.savedTokens?.accessToken == "fresh-access")
         #expect(tokenStore.savedTokens?.refreshToken == "fresh-refresh")
     }
+
+    @Test
+    @MainActor
+    func signInWithGoogleExchangesAuthorizationCodeCallback() async throws {
+        let configuration = try SupabaseConfiguration.load(
+            projectURLString: "https://example.supabase.co",
+            publishableKey: "publishable-key",
+            redirectScheme: "sporokonomi",
+            redirectHost: "auth-callback"
+        )
+        let tokenStore = MockTokenStore(initialTokens: nil)
+        let sessionConfiguration = URLSessionConfiguration.ephemeral
+        sessionConfiguration.protocolClasses = [MockURLProtocol.self]
+        let session = URLSession(configuration: sessionConfiguration)
+        let client = SupabaseAuthClient(
+            configuration: configuration,
+            session: session,
+            tokenStore: tokenStore,
+            webAuthCoordinator: MockOAuthCoordinator(
+                callbackURL: URL(string: "sporokonomi://auth-callback?code=oauth-code-123")!
+            )
+        )
+
+        MockURLProtocol.requestHandler = { request in
+            if request.url?.path == "/auth/v1/token",
+               request.url?.query == "grant_type=pkce" {
+                let body = String(data: request.httpBody ?? Data(), encoding: .utf8) ?? ""
+                #expect(body.contains("\"auth_code\":\"oauth-code-123\""))
+                #expect(body.contains("\"code_verifier\":"))
+
+                let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+                let data = #"""
+                {
+                  "access_token": "google-access",
+                  "refresh_token": "google-refresh",
+                  "token_type": "bearer",
+                  "user": {
+                    "id": "google-user-1",
+                    "email": "google@example.com",
+                    "user_metadata": {
+                      "full_name": "Google Bruker"
+                    }
+                  }
+                }
+                """#.data(using: .utf8)!
+                return (response, data)
+            }
+
+            throw URLError(.badServerResponse)
+        }
+
+        let authenticatedSession = try await client.signInWithGoogle()
+
+        #expect(authenticatedSession.userID == "google-user-1")
+        #expect(authenticatedSession.email == "google@example.com")
+        #expect(authenticatedSession.accessToken == "google-access")
+        #expect(tokenStore.savedTokens?.accessToken == "google-access")
+        #expect(tokenStore.savedTokens?.refreshToken == "google-refresh")
+    }
 }
 
 private final class MockAuthClient: AuthClientProtocol {
@@ -324,7 +384,16 @@ private final class MockAuthClient: AuthClientProtocol {
 }
 
 private final class MockOAuthCoordinator: OAuthWebAuthenticationCoordinating {
+    let callbackURL: URL?
+
+    init(callbackURL: URL? = nil) {
+        self.callbackURL = callbackURL
+    }
+
     func authenticate(url: URL, callbackScheme: String) async throws -> URL {
+        if let callbackURL {
+            return callbackURL
+        }
         throw AuthServiceError.invalidResponse
     }
 }

@@ -1,4 +1,5 @@
 import AuthenticationServices
+import CryptoKit
 import Foundation
 import Security
 import UIKit
@@ -184,19 +185,29 @@ final class SupabaseAuthClient: AuthClientProtocol {
     }
 
     func signInWithGoogle() async throws -> AuthClientSession {
+        let codeVerifier = OAuthPKCE.makeCodeVerifier()
         let callbackURL = try await webAuthCoordinator.authenticate(
-            url: try googleOAuthURL(),
+            url: try googleOAuthURL(codeVerifier: codeVerifier),
             callbackScheme: try redirectScheme()
         )
 
-        let tokens = try parseOAuthTokens(from: callbackURL)
-        try tokenStore.saveOrThrow(tokens)
+        if let tokens = try parseOAuthTokens(from: callbackURL) {
+            try tokenStore.saveOrThrow(tokens)
 
-        let user = try await fetchUser(accessToken: tokens.accessToken)
-        return user.toAuthClientSession(
-            accessToken: tokens.accessToken,
-            refreshToken: tokens.refreshToken
+            let user = try await fetchUser(accessToken: tokens.accessToken)
+            return user.toAuthClientSession(
+                accessToken: tokens.accessToken,
+                refreshToken: tokens.refreshToken
+            )
+        }
+
+        let authorizationCode = try parseOAuthCode(from: callbackURL)
+        let exchangedSession = try await exchangeAuthorizationCodeForSession(
+            authorizationCode,
+            codeVerifier: codeVerifier
         )
+        try persist(tokensFrom: exchangedSession)
+        return exchangedSession.user.toAuthClientSession(from: exchangedSession)
     }
 
     func restoreSession() async throws -> AuthClientSession? {
@@ -251,7 +262,7 @@ final class SupabaseAuthClient: AuthClientProtocol {
         tokenStore.clear()
     }
 
-    private func googleOAuthURL() throws -> URL {
+    private func googleOAuthURL(codeVerifier: String) throws -> URL {
         guard let redirectURL = configuration.redirectURL else {
             throw AuthServiceError.missingOAuthConfiguration
         }
@@ -260,7 +271,10 @@ final class SupabaseAuthClient: AuthClientProtocol {
         components?.queryItems = [
             URLQueryItem(name: "provider", value: "google"),
             URLQueryItem(name: "redirect_to", value: redirectURL.absoluteString),
-            URLQueryItem(name: "prompt", value: "select_account")
+            URLQueryItem(name: "prompt", value: "select_account"),
+            URLQueryItem(name: "response_type", value: "code"),
+            URLQueryItem(name: "code_challenge", value: OAuthPKCE.codeChallenge(for: codeVerifier)),
+            URLQueryItem(name: "code_challenge_method", value: "S256")
         ]
         return components?.url ?? configuration.projectURL
     }
@@ -291,7 +305,7 @@ final class SupabaseAuthClient: AuthClientProtocol {
         }
     }
 
-    private func parseOAuthTokens(from url: URL) throws -> StoredAuthTokens {
+    private func parseOAuthTokens(from url: URL) throws -> StoredAuthTokens? {
         let parts = URLComponents(url: url, resolvingAgainstBaseURL: false)
         let queryItems = parts?.queryItems ?? []
         let fragmentItems = URLComponents(string: "https://callback.invalid?\(url.fragment ?? "")")?.queryItems ?? []
@@ -303,12 +317,9 @@ final class SupabaseAuthClient: AuthClientProtocol {
         if let error = allItems["error"], !error.isEmpty {
             throw AuthServiceError.requestFailed(error.removingPercentEncoding ?? error)
         }
-        if allItems["code"] != nil {
-            throw AuthServiceError.unsupportedOAuthCallback
-        }
 
         guard let accessToken = allItems["access_token"], !accessToken.isEmpty else {
-            throw AuthServiceError.unsupportedOAuthCallback
+            return nil
         }
 
         return StoredAuthTokens(
@@ -316,6 +327,40 @@ final class SupabaseAuthClient: AuthClientProtocol {
             refreshToken: allItems["refresh_token"],
             tokenType: allItems["token_type"]
         )
+    }
+
+    private func parseOAuthCode(from url: URL) throws -> String {
+        let parts = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        let queryItems = parts?.queryItems ?? []
+        let fragmentItems = URLComponents(string: "https://callback.invalid?\(url.fragment ?? "")")?.queryItems ?? []
+        let allItems = Dictionary(uniqueKeysWithValues: (queryItems + fragmentItems).map { ($0.name, $0.value ?? "") })
+
+        guard let code = allItems["code"], !code.isEmpty else {
+            throw AuthServiceError.unsupportedOAuthCallback
+        }
+
+        return code
+    }
+
+    private func exchangeAuthorizationCodeForSession(
+        _ authorizationCode: String,
+        codeVerifier: String
+    ) async throws -> AuthSessionPayload {
+        let payload = PKCEExchangePayload(
+            authCode: authorizationCode,
+            codeVerifier: codeVerifier
+        )
+        let response: AuthResponse = try await performRequest(
+            path: "auth/v1/token?grant_type=pkce",
+            method: "POST",
+            body: payload
+        )
+
+        guard let session = response.session else {
+            throw AuthServiceError.invalidResponse
+        }
+
+        return session
     }
 
     private func persist(tokensFrom session: AuthSessionPayload) throws {
@@ -480,6 +525,16 @@ private struct RefreshSessionPayload: Encodable {
 
     enum CodingKeys: String, CodingKey {
         case refreshToken = "refresh_token"
+    }
+}
+
+private struct PKCEExchangePayload: Encodable {
+    let authCode: String
+    let codeVerifier: String
+
+    enum CodingKeys: String, CodingKey {
+        case authCode = "auth_code"
+        case codeVerifier = "code_verifier"
     }
 }
 
@@ -651,5 +706,26 @@ class AuthTokenStore {
             kSecAttrAccount as String: account,
             kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock
         ]
+    }
+}
+
+private enum OAuthPKCE {
+    static func makeCodeVerifier() -> String {
+        let bytes = (0..<32).map { _ in UInt8.random(in: UInt8.min...UInt8.max) }
+        return Data(bytes).base64URLEncodedString()
+    }
+
+    static func codeChallenge(for verifier: String) -> String {
+        let digest = SHA256.hash(data: Data(verifier.utf8))
+        return Data(digest).base64URLEncodedString()
+    }
+}
+
+private extension Data {
+    func base64URLEncodedString() -> String {
+        base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
     }
 }
