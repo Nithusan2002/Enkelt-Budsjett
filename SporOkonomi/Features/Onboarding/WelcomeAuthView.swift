@@ -9,132 +9,136 @@ struct WelcomeAuthView: View {
     @State private var emailFlow: EmailAuthMode?
 
     var body: some View {
-        NavigationStack {
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 20) {
-                    Spacer(minLength: 8)
+        ZStack {
+            AppTheme.background.ignoresSafeArea()
 
-                    VStack(spacing: 8) {
-                        Image(systemName: "lock.shield")
-                            .font(.system(size: 34, weight: .semibold))
-                            .foregroundStyle(AppTheme.primary)
+            NavigationStack {
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 20) {
+                        Spacer(minLength: 8)
 
-                        Text("Bruk appen med eller uten konto")
-                            .appCardTitleStyle()
-                            .multilineTextAlignment(.center)
+                        VStack(spacing: 8) {
+                            Image(systemName: "lock.shield")
+                                .font(.system(size: 34, weight: .semibold))
+                                .foregroundStyle(AppTheme.primary)
 
-                        Text("Start lokalt nå. Du kan logge inn senere hvis du vil synkronisere og gjenopprette data.")
-                            .appBodyStyle()
-                            .multilineTextAlignment(.center)
-                    }
-                    .frame(maxWidth: 420)
+                            Text("Bruk appen med eller uten konto")
+                                .appCardTitleStyle()
+                                .multilineTextAlignment(.center)
 
-                    Button("Fortsett uten konto") {
-                        sessionStore.continueWithoutAccount(preference: preference, context: modelContext)
-                    }
-                    .appProminentCTAStyle()
-                    .disabled(sessionStore.isWorking)
-                    .frame(maxWidth: 420)
-
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Med konto")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(AppTheme.textSecondary)
-
-                        Button {
-                            Task {
-                                await sessionStore.signInWithGoogle(preference: preference, context: modelContext)
-                            }
-                        } label: {
-                            authButtonLabel(
-                                title: "Fortsett med Google",
-                                systemImage: "globe",
-                                tint: AppTheme.primary.opacity(0.08),
-                                stroke: AppTheme.primary.opacity(0.18)
-                            )
+                            Text("Start lokalt nå. Du kan logge inn senere hvis du vil synkronisere og gjenopprette data.")
+                                .appBodyStyle()
+                                .multilineTextAlignment(.center)
                         }
-                        .buttonStyle(.plain)
-                        .disabled(sessionStore.isWorking)
+                        .frame(maxWidth: 420)
 
-                        Button {
-                            emailFlow = .signUp
-                        } label: {
-                            authButtonLabel(
-                                title: "Opprett konto med e-post",
-                                systemImage: "envelope"
-                            )
+                        Button("Fortsett uten konto") {
+                            sessionStore.continueWithoutAccount(preference: preference, context: modelContext)
                         }
-                        .buttonStyle(.plain)
+                        .appProminentCTAStyle()
                         .disabled(sessionStore.isWorking)
+                        .frame(maxWidth: 420)
 
-                        HStack(spacing: 4) {
-                            Text("Har du allerede konto?")
-                                .appSecondaryStyle()
-                            Button("Logg inn") {
-                                emailFlow = .signIn
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Med konto")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(AppTheme.textSecondary)
+
+                            Button {
+                                Task {
+                                    await sessionStore.signInWithGoogle(preference: preference, context: modelContext)
+                                }
+                            } label: {
+                                authButtonLabel(
+                                    title: "Fortsett med Google",
+                                    systemImage: "globe",
+                                    tint: AppTheme.primary.opacity(0.08),
+                                    stroke: AppTheme.primary.opacity(0.18)
+                                )
                             }
-                            .font(.footnote.weight(.medium))
-                            .foregroundStyle(AppTheme.primary)
                             .buttonStyle(.plain)
                             .disabled(sessionStore.isWorking)
+
+                            Button {
+                                emailFlow = .signUp
+                            } label: {
+                                authButtonLabel(
+                                    title: "Opprett konto med e-post",
+                                    systemImage: "envelope"
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(sessionStore.isWorking)
+
+                            HStack(spacing: 4) {
+                                Text("Har du allerede konto?")
+                                    .appSecondaryStyle()
+                                Button("Logg inn") {
+                                    emailFlow = .signIn
+                                }
+                                .font(.footnote.weight(.medium))
+                                .foregroundStyle(AppTheme.primary)
+                                .buttonStyle(.plain)
+                                .disabled(sessionStore.isWorking)
+                            }
+                        }
+                        .frame(maxWidth: 420, alignment: .leading)
+
+                        VStack(alignment: .leading, spacing: 10) {
+                            authValueRow(title: "Uten konto", detail: "Data lagres på denne enheten.")
+                            authValueRow(title: "Med konto", detail: "Data kan gjenopprettes senere.")
+                        }
+                        .frame(maxWidth: 420, alignment: .leading)
+                        .padding()
+                        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .stroke(AppTheme.divider, lineWidth: 1)
+                        )
+
+                        Spacer(minLength: 20)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal)
+                    .padding(.top, 12)
+                    .padding(.bottom, 24)
+                }
+                .background(AppTheme.background)
+                .navigationTitle("Kom i gang")
+                .sheet(item: $emailFlow) { mode in
+                    EmailAuthSheetView(mode: mode) { email, password, displayName in
+                        switch mode {
+                        case .signUp:
+                            await sessionStore.createAccountWithEmail(
+                                email: email,
+                                password: password,
+                                displayName: displayName,
+                                preference: preference,
+                                context: modelContext
+                            )
+                        case .signIn:
+                            await sessionStore.signInWithEmail(
+                                email: email,
+                                password: password,
+                                preference: preference,
+                                context: modelContext
+                            )
                         }
                     }
-                    .frame(maxWidth: 420, alignment: .leading)
-
-                    VStack(alignment: .leading, spacing: 10) {
-                        authValueRow(title: "Uten konto", detail: "Data lagres på denne enheten.")
-                        authValueRow(title: "Med konto", detail: "Data kan gjenopprettes senere.")
-                    }
-                    .frame(maxWidth: 420, alignment: .leading)
-                    .padding()
-                    .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14)
-                            .stroke(AppTheme.divider, lineWidth: 1)
+                }
+                .alert(
+                    "Konto",
+                    isPresented: Binding(
+                        get: { sessionStore.authErrorMessage != nil },
+                        set: { if !$0 { sessionStore.clearError() } }
                     )
-
-                    Spacer(minLength: 20)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.horizontal)
-                .padding(.top, 12)
-                .padding(.bottom, 24)
-            }
-            .background(AppTheme.background)
-            .navigationTitle("Kom i gang")
-            .sheet(item: $emailFlow) { mode in
-                EmailAuthSheetView(mode: mode) { email, password, displayName in
-                    switch mode {
-                    case .signUp:
-                        await sessionStore.createAccountWithEmail(
-                            email: email,
-                            password: password,
-                            displayName: displayName,
-                            preference: preference,
-                            context: modelContext
-                        )
-                    case .signIn:
-                        await sessionStore.signInWithEmail(
-                            email: email,
-                            password: password,
-                            preference: preference,
-                            context: modelContext
-                        )
+                ) {
+                    Button("OK", role: .cancel) {
+                        sessionStore.clearError()
                     }
+                } message: {
+                    Text(sessionStore.authErrorMessage ?? "")
                 }
-            }
-            .alert(
-                "Konto",
-                isPresented: Binding(
-                    get: { sessionStore.authErrorMessage != nil },
-                    set: { if !$0 { sessionStore.clearError() } }
-                )
-            ) {
-                Button("OK", role: .cancel) {
-                    sessionStore.clearError()
-                }
-            } message: {
-                Text(sessionStore.authErrorMessage ?? "")
             }
         }
     }
