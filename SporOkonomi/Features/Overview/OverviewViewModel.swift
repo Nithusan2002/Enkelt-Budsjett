@@ -102,7 +102,7 @@ final class OverviewViewModel: ObservableObject {
                 "Sterk start: {x} så langt i {p}.",
                 "Fin flyt nå: {x} spart i {p}.",
                 "Du ligger på pluss med {x} i {p}.",
-                "Bra jobbet, {x} er på plass i {p}.",
+                    "Bra jobbet, {x} er på plass i {p}.",
                 "Små steg teller: {x} i {p}.",
                 "Du har allerede nådd {x} i {p}.",
                 "Stabil progresjon: {x} i {p}.",
