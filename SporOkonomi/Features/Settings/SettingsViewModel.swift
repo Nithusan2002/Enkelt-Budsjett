@@ -1,4 +1,5 @@
 import Foundation
+import StoreKit
 import SwiftData
 
 enum DataImportMode {
@@ -56,15 +57,24 @@ enum DataTransferError: LocalizedError {
 @MainActor
 final class SettingsViewModel {
     var preferencePersistenceErrorMessage: String?
+    private var didResolveDemoToolsVisibility = false
+    private(set) var showsDemoToolsOutsideDebug = false
 
     func shouldShowDemoTools() -> Bool {
 #if DEBUG
         return true
 #else
-        if let receiptURL = Bundle.main.appStoreReceiptURL {
-            return receiptURL.lastPathComponent == "sandboxReceipt"
-        }
-        return false
+        return showsDemoToolsOutsideDebug
+#endif
+    }
+
+    func refreshDemoToolVisibilityIfNeeded() async {
+#if DEBUG
+        return
+#else
+        guard !didResolveDemoToolsVisibility else { return }
+        didResolveDemoToolsVisibility = true
+        showsDemoToolsOutsideDebug = await isSandboxEnvironment()
 #endif
     }
 
@@ -709,5 +719,19 @@ final class SettingsViewModel {
             isActive ? "1" : "0",
             "\(createdAt.timeIntervalSince1970)"
         ].joined(separator: "|")
+    }
+
+    private func isSandboxEnvironment() async -> Bool {
+        guard #available(iOS 16.0, *) else { return false }
+
+        do {
+            let verificationResult = try await AppTransaction.shared
+            switch verificationResult {
+            case .verified(let appTransaction), .unverified(let appTransaction, _):
+                return appTransaction.environment == .sandbox
+            }
+        } catch {
+            return false
+        }
     }
 }

@@ -81,6 +81,9 @@ struct SettingsView: View {
         .onChange(of: preferences.count) { _, _ in
             ensurePreference()
         }
+        .task {
+            await viewModel.refreshDemoToolVisibilityIfNeeded()
+        }
     }
 
     private var configuredForm: some View {
