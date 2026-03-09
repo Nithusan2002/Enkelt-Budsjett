@@ -45,6 +45,43 @@ struct AuthSessionTests {
 
     @Test
     @MainActor
+    func bootstrapCreatesSimplifiedDefaultCategoriesForNewUsers() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+
+        try BootstrapService.ensurePreference(context: context)
+
+        let categories = try context.fetch(FetchDescriptor<Category>())
+        let ids = Set(categories.map(\.id))
+
+        #expect(ids.contains("cat_food"))
+        #expect(ids.contains("cat_housing"))
+        #expect(ids.contains("cat_transport"))
+        #expect(ids.contains("cat_leisure"))
+        #expect(ids.contains("cat_fixed_costs"))
+        #expect(ids.contains("cat_savings_account"))
+        #expect(ids.contains("cat_other"))
+        #expect(!ids.contains("cat_expense_spotify"))
+        #expect(!ids.contains("cat_savings_travel"))
+    }
+
+    @Test
+    @MainActor
+    func bootstrapKeepsExistingLegacyCategoriesUntouched() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+
+        context.insert(Category(id: "cat_expense_spotify", name: "Spotify", type: .expense, sortOrder: 1))
+        try context.save()
+
+        try BootstrapService.ensurePreference(context: context)
+
+        let categories = try context.fetch(FetchDescriptor<Category>())
+        #expect(categories.contains { $0.id == "cat_expense_spotify" })
+    }
+
+    @Test
+    @MainActor
     func bootstrapRemovesSyncedDemoDataAndRestoresSafeBaseline() throws {
         let container = try TestModelContainerFactory.makeInMemoryContainer()
         let context = container.mainContext

@@ -157,6 +157,9 @@ final class Category {
                 key.contains("kommunale") || key.contains("vann") || key.contains("avlop") || key.contains("feiing") {
                 return BudgetGroup.bolig.rawValue
             }
+            if key.contains("fast") {
+                return BudgetGroup.fast.rawValue
+            }
             if key.contains("abonnement") || key.contains("spotify") || key.contains("netflix") ||
                 key.contains("apple") || key.contains("icloud") || key.contains("internett") ||
                 key.contains("mobil") || key.contains("forsikring") {
