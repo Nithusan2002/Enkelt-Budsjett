@@ -1327,10 +1327,6 @@ struct BudgetGroupDetailView: View {
         rows.reduce(0) { $0 + BudgetService.trackedBudgetImpact($1) }
     }
 
-    private var groupCategories: [Category] {
-        viewModel.categoriesForGroup(group, categories: categories)
-    }
-
     private var rows: [Transaction] {
         viewModel.transactionsForGroup(group, periodKey: periodKey, categories: categories, transactions: transactions)
     }
@@ -1369,67 +1365,57 @@ struct BudgetGroupDetailView: View {
             }
     }
 
-    private var spentByCategory: [(name: String, spent: Double)] {
-        let groupedByName = Dictionary(grouping: groupCategories) { category in
-            category.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        }
+    private var remaining: Double? {
+        guard let planned, planned > 0 else { return nil }
+        return planned - spent
+    }
 
-        return groupedByName
-            .map { name, categories in
-                let ids = Set(categories.map(\.id))
-                let spent = rows
-                    .filter { transaction in
-                        guard let categoryID = transaction.categoryID else { return false }
-                        return ids.contains(categoryID)
-                    }
-                    .reduce(0) { $0 + BudgetService.trackedBudgetImpact($1) }
-                return (name: name, spent: max(spent, 0))
-            }
-            .sorted { lhs, rhs in
-                if lhs.spent != rhs.spent { return lhs.spent > rhs.spent }
-                return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
-            }
+    private var spentThisMonthText: String {
+        "Brukt denne måneden"
+    }
+
+    private var spentValueText: String {
+        formatNOK(spent)
+    }
+
+    private var limitText: String {
+        guard let planned, planned > 0 else { return "Ingen grense satt" }
+        return "Grense: \(formatNOK(planned))"
+    }
+
+    private var balanceText: String? {
+        guard let remaining else { return nil }
+        if remaining >= 0 {
+            return "\(formatNOK(remaining)) igjen"
+        }
+        return "\(formatNOK(abs(remaining))) over"
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 12) {
                     Text(group.title)
                         .appCardTitleStyle()
-                    if let planned, planned > 0 {
-                        Text("\(formatNOK(spent)) / \(formatNOK(planned))")
-                            .appBodyStyle()
-                        Text("Avvik: \(formatNOK(spent - planned))")
-                            .appSecondaryStyle()
-                    } else {
-                        Text("\(formatNOK(spent)) brukt hittil")
-                            .appBodyStyle()
-                    }
-                }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.divider, lineWidth: 1))
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Brukt per kategori")
-                        .appCardTitleStyle()
-                    if spentByCategory.isEmpty {
-                        Text("Ingen kategorier i denne gruppen.")
-                            .appSecondaryStyle()
-                    } else {
-                        ForEach(spentByCategory, id: \.name) { row in
-                            HStack {
-                                Text(row.name)
-                                    .appBodyStyle()
-                                Spacer()
-                                Text(formatNOK(row.spent))
-                                    .font(.subheadline.weight(.semibold))
-                                    .monospacedDigit()
-                                    .foregroundStyle(AppTheme.textPrimary)
-                            }
-                            .padding(.vertical, 2)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(spentThisMonthText)
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(AppTheme.textSecondary)
+                        Text(spentValueText)
+                            .font(.system(size: 34, weight: .bold, design: .rounded))
+                            .foregroundStyle(AppTheme.textPrimary)
+                    }
+
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                        Text(limitText)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(AppTheme.textPrimary)
+                        Spacer()
+                        if let balanceText {
+                            Text(balanceText)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle((remaining ?? 0) >= 0 ? AppTheme.positive : AppTheme.warning)
                         }
                     }
                 }
@@ -1485,46 +1471,40 @@ struct BudgetGroupDetailView: View {
                                     editingTransaction = transaction
                                 } label: {
                                     HStack(alignment: .top, spacing: 12) {
-                                        VStack(alignment: .leading, spacing: 6) {
+                                        VStack(alignment: .leading, spacing: 4) {
                                             Text(categoryTitle(for: transaction))
                                                 .font(.subheadline.weight(.semibold))
                                                 .foregroundStyle(AppTheme.textPrimary)
+                                                .lineLimit(1)
 
                                             if !transaction.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                                                 Text(transaction.note)
-                                                    .font(.footnote)
+                                                .font(.footnote)
                                                     .foregroundStyle(AppTheme.textSecondary)
-                                                    .lineLimit(2)
+                                                    .lineLimit(1)
                                             }
 
-                                            HStack(spacing: 6) {
-                                                transactionMetaPill(
-                                                    text: transactionKindLabel(for: transaction),
-                                                    color: transaction.kind == .manualSaving ? AppTheme.secondary : AppTheme.textSecondary
-                                                )
-
+                                            HStack(spacing: 8) {
+                                                Text(transactionDateLabel(transaction.date))
+                                                    .font(.caption)
+                                                    .foregroundStyle(AppTheme.textSecondary)
                                                 if transaction.recurringKey != nil {
                                                     transactionMetaPill(text: "Fast post", color: AppTheme.primary)
+                                                } else if transaction.kind == .manualSaving {
+                                                    transactionMetaPill(text: "Sparing", color: AppTheme.secondary)
                                                 }
-
-                                                Text(transactionTimeLabel(transaction.date))
-                                                    .font(.caption2)
-                                                    .foregroundStyle(AppTheme.textSecondary)
                                             }
                                         }
 
                                         Spacer()
 
-                                        VStack(alignment: .trailing, spacing: 4) {
+                                        VStack(alignment: .trailing, spacing: 2) {
                                             Text(formatNOK(BudgetService.trackedBudgetImpact(transaction)))
                                                 .foregroundStyle(transactionAmountColor(for: transaction))
                                                 .monospacedDigit()
-                                            Text("Hold inne for valg")
-                                                .font(.caption2)
-                                                .foregroundStyle(AppTheme.textSecondary)
                                         }
                                     }
-                                    .padding(.vertical, 6)
+                                    .padding(.vertical, 4)
                                 }
                                 .buttonStyle(.plain)
                                 .contextMenu {
@@ -1615,21 +1595,6 @@ struct BudgetGroupDetailView: View {
         return category.name
     }
 
-    private func transactionKindLabel(for transaction: Transaction) -> String {
-        switch transaction.kind {
-        case .manualSaving:
-            return "Sparing"
-        case .income:
-            return "Inntekt"
-        case .refund:
-            return "Refusjon"
-        case .transfer:
-            return "Overføring"
-        case .expense:
-            return "Forbruk"
-        }
-    }
-
     private func transactionAmountColor(for transaction: Transaction) -> Color {
         switch transaction.kind {
         case .manualSaving:
@@ -1642,21 +1607,13 @@ struct BudgetGroupDetailView: View {
     }
 
     private func transactionSectionTitle(for date: Date) -> String {
-        let calendar = Calendar.current
-        if calendar.isDateInToday(date) {
-            return "I dag"
-        }
-        if calendar.isDateInYesterday(date) {
-            return "I går"
-        }
-        return formatDate(date)
+        transactionDateLabel(date)
     }
 
-    private func transactionTimeLabel(_ date: Date) -> String {
+    private func transactionDateLabel(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.locale = .current
-        formatter.timeStyle = .short
-        formatter.dateStyle = .none
+        formatter.dateFormat = "d MMMM"
         return formatter.string(from: date)
     }
 
@@ -1687,7 +1644,7 @@ private enum BudgetDetailTransactionFilter: String, CaseIterable, Identifiable {
         case .saving:
             return "Sparing"
         case .fixed:
-            return "Faste"
+            return "Faste poster"
         }
     }
 }
