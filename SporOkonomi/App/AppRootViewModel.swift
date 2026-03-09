@@ -57,13 +57,16 @@ final class AppRootViewModel: ObservableObject {
 
     private var lockEnabled = false
     private var bootstrapTask: Task<Void, Never>?
+    private var demoProtectionTask: Task<Void, Never>?
     private var phaseStartedAt = Date()
 
     func bootstrap(context: ModelContext) {
         let bootstrapStartedAt = Date()
         bootstrapTask?.cancel()
+        demoProtectionTask?.cancel()
         do {
             transition(to: .loadingProfile)
+            try BootstrapService.removeDemoDataIfPresent(context: context)
             try BootstrapService.ensurePreference(context: context)
 
             transition(to: .applyingStartupRules)
@@ -90,6 +93,7 @@ final class AppRootViewModel: ObservableObject {
                     guard !Task.isCancelled else { return }
                     self.bootstrapErrorMessage = nil
                     self.transition(to: .ready)
+                    self.scheduleDemoProtection(context: context)
                     let total = Date().timeIntervalSince(bootstrapStartedAt)
                     PersistenceGate.recordInfo(
                         feature: "Bootstrap",
@@ -136,6 +140,18 @@ final class AppRootViewModel: ObservableObject {
         }
     }
 
+    func refreshDemoProtection(context: ModelContext) {
+        do {
+            if try BootstrapService.removeDemoDataIfPresent(context: context) {
+                bootstrap(context: context)
+                return
+            }
+            scheduleDemoProtection(context: context)
+        } catch {
+            PersistenceGate.recordError(feature: "Bootstrap", operation: "remove_demo_data_failed", error: error)
+        }
+    }
+
     func retryUnlock() {
         authenticate()
     }
@@ -169,6 +185,26 @@ final class AppRootViewModel: ObservableObject {
                 } else {
                     self.isLocked = true
                     self.lockErrorMessage = evaluateError?.localizedDescription ?? "Kunne ikke bekrefte identitet."
+                }
+            }
+        }
+    }
+
+    private func scheduleDemoProtection(context: ModelContext) {
+        demoProtectionTask?.cancel()
+        demoProtectionTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            for _ in 0..<10 {
+                try? await Task.sleep(for: .seconds(30))
+                guard !Task.isCancelled else { return }
+                do {
+                    if try BootstrapService.removeDemoDataIfPresent(context: context) {
+                        self.bootstrap(context: context)
+                        return
+                    }
+                } catch {
+                    PersistenceGate.recordError(feature: "Bootstrap", operation: "scheduled_demo_data_check_failed", error: error)
+                    return
                 }
             }
         }

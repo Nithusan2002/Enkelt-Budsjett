@@ -45,6 +45,28 @@ struct AuthSessionTests {
 
     @Test
     @MainActor
+    func bootstrapRemovesSyncedDemoDataAndRestoresSafeBaseline() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+
+        _ = try DemoDataSeeder.seedRealisticYear(context: context, year: 2026)
+
+        let removed = try BootstrapService.removeDemoDataIfPresent(context: context, now: .now)
+
+        #expect(removed)
+        let fixedItems = try context.fetch(FetchDescriptor<FixedItem>())
+        let snapshots = try context.fetch(FetchDescriptor<InvestmentSnapshot>())
+        let preferences = try context.fetch(FetchDescriptor<UserPreference>())
+        let months = try context.fetch(FetchDescriptor<BudgetMonth>())
+
+        #expect(!fixedItems.contains { $0.id.hasPrefix("fixed_demo_") })
+        #expect(snapshots.isEmpty)
+        #expect(preferences.count == 1)
+        #expect(!months.isEmpty)
+    }
+
+    @Test
+    @MainActor
     func sessionStoreRestoresAuthenticatedSessionFromPreference() async throws {
         let container = try TestModelContainerFactory.makeInMemoryContainer()
         let context = container.mainContext

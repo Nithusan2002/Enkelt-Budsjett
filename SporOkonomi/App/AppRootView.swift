@@ -166,6 +166,9 @@ struct AppRootView: View {
         }
         .onChange(of: scenePhase) { _, newValue in
             viewModel.handleScenePhaseChange(newValue)
+            if newValue == .active {
+                viewModel.refreshDemoProtection(context: modelContext)
+            }
         }
         .onChange(of: preferredColorScheme) { _, _ in
             applyBarAppearance()
