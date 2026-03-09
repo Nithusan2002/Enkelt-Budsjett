@@ -200,9 +200,6 @@ struct OverviewView: View {
             if isCheckInDue && latestSnapshot == nil {
                 Text("Du kan legge til snapshot senere i Investeringer.")
                     .appSecondaryStyle()
-            } else if isCheckInDue {
-                Text("Neste snapshot kan fortsatt legges til senere i Investeringer.")
-                    .appSecondaryStyle()
             }
         }
         .padding()
