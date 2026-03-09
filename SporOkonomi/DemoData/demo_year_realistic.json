@@ -2,33 +2,19 @@
   "version": 2,
   "name": "young-adult_realistic_no_v2",
   "expenseCategories": [
-    { "id": "cat_rent", "name": "Husleie", "sortOrder": 1 },
-    { "id": "cat_food", "name": "Dagligvarer", "sortOrder": 2 },
+    { "id": "cat_housing", "name": "Bolig", "sortOrder": 1 },
+    { "id": "cat_food", "name": "Mat", "sortOrder": 2 },
     { "id": "cat_transport", "name": "Transport", "sortOrder": 3 },
-    { "id": "cat_subscriptions", "name": "Mobil og abonnement", "sortOrder": 4 },
-    { "id": "cat_eating_out", "name": "Mat ute og kaffe", "sortOrder": 5 },
-    { "id": "cat_shopping", "name": "Klær og shopping", "sortOrder": 6 },
-    { "id": "cat_health", "name": "Helse og apotek", "sortOrder": 7 },
-    { "id": "cat_misc", "name": "Diverse", "sortOrder": 8 }
+    { "id": "cat_leisure", "name": "Fritid", "sortOrder": 4 },
+    { "id": "cat_fixed_costs", "name": "Faste utgifter", "sortOrder": 5 },
+    { "id": "cat_other", "name": "Annet", "sortOrder": 6 }
   ],
   "incomeCategories": [
     { "id": "cat_income_salary", "name": "Lønn", "sortOrder": 101 },
-    { "id": "cat_income_lanekassen", "name": "Lånekassen (stipend/lån)", "sortOrder": 102 },
-    { "id": "cat_income_side_hustle", "name": "Ekstrajobb / sideinntekt", "sortOrder": 103 },
-    { "id": "cat_income_resale", "name": "Salg (Finn.no / brukt)", "sortOrder": 104 },
-    { "id": "cat_income_gifts_received", "name": "Gaver / penger mottatt", "sortOrder": 105 }
+    { "id": "cat_income_other", "name": "Annen inntekt", "sortOrder": 102 }
   ],
   "savingsCategories": [
-    { "id": "cat_savings_buffer", "name": "Buffer / nødfond", "sortOrder": 201 },
-    { "id": "cat_savings_account", "name": "Sparekonto (generelt)", "sortOrder": 202 },
-    { "id": "cat_savings_bsu", "name": "BSU", "sortOrder": 203 },
-    { "id": "cat_savings_home_equity", "name": "Boligsparing / egenkapital", "sortOrder": 204 },
-    { "id": "cat_savings_investing", "name": "Investeringer (innskudd fond/aksjer)", "sortOrder": 205 },
-    { "id": "cat_savings_travel", "name": "Ferie / reise", "sortOrder": 206 },
-    { "id": "cat_savings_big_purchase", "name": "Større kjøp (mobil/PC/møbler)", "sortOrder": 207 },
-    { "id": "cat_savings_car_transport", "name": "Bil / transport (vedlikehold/egenkapital)", "sortOrder": 208 },
-    { "id": "cat_savings_ips", "name": "IPS / pensjon", "sortOrder": 209 },
-    { "id": "cat_savings_gifts", "name": "Gaver / julegaver", "sortOrder": 210 }
+    { "id": "cat_savings_account", "name": "Sparing", "sortOrder": 201 }
   ],
   "monthlyFactors": {
     "1": 1.00,
