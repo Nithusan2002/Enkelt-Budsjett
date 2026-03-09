@@ -117,8 +117,15 @@ final class OverviewViewModel: ObservableObject {
         return rounded
     }
 
-    func heroStatusLine(status: OverviewBudgetStatus, hasTransactions: Bool) -> String {
+    func heroStatusLine(
+        status: OverviewBudgetStatus,
+        hasTransactions: Bool,
+        areAmountsHidden: Bool = false
+    ) -> String {
         if status.hasPlan && status.remaining < 0 {
+            if areAmountsHidden {
+                return "Over budsjett"
+            }
             return "Over budsjett med \(roundedKr(abs(status.remaining)))"
         }
         if status.hasPlan {

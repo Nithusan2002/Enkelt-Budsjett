@@ -21,11 +21,14 @@ struct BudgetSummaryData {
         remaining >= 0
     }
 
-    var statusLine: String {
+    func statusLine(isAmountsHidden: Bool = false) -> String {
         if planned <= 0 {
             return "Ingen grenser satt"
         }
         if remaining < 0 {
+            if isAmountsHidden {
+                return "Over budsjett"
+            }
             return "Over budsjett med \(formatNOK(abs(remaining)))"
         }
         return "Innenfor budsjett"

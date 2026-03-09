@@ -3,6 +3,7 @@ import SwiftData
 
 struct BudgetView: View {
     @Environment(\.modelContext) private var modelContext
+    @AppStorage("overview_amounts_hidden") private var areAmountsHidden = false
     @Query(sort: \Category.sortOrder) private var categories: [Category]
     @Query(sort: \BudgetMonth.startDate) private var months: [BudgetMonth]
     @Query private var groupPlans: [BudgetGroupPlan]
@@ -65,6 +66,7 @@ struct BudgetView: View {
 
                 BudgetHeroCardView(
                     hasPlannedBudget: hasPlannedBudget,
+                    isAmountsHidden: areAmountsHidden,
                     remaining: summary.remaining,
                     trackedActual: summary.trackedActual,
                     expenseTotal: summary.expenseTotal,
@@ -85,6 +87,7 @@ struct BudgetView: View {
                 GroupListView(
                     rows: groupRows,
                     fixedByGroup: fixedByGroup,
+                    isAmountsHidden: areAmountsHidden,
                     hasPlannedBudget: hasPlannedBudget,
                     hasTransactions: !monthTransactions.isEmpty,
                     isReadOnlyMode: isReadOnlyMode,

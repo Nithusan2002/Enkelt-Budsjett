@@ -6,6 +6,7 @@ import UIKit
 struct InvestmentsView: View {
     @EnvironmentObject private var navigationState: AppNavigationState
     @Environment(\.modelContext) private var modelContext
+    @AppStorage("overview_amounts_hidden") private var areAmountsHidden = false
     @Query(sort: \InvestmentBucket.sortOrder) private var buckets: [InvestmentBucket]
     @Query(sort: \InvestmentSnapshot.periodKey) private var snapshots: [InvestmentSnapshot]
     @Query private var preferences: [UserPreference]
@@ -174,7 +175,7 @@ struct InvestmentsView: View {
                     .disabled(isReadOnlyMode)
                 }
 
-                Text(formatNOK(viewModel.displayedTotal))
+                Text(displayedAmount(viewModel.displayedTotal))
                     .appBigNumberStyle()
                     .foregroundStyle(AppTheme.textPrimary)
                     .contentTransition(.numericText(value: viewModel.displayedTotal))
@@ -359,7 +360,7 @@ struct InvestmentsView: View {
                             Spacer()
                             Text(formatPercent(item.percent))
                                 .appSecondaryStyle()
-                            Text(formatNOK(item.amount))
+                            Text(displayedAmount(item.amount))
                                 .appBodyStyle()
                                 .monospacedDigit()
                         }
@@ -402,7 +403,7 @@ struct InvestmentsView: View {
                     Text("\(only.bucketName): \(formatPercent(only.percent))")
                         .appBodyStyle()
                     Spacer()
-                    Text(formatNOK(only.amount))
+                    Text(displayedAmount(only.amount))
                         .appBodyStyle()
                         .monospacedDigit()
                 }
@@ -439,7 +440,7 @@ struct InvestmentsView: View {
                                         .appSecondaryStyle()
                                 }
                                 Spacer()
-                                Text(formatNOK(snapshot.totalValue))
+                                Text(displayedAmount(snapshot.totalValue))
                                     .appBodyStyle()
                                     .monospacedDigit()
                             }
@@ -474,6 +475,14 @@ struct InvestmentsView: View {
     }
 
     private func changeSummaryText(changeKr: Double, changePct: Double?) -> String {
+        if areAmountsHidden {
+            guard changeKr != 0 || changePct != nil else {
+                return "Siden forrige innsjekk: ingen endring ennå"
+            }
+            return changeKr >= 0
+                ? "Siden forrige innsjekk: opp"
+                : "Siden forrige innsjekk: ned"
+        }
         guard changeKr != 0 || changePct != nil else {
             return "Siden forrige innsjekk: ingen endring ennå"
         }
@@ -500,7 +509,7 @@ struct InvestmentsView: View {
                     Text(row.name)
                         .appCardTitleStyle()
                         .lineLimit(1)
-                    Text(formatNOK(row.amount))
+                    Text(displayedAmount(row.amount))
                         .appBodyStyle()
                         .monospacedDigit()
                         .lineLimit(1)
@@ -556,7 +565,15 @@ struct InvestmentsView: View {
     }
 
     private func changeAmountText(changeKr: Double) -> String {
-        changeKr >= 0 ? "+\(formatNOK(abs(changeKr)))" : "-\(formatNOK(abs(changeKr)))"
+        if areAmountsHidden {
+            if changeKr == 0 { return "Uendret" }
+            return changeKr > 0 ? "Opp siden sist" : "Ned siden sist"
+        }
+        return changeKr >= 0 ? "+\(formatNOK(abs(changeKr)))" : "-\(formatNOK(abs(changeKr)))"
+    }
+
+    private func displayedAmount(_ amount: Double) -> String {
+        areAmountsHidden ? "•••• kr" : formatNOK(amount)
     }
 
     private func portfolioColor(bucketID: String, fallbackName: String) -> Color {

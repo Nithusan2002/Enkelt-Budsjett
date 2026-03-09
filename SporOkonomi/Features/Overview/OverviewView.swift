@@ -144,7 +144,13 @@ struct OverviewView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
 
-            Text(viewModel.heroStatusLine(status: budgetStatus, hasTransactions: !transactions.isEmpty))
+            Text(
+                viewModel.heroStatusLine(
+                    status: budgetStatus,
+                    hasTransactions: !transactions.isEmpty,
+                    areAmountsHidden: areAmountsHidden
+                )
+            )
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(budgetStatus.net >= 0 ? AppTheme.positive : AppTheme.textSecondary)
 

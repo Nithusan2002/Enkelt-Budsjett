@@ -165,6 +165,7 @@ struct MonthHeaderView: View {
 
 struct BudgetHeroCardView: View {
     let hasPlannedBudget: Bool
+    let isAmountsHidden: Bool
     let remaining: Double
     let trackedActual: Double
     let expenseTotal: Double
@@ -181,7 +182,7 @@ struct BudgetHeroCardView: View {
                 Text("Igjen denne måneden")
                     .appSecondaryStyle()
 
-                Text(formatNOK(remaining))
+                Text(isAmountsHidden ? "Beløp skjult" : formatNOK(remaining))
                     .font(.system(size: 36, weight: .bold, design: .rounded))
                     .monospacedDigit()
                     .foregroundStyle(summary.isWithinBudget ? AppTheme.textPrimary : AppTheme.warning)
@@ -191,18 +192,18 @@ struct BudgetHeroCardView: View {
                 HStack(spacing: 12) {
                     budgetMetric(
                         title: "Brukt så langt",
-                        valueText: formatNOK(trackedActual),
+                        valueText: isAmountsHidden ? "Skjult" : formatNOK(trackedActual),
                         tone: AppTheme.textPrimary
                     )
 
                     budgetMetric(
                         title: "Planlagt",
-                        valueText: formatNOK(planned),
+                        valueText: isAmountsHidden ? "Skjult" : formatNOK(planned),
                         tone: AppTheme.textPrimary
                     )
                 }
 
-                Text(summary.statusLine)
+                Text(summary.statusLine(isAmountsHidden: isAmountsHidden))
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(summary.isWithinBudget ? AppTheme.positive : AppTheme.warning)
 
@@ -234,7 +235,11 @@ struct BudgetHeroCardView: View {
                 ? "Igjen denne måneden"
                 : "Ingen grenser satt"
         )
-        .accessibilityValue(hasPlannedBudget ? "\(formatNOK(remaining)). \(summary.statusLine)" : "Sett grenser")
+        .accessibilityValue(
+            hasPlannedBudget
+                ? "\(isAmountsHidden ? "Beløp skjult" : formatNOK(remaining)). \(summary.statusLine(isAmountsHidden: isAmountsHidden))"
+                : "Sett grenser"
+        )
     }
 
     private func budgetMetric(title: String, valueText: String, tone: Color) -> some View {
@@ -259,6 +264,7 @@ struct BudgetHeroCardView: View {
 struct GroupListView: View {
     let rows: [BudgetGroupRow]
     let fixedByGroup: [String: Double]
+    let isAmountsHidden: Bool
     let hasPlannedBudget: Bool
     let hasTransactions: Bool
     let isReadOnlyMode: Bool
@@ -297,7 +303,8 @@ struct GroupListView: View {
                 NavigationLink(value: row.group) {
                     GroupRowView(
                         row: row,
-                        fixedSpent: fixedByGroup[row.group.rawValue] ?? 0
+                        fixedSpent: fixedByGroup[row.group.rawValue] ?? 0,
+                        isAmountsHidden: isAmountsHidden
                     )
                 }
                 .buttonStyle(.plain)
@@ -1035,6 +1042,7 @@ struct CategoryPickerSheet: View {
 struct GroupRowView: View {
     let row: BudgetGroupRow
     let fixedSpent: Double
+    let isAmountsHidden: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -1043,12 +1051,12 @@ struct GroupRowView: View {
                     Text(row.title)
                         .font(.headline.weight(.semibold))
                         .foregroundStyle(AppTheme.textPrimary)
-                    Text(row.supportLabel)
+                    Text(displayedSupportLabel)
                         .appSecondaryStyle()
                 }
                 Spacer()
                 VStack(alignment: .trailing, spacing: 6) {
-                    Text(row.remainingLabel)
+                    Text(displayedRemainingLabel)
                         .font(.subheadline.weight(.semibold))
                         .monospacedDigit()
                         .foregroundStyle(remainingTone)
@@ -1077,12 +1085,27 @@ struct GroupRowView: View {
     }
 
     private var accessibilityValue: String {
-        "\(row.remainingLabel). \(row.supportLabel)"
+        "\(displayedRemainingLabel). \(displayedSupportLabel)"
     }
 
     private var remainingTone: Color {
         guard let remaining = row.remaining else { return AppTheme.textSecondary }
         return remaining < 0 ? AppTheme.warning : AppTheme.positive
+    }
+
+    private var displayedRemainingLabel: String {
+        guard isAmountsHidden else { return row.remainingLabel }
+        if row.remaining == nil { return "Grense ikke satt" }
+        if row.isOverBudget { return "Over grensen" }
+        return "Innenfor grensen"
+    }
+
+    private var displayedSupportLabel: String {
+        guard isAmountsHidden else { return row.supportLabel }
+        if row.planned == nil {
+            return row.spent > 0 ? "Aktivitet registrert" : "Ingen registreringer ennå"
+        }
+        return row.spent > 0 ? "Forbruk registrert denne måneden" : "Ingen forbruk registrert ennå"
     }
 
 }

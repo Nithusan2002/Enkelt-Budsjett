@@ -128,7 +128,8 @@ enum InvestmentsDevelopmentChartDataBuilder {
 
     static func accessibilitySummary(
         points: [InvestmentsDevelopmentChartPoint],
-        period: InvestmentsDevelopmentPeriod
+        period: InvestmentsDevelopmentPeriod,
+        areAmountsHidden: Bool = false
     ) -> String {
         guard let first = points.first, let last = points.last else {
             return "Ingen utviklingsdata ennå."
@@ -139,10 +140,17 @@ enum InvestmentsDevelopmentChartDataBuilder {
         let top = topBuckets(for: last)
         let topText: String
         if let firstTop = top.first {
-            let share = last.total > 0 ? firstTop.amount / last.total : 0
-            topText = "Største bøtte: \(firstTop.name) (\(formatPercent(share)))."
+            if areAmountsHidden {
+                topText = "Største bøtte: \(firstTop.name)."
+            } else {
+                let share = last.total > 0 ? firstTop.amount / last.total : 0
+                topText = "Største bøtte: \(firstTop.name) (\(formatPercent(share)))."
+            }
         } else {
             topText = "Ingen bøtter med verdi ennå."
+        }
+        if areAmountsHidden {
+            return "\(period.title): total \(sign). \(topText)"
         }
         return "\(period.title): total \(sign) \(formatNOK(abs(delta))). \(topText)"
     }
@@ -240,6 +248,7 @@ enum InvestmentsDevelopmentChartDataBuilder {
 
 struct InvestmentsDevelopmentChartView: View {
     @Environment(\.colorScheme) private var colorScheme
+    @AppStorage("overview_amounts_hidden") private var areAmountsHidden = false
     let points: [InvestmentsDevelopmentChartPoint]
     @Binding var period: InvestmentsDevelopmentPeriod
     let onUpdateValues: () -> Void
@@ -307,6 +316,10 @@ struct InvestmentsDevelopmentChartView: View {
     }
 
     private var periodDeltaText: String {
+        if areAmountsHidden {
+            if periodDelta == 0 { return "Uendret" }
+            return periodDelta > 0 ? "Opp" : "Ned"
+        }
         let sign = periodDelta >= 0 ? "+" : "-"
         return "\(sign)\(formatNOK(abs(periodDelta)))"
     }
@@ -340,7 +353,8 @@ struct InvestmentsDevelopmentChartView: View {
         .accessibilityValue(
             InvestmentsDevelopmentChartDataBuilder.accessibilitySummary(
                 points: points,
-                period: period
+                period: period,
+                areAmountsHidden: areAmountsHidden
             )
         )
     }
@@ -536,20 +550,20 @@ struct InvestmentsDevelopmentChartView: View {
         return VStack(alignment: .leading, spacing: 4) {
             Text(monthTitle(point.date))
                 .font(.caption.weight(.semibold))
-            Text("Total: \(formatNOK(point.total))")
+            Text("Total: \(areAmountsHidden ? "•••• kr" : formatNOK(point.total))")
                 .font(.caption.weight(.semibold))
             ForEach(rows) { row in
                 HStack(spacing: 6) {
                     Circle()
                         .fill(row.color)
                         .frame(width: 7, height: 7)
-                    Text("\(row.name): \(formatNOK(row.amount))")
+                    Text("\(row.name): \(areAmountsHidden ? "•••• kr" : formatNOK(row.amount))")
                         .font(.caption2)
                 }
             }
             HStack(spacing: 6) {
                 Image(systemName: delta >= 0 ? "arrow.up.right" : "arrow.down.right")
-                Text("Siden forrige: \(delta >= 0 ? "+" : "-")\(formatNOK(abs(delta)))")
+                Text(tooltipDeltaText(delta: delta))
             }
             .font(.caption2.weight(.semibold))
             .padding(.horizontal, 8)
@@ -563,6 +577,14 @@ struct InvestmentsDevelopmentChartView: View {
             RoundedRectangle(cornerRadius: 10)
                 .stroke(AppTheme.divider, lineWidth: 1)
         )
+    }
+
+    private func tooltipDeltaText(delta: Double) -> String {
+        if areAmountsHidden {
+            if delta == 0 { return "Siden forrige: uendret" }
+            return delta > 0 ? "Siden forrige: opp" : "Siden forrige: ned"
+        }
+        return "Siden forrige: \(delta >= 0 ? "+" : "-")\(formatNOK(abs(delta)))"
     }
 
     private func emptyState(title: String, body: String) -> some View {
