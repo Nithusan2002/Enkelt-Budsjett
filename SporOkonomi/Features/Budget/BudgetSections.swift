@@ -272,8 +272,27 @@ struct GroupListView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Grupper")
-                .appCardTitleStyle()
+            HStack {
+                Text("Grupper")
+                    .appCardTitleStyle()
+                Spacer()
+                if hasPlannedBudget {
+                    Button(action: onSetLimits) {
+                        Image(systemName: "pencil")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(AppTheme.textSecondary)
+                            .frame(width: 30, height: 30)
+                            .background(AppTheme.background, in: Circle())
+                            .overlay(
+                                Circle()
+                                    .stroke(AppTheme.divider, lineWidth: 1)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Endre grenser")
+                    .disabled(isReadOnlyMode)
+                }
+            }
 
             if rows.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
