@@ -1183,48 +1183,36 @@ struct SetGroupLimitsSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    Text("Sett bare grensene du trenger. Tomt betyr at gruppen spores uten å telle i månedsmålet.")
+                    Text("Sett grenser der du vil følge budsjettet.")
                         .appSecondaryStyle()
                 }
 
                 Section("Månedsgrenser") {
                     ForEach(BudgetGroup.allCases) { group in
-                        VStack(alignment: .leading, spacing: 6) {
+                        VStack(alignment: .leading, spacing: 8) {
                             HStack {
-                                Text("Månedsgrense for \(group.title)")
+                                Text(group.title)
+                                    .font(.body.weight(.semibold))
                                 Spacer()
-                                HStack(spacing: 6) {
-                                    Text("kr")
-                                        .foregroundStyle(AppTheme.textSecondary)
-                                    TextField("Ingen grense satt", text: binding(for: group))
+                                HStack(spacing: 4) {
+                                    TextField("Sett grense", text: binding(for: group))
                                         .keyboardType(.decimalPad)
                                         .multilineTextAlignment(.trailing)
+                                        .font(.body.weight(.semibold))
                                         .monospacedDigit()
-                                        .frame(maxWidth: 140)
+                                        .frame(maxWidth: 120)
+                                    if !values[group, default: ""].trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                        Text("kr")
+                                            .font(.body.weight(.semibold))
+                                            .foregroundStyle(AppTheme.textPrimary)
+                                    }
                                 }
                             }
-
-                            Text(previousMonthText(for: group))
-                                .appSecondaryStyle()
 
                             Text("Brukt hittil: \(formatNOK(viewModel.currentSpent(for: group, groupRows: groupRows)))")
                                 .font(.footnote)
                                 .foregroundStyle(AppTheme.textSecondary)
                                 .monospacedDigit()
-
-                            let fixedTotal = fixedByGroup[group.rawValue] ?? 0
-                            if fixedTotal > 0 {
-                                Text("Faste poster: \(formatNOK(fixedTotal))")
-                                    .font(.footnote)
-                                    .foregroundStyle(AppTheme.textSecondary)
-                                    .monospacedDigit()
-                            }
-
-                            if let suggestionText = suggestionText(for: group) {
-                                Text(suggestionText)
-                                    .font(.footnote)
-                                    .foregroundStyle(AppTheme.textSecondary)
-                            }
 
                             if let entered = parsedValue(for: group),
                                let fixedTotal = fixedByGroup[group.rawValue],
@@ -1239,8 +1227,8 @@ struct SetGroupLimitsSheet: View {
                     }
                 }
 
-                Section {
-                    Button("Kopier fra forrige måned") {
+                Section("Forslag") {
+                    Button("Kopier grenser fra forrige måned") {
                         let previous = previousValues
                         for group in BudgetGroup.allCases {
                             if let value = previous[group] ?? nil, value > 0 {
@@ -1251,7 +1239,7 @@ struct SetGroupLimitsSheet: View {
                         }
                     }
 
-                    Button("Beregn med SIFO (OsloMet)") {
+                    Button("Beregn budsjett med SIFO") {
                         guard let url = URL(string: "https://www.oslomet.no/om/sifo/referansebudsjettet") else { return }
                         openURL(url)
                     }
@@ -1312,19 +1300,6 @@ struct SetGroupLimitsSheet: View {
         let raw = values[group, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
         guard !raw.isEmpty else { return nil }
         return AppAmountInput.parse(raw)
-    }
-
-    private func previousMonthText(for group: BudgetGroup) -> String {
-        if let previous = previousValues[group] ?? nil, previous > 0 {
-            return "Forrige måned: \(formatNOK(previous))"
-        }
-        return "Forrige måned: Ingen grense satt"
-    }
-
-    private func suggestionText(for group: BudgetGroup) -> String? {
-        guard values[group, default: ""].trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
-        guard let previous = previousValues[group] ?? nil, previous > 0 else { return nil }
-        return "Forslag: Start med \(formatNOK(previous)) og juster ved behov."
     }
 
 }
