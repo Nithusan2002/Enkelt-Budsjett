@@ -17,8 +17,9 @@ struct OverviewFeatureTests {
         )
 
         #expect(viewModel.heroTitle() == "Tilgjengelig denne måneden")
-        #expect(viewModel.heroIntroText(status: status, hasTransactions: true) == "Dette er utgangspunktet ditt for denne måneden basert på inntekten du har lagt inn.")
-        #expect(viewModel.heroSupportText(status: status, hasTransactions: true) == "Legg til utgifter underveis, eller sett grenser når du vil ha mer oversikt.")
+        #expect(viewModel.heroIntroText(status: status, hasTransactions: true) == "Dette er det du har å gå på denne måneden basert på inntekten du har lagt inn.")
+        #expect(viewModel.heroStatusLine(status: status, hasTransactions: true) == "Du er i gang denne måneden.")
+        #expect(viewModel.heroSupportText(status: status, hasTransactions: true) == "Legg til utgifter underveis for en mer presis oversikt.")
         #expect(viewModel.heroPrimaryCTATitle() == "Legg til transaksjon")
     }
 
@@ -59,5 +60,17 @@ struct OverviewFeatureTests {
         #expect(progressWithSpend?.value == 4_000)
         #expect(progressWithSpend?.total == 10_000)
         #expect(viewModel.monthlyProgress(status: withoutPlan) == nil)
+    }
+
+    @Test
+    @MainActor
+    func overviewUsesDistinctHistoricalSavingsLabels() {
+        let viewModel = OverviewViewModel()
+
+        #expect(viewModel.savingsHeadline() == "Til overs i år")
+        #expect(viewModel.savingsSupportText() == "Forskjellen mellom inntekter og utgifter så langt i år.")
+        #expect(viewModel.registeredSavingsHeadline() == "Satt til side")
+        #expect(viewModel.registeredSavingsSupportText() == "Penger du har registrert til sparing.")
+        #expect(viewModel.investmentsEmptySupportText() == "Legg inn verdien når du vil følge utviklingen over tid.")
     }
 }

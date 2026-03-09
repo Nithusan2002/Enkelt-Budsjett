@@ -118,17 +118,33 @@ final class OverviewViewModel: ObservableObject {
 
     func heroIntroText(status: OverviewBudgetStatus, hasTransactions: Bool) -> String {
         if !hasTransactions {
-            return "Dette er utgangspunktet ditt for denne måneden basert på det du har lagt inn så langt."
+            return "Dette er det du har å gå på denne måneden basert på det du har lagt inn så langt."
         }
         if status.income > 0 && status.spent <= 0 {
-            return "Dette er utgangspunktet ditt for denne måneden basert på inntekten du har lagt inn."
+            return "Dette er det du har å gå på denne måneden basert på inntekten du har lagt inn."
         }
-        return "Dette er utgangspunktet ditt for denne måneden basert på det du har lagt inn så langt."
+        return "Dette er det du har å gå på denne måneden basert på det du har lagt inn så langt."
+    }
+
+    func heroStatusLine(status: OverviewBudgetStatus, hasTransactions: Bool) -> String {
+        if status.income > 0 && status.spent <= 0 {
+            return "Du er i gang denne måneden."
+        }
+        if !hasTransactions {
+            return "Start rolig med det du vet akkurat nå."
+        }
+        if status.net >= 0 {
+            return "Så langt ser dette rolig ut."
+        }
+        return "Før litt til for å få bedre oversikt denne måneden."
     }
 
     func heroSupportText(status: OverviewBudgetStatus, hasTransactions: Bool) -> String {
         if !hasTransactions {
             return "Legg til en inntekt eller utgift for å gjøre oversikten mer presis."
+        }
+        if status.income > 0 && status.spent <= 0 {
+            return "Legg til utgifter underveis for en mer presis oversikt."
         }
         if status.hasPlan {
             return "Legg til utgifter underveis for en mer presis oversikt."
@@ -150,15 +166,27 @@ final class OverviewViewModel: ObservableObject {
     }
 
     func savingsHeadline() -> String {
-        "Til overs hittil i år"
+        "Til overs i år"
     }
 
     func savingsSupportText() -> String {
-        "Basert på inntekter og utgifter"
+        "Forskjellen mellom inntekter og utgifter så langt i år."
+    }
+
+    func registeredSavingsHeadline() -> String {
+        "Satt til side"
+    }
+
+    func registeredSavingsSupportText() -> String {
+        "Penger du har registrert til sparing."
     }
 
     func goalEmptySupportText() -> String {
         "Et enkelt mål gjør fremgangen lettere å følge."
+    }
+
+    func goalProgressTitle() -> String {
+        "På vei mot målet ditt"
     }
 
     func investmentsEmptyTitle() -> String {
@@ -166,7 +194,7 @@ final class OverviewViewModel: ObservableObject {
     }
 
     func investmentsEmptySupportText() -> String {
-        "Legg til første snapshot når du vil følge utviklingen."
+        "Legg inn verdien når du vil følge utviklingen over tid."
     }
 
     func scopeText(activeGoal: Goal?) -> String {

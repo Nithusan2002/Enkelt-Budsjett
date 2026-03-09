@@ -50,6 +50,14 @@ struct OverviewView: View {
         abs(savedYTD) >= 1 || abs(registeredSavingYTD) >= 1
     }
 
+    private var shouldShowNetSavingsCard: Bool {
+        abs(savedYTD) >= 1
+    }
+
+    private var shouldShowRegisteredSavingsCard: Bool {
+        abs(registeredSavingYTD) >= 1
+    }
+
     private var shouldShowPrimaryCTA: Bool {
         latestSnapshot == nil || isCheckInDue
     }
@@ -79,11 +87,10 @@ struct OverviewView: View {
             } else {
                 VStack(alignment: .leading, spacing: 16) {
                     monthlyStatusHeroModule
-                    quickStatsModule
                     goalModule
                     investmentsSummaryModule
                     if hasSavedData {
-                        savedModule
+                        historicalSavingsModule
                     }
                 }
                 .padding()
@@ -147,6 +154,10 @@ struct OverviewView: View {
             Text(viewModel.heroIntroText(status: budgetStatus, hasTransactions: !transactions.isEmpty))
                 .appSecondaryStyle()
 
+            Text(viewModel.heroStatusLine(status: budgetStatus, hasTransactions: !transactions.isEmpty))
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(budgetStatus.net >= 0 ? AppTheme.positive : AppTheme.textSecondary)
+
             LazyVGrid(
                 columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3),
                 spacing: 10
@@ -200,30 +211,6 @@ struct OverviewView: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(viewModel.heroTitle())
         .accessibilityValue(areAmountsHidden ? "Beløp skjult" : formatNOK(budgetStatus.net))
-    }
-
-    private var quickStatsModule: some View {
-        Button {
-            navigationState.selectedTab = .budget
-        } label: {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(viewModel.savingsHeadline())
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(AppTheme.textSecondary)
-                Text(displayedAmount(savedYTD))
-                    .font(.title3.weight(.semibold))
-                    .monospacedDigit()
-                    .foregroundStyle(savedYTD >= 0 ? AppTheme.positive : AppTheme.negative)
-                Text(viewModel.savingsSupportText())
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(AppTheme.textSecondary)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(12)
-            .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.divider, lineWidth: 1))
-        }
-        .buttonStyle(.plain)
     }
 
     private var investmentsSummaryModule: some View {
@@ -321,7 +308,7 @@ struct OverviewView: View {
                             .appSecondaryStyle()
                     } else {
                         HStack {
-                            Text("Mål")
+                            Text(viewModel.goalProgressTitle())
                                 .appCardTitleStyle()
                             Spacer()
                             Image(systemName: "pencil")
@@ -366,30 +353,63 @@ struct OverviewView: View {
     }
 
     private var savedModule: some View {
-        return Button {
-            navigationState.selectedTab = .budget
-        } label: {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Registrert sparing")
-                    .appCardTitleStyle()
-                Text(areAmountsHidden ? "Beløp skjult" : displayedAmount(registeredSavingYTD))
-                    .font(.title3.weight(.semibold))
-                    .monospacedDigit()
-                    .foregroundStyle(registeredSavingYTD >= 0 ? AppTheme.positive : AppTheme.textPrimary)
-                Text("Beløp du har ført til sparekategorier hittil i år.")
-                    .appBodyStyle()
-                    .foregroundStyle(AppTheme.textPrimary)
-                Text("Se detaljer i Budsjett")
-                    .appSecondaryStyle()
+        historicalSavingsModule
+    }
+
+    private var historicalSavingsModule: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if shouldShowNetSavingsCard {
+                Button {
+                    navigationState.selectedTab = .budget
+                } label: {
+                    savingsCard(
+                        title: viewModel.savingsHeadline(),
+                        value: displayedAmount(savedYTD),
+                        support: viewModel.savingsSupportText(),
+                        tone: savedYTD >= 0 ? AppTheme.positive : AppTheme.negative
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(viewModel.savingsHeadline())
+                .accessibilityValue(areAmountsHidden ? "Beløp skjult" : formatNOK(savedYTD))
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding()
-            .background(AppTheme.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 16))
-            .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
+
+            if shouldShowRegisteredSavingsCard {
+                Button {
+                    navigationState.selectedTab = .budget
+                } label: {
+                    savingsCard(
+                        title: viewModel.registeredSavingsHeadline(),
+                        value: displayedAmount(registeredSavingYTD),
+                        support: viewModel.registeredSavingsSupportText(),
+                        tone: registeredSavingYTD >= 0 ? AppTheme.positive : AppTheme.textPrimary
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(viewModel.registeredSavingsHeadline())
+                .accessibilityValue(areAmountsHidden ? "Beløp skjult" : formatNOK(registeredSavingYTD))
+            }
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Registrert sparing")
-        .accessibilityValue(areAmountsHidden ? "Beløp skjult" : formatNOK(registeredSavingYTD))
+    }
+
+    private func savingsCard(title: String, value: String, support: String, tone: Color) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .appCardTitleStyle()
+            Text(value)
+                .font(.title3.weight(.semibold))
+                .monospacedDigit()
+                .foregroundStyle(tone)
+            Text(support)
+                .appBodyStyle()
+                .foregroundStyle(AppTheme.textPrimary)
+            Text("Se detaljer i Budsjett")
+                .appSecondaryStyle()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
     }
 
     private func overviewMetric(title: String, value: String, tone: Color) -> some View {
