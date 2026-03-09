@@ -26,6 +26,16 @@ enum BudgetGroup: String, Codable, CaseIterable, Identifiable {
         }
     }
 
+    var sortOrder: Int {
+        switch self {
+        case .fast: return 0
+        case .bolig: return 1
+        case .hverdags: return 2
+        case .fritid: return 3
+        case .annet: return 4
+        }
+    }
+
     static func from(key: String) -> BudgetGroup {
         BudgetGroup(rawValue: key) ?? .annet
     }

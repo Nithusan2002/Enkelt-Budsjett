@@ -258,8 +258,9 @@ final class BudgetViewModel: ObservableObject {
         }
 
         let sorted = rows.sorted { lhs, rhs in
-            if lhs.isOverBudget != rhs.isOverBudget { return lhs.isOverBudget && !rhs.isOverBudget }
-            if lhs.spent != rhs.spent { return lhs.spent > rhs.spent }
+            if lhs.group.sortOrder != rhs.group.sortOrder {
+                return lhs.group.sortOrder < rhs.group.sortOrder
+            }
             return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
         }
 

@@ -84,26 +84,32 @@ struct BudgetFeatureTests {
 
     @Test
     @MainActor
-    func budgetGroupRowsAreSortedByRiskOverNearThenRemaining() {
+    func budgetGroupRowsFollowConfiguredProductOrder() {
         let now = Calendar.current.date(from: DateComponents(year: 2026, month: 6, day: 15)) ?? .now
         let periodKey = DateService.periodKey(from: now)
 
         let categories = [
             Category(id: "cat_bolig", name: "Husleie", type: .expense, groupKey: BudgetGroup.bolig.rawValue, sortOrder: 1),
             Category(id: "cat_fast", name: "Internett", type: .expense, groupKey: BudgetGroup.fast.rawValue, sortOrder: 2),
-            Category(id: "cat_fritid", name: "Hobby", type: .expense, groupKey: BudgetGroup.fritid.rawValue, sortOrder: 3)
+            Category(id: "cat_hverdags", name: "Mat", type: .expense, groupKey: BudgetGroup.hverdags.rawValue, sortOrder: 3),
+            Category(id: "cat_fritid", name: "Hobby", type: .expense, groupKey: BudgetGroup.fritid.rawValue, sortOrder: 4),
+            Category(id: "cat_annet", name: "Gaver", type: .expense, groupKey: BudgetGroup.annet.rawValue, sortOrder: 5)
         ]
 
         let plans = [
             BudgetGroupPlan(monthPeriodKey: periodKey, groupKey: BudgetGroup.bolig.rawValue, plannedAmount: 5_000),
             BudgetGroupPlan(monthPeriodKey: periodKey, groupKey: BudgetGroup.fast.rawValue, plannedAmount: 4_000),
-            BudgetGroupPlan(monthPeriodKey: periodKey, groupKey: BudgetGroup.fritid.rawValue, plannedAmount: 3_000)
+            BudgetGroupPlan(monthPeriodKey: periodKey, groupKey: BudgetGroup.hverdags.rawValue, plannedAmount: 6_000),
+            BudgetGroupPlan(monthPeriodKey: periodKey, groupKey: BudgetGroup.fritid.rawValue, plannedAmount: 3_000),
+            BudgetGroupPlan(monthPeriodKey: periodKey, groupKey: BudgetGroup.annet.rawValue, plannedAmount: 2_000)
         ]
 
         let transactions = [
             Transaction(date: now, amount: 5_500, kind: .expense, categoryID: "cat_bolig"),
-            Transaction(date: now, amount: 3_400, kind: .expense, categoryID: "cat_fast"),
-            Transaction(date: now, amount: 1_000, kind: .expense, categoryID: "cat_fritid")
+            Transaction(date: now, amount: 200, kind: .expense, categoryID: "cat_fast"),
+            Transaction(date: now, amount: 4_200, kind: .expense, categoryID: "cat_hverdags"),
+            Transaction(date: now, amount: 1_000, kind: .expense, categoryID: "cat_fritid"),
+            Transaction(date: now, amount: 1_500, kind: .expense, categoryID: "cat_annet")
         ]
 
         let viewModel = BudgetViewModel()
@@ -114,7 +120,7 @@ struct BudgetFeatureTests {
             periodTransactions: transactions
         )
 
-        #expect(rows.map(\.group) == [.bolig, .fast, .fritid])
+        #expect(rows.map(\.group) == [.fast, .bolig, .hverdags, .fritid, .annet])
     }
 
     @Test
