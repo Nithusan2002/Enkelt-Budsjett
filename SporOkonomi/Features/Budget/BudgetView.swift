@@ -130,15 +130,13 @@ struct BudgetView: View {
         .navigationTitle("Budsjett")
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: 8) {
-                if hasPlannedBudget {
-                    BudgetBottomAddTransactionButton {
-                        addTransactionInitialType = .expense
-                        viewModel.showAddTransaction = true
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
-                    .disabled(isReadOnlyMode)
+                BudgetBottomAddTransactionButton {
+                    addTransactionInitialType = .expense
+                    viewModel.showAddTransaction = true
                 }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .disabled(isReadOnlyMode)
 
                 if isReadOnlyMode {
                     Text("Skrivende handlinger er låst fordi appen kjører uten varig lagring.")
