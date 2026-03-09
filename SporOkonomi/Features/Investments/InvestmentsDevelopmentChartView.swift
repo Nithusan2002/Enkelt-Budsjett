@@ -280,7 +280,7 @@ struct InvestmentsDevelopmentChartView: View {
     }
 
     private var stackedColorRange: [Color] {
-        latest.buckets.map(\.color)
+        latest.buckets.map(areaFillColor(for:))
     }
 
     private var latest: InvestmentsDevelopmentChartPoint {
@@ -294,11 +294,11 @@ struct InvestmentsDevelopmentChartView: View {
     }
 
     private var areaOpacity: Double {
-        colorScheme == .dark ? 0.82 : 0.88
+        colorScheme == .dark ? 0.56 : 0.38
     }
 
     private var totalLineColor: Color {
-        colorScheme == .dark ? AppTheme.textPrimary.opacity(0.55) : AppTheme.textPrimary.opacity(0.42)
+        colorScheme == .dark ? AppTheme.primary.opacity(0.96) : AppTheme.primary.opacity(0.9)
     }
 
     private var periodDelta: Double {
@@ -415,7 +415,7 @@ struct InvestmentsDevelopmentChartView: View {
                     x: .value("Måned", point.date),
                     y: .value("Total", point.total)
                 )
-                .lineStyle(StrokeStyle(lineWidth: 2.6, lineCap: .round, lineJoin: .round))
+                .lineStyle(StrokeStyle(lineWidth: 3.2, lineCap: .round, lineJoin: .round))
                 .foregroundStyle(totalLineColor)
             }
 
@@ -523,6 +523,12 @@ struct InvestmentsDevelopmentChartView: View {
         }
         .animation(.easeInOut(duration: 0.25), value: period)
         .animation(.spring(response: 0.26, dampingFraction: 0.9), value: selectedPointID)
+    }
+
+    private func areaFillColor(for bucket: InvestmentsDevelopmentBucketPoint) -> Color {
+        let base = bucket.color
+        let opacity = colorScheme == .dark ? 0.72 : 0.52
+        return base.opacity(opacity)
     }
 
     private func tooltip(for point: InvestmentsDevelopmentChartPoint) -> some View {
