@@ -1479,19 +1479,18 @@ struct BudgetGroupDetailView: View {
 
                                             if !transaction.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                                                 Text(transaction.note)
-                                                .font(.footnote)
+                                                    .font(.footnote)
                                                     .foregroundStyle(AppTheme.textSecondary)
                                                     .lineLimit(1)
                                             }
 
-                                            HStack(spacing: 8) {
-                                                Text(transactionDateLabel(transaction.date))
-                                                    .font(.caption)
-                                                    .foregroundStyle(AppTheme.textSecondary)
-                                                if transaction.recurringKey != nil {
-                                                    transactionMetaPill(text: "Fast post", color: AppTheme.primary)
-                                                } else if transaction.kind == .manualSaving {
-                                                    transactionMetaPill(text: "Sparing", color: AppTheme.secondary)
+                                            if transaction.recurringKey != nil || transaction.kind == .manualSaving {
+                                                HStack(spacing: 8) {
+                                                    if transaction.recurringKey != nil {
+                                                        transactionMetaPill(text: "Fast post", color: AppTheme.primary)
+                                                    } else if transaction.kind == .manualSaving {
+                                                        transactionMetaPill(text: "Sparing", color: AppTheme.secondary)
+                                                    }
                                                 }
                                             }
                                         }
@@ -1612,7 +1611,7 @@ struct BudgetGroupDetailView: View {
 
     private func transactionDateLabel(_ date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.locale = .current
+        formatter.locale = Locale(identifier: "nb_NO")
         formatter.dateFormat = "d MMMM"
         return formatter.string(from: date)
     }
