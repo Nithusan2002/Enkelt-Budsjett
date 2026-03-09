@@ -12,37 +12,37 @@
 			containerPortal = 82F82F6A2F4CB67E00CA6205 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 82F82F712F4CB67E00CA6205;
-			remoteInfo = "SporOkonomi";
+			remoteInfo = SporOkonomi;
 		};
 		82F82F8A2F4CB68000CA6205 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 82F82F6A2F4CB67E00CA6205 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 82F82F712F4CB67E00CA6205;
-			remoteInfo = "SporOkonomi";
+			remoteInfo = SporOkonomi;
 		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		82F82F722F4CB67E00CA6205 /* SporOkonomi.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "SporOkonomi.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		82F82F7F2F4CB68000CA6205 /* SporOkonomiTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "SporOkonomiTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
-		82F82F892F4CB68000CA6205 /* SporOkonomiUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "SporOkonomiUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		82F82F722F4CB67E00CA6205 /* SporOkonomi.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SporOkonomi.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		82F82F7F2F4CB68000CA6205 /* SporOkonomiTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SporOkonomiTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		82F82F892F4CB68000CA6205 /* SporOkonomiUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SporOkonomiUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		82F82F742F4CB67E00CA6205 /* SporOkonomi */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "SporOkonomi";
+			path = SporOkonomi;
 			sourceTree = "<group>";
 		};
 		82F82F822F4CB68000CA6205 /* SporOkonomiTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "SporOkonomiTests";
+			path = SporOkonomiTests;
 			sourceTree = "<group>";
 		};
 		82F82F8C2F4CB68000CA6205 /* SporOkonomiUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "SporOkonomiUITests";
+			path = SporOkonomiUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -110,10 +110,10 @@
 			fileSystemSynchronizedGroups = (
 				82F82F742F4CB67E00CA6205 /* SporOkonomi */,
 			);
-			name = "SporOkonomi";
+			name = SporOkonomi;
 			packageProductDependencies = (
 			);
-			productName = "SporOkonomi";
+			productName = SporOkonomi;
 			productReference = 82F82F722F4CB67E00CA6205 /* SporOkonomi.app */;
 			productType = "com.apple.product-type.application";
 		};
@@ -133,10 +133,10 @@
 			fileSystemSynchronizedGroups = (
 				82F82F822F4CB68000CA6205 /* SporOkonomiTests */,
 			);
-			name = "SporOkonomiTests";
+			name = SporOkonomiTests;
 			packageProductDependencies = (
 			);
-			productName = "SporOkonomiTests";
+			productName = SporOkonomiTests;
 			productReference = 82F82F7F2F4CB68000CA6205 /* SporOkonomiTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
@@ -156,10 +156,10 @@
 			fileSystemSynchronizedGroups = (
 				82F82F8C2F4CB68000CA6205 /* SporOkonomiUITests */,
 			);
-			name = "SporOkonomiUITests";
+			name = SporOkonomiUITests;
 			packageProductDependencies = (
 			);
-			productName = "SporOkonomiUITests";
+			productName = SporOkonomiUITests;
 			productReference = 82F82F892F4CB68000CA6205 /* SporOkonomiUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
@@ -397,7 +397,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "SporOkonomi/SimpleBudget.entitlements";
+				CODE_SIGN_ENTITLEMENTS = SporOkonomi/SimpleBudget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = K392629S8S;
@@ -409,7 +409,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.nithusan.SporOkonomi";
+				PRODUCT_BUNDLE_IDENTIFIER = com.nithusan.SporOkonomi;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -426,7 +426,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "SporOkonomi/SimpleBudget.entitlements";
+				CODE_SIGN_ENTITLEMENTS = SporOkonomi/SimpleBudget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = K392629S8S;
@@ -438,7 +438,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.nithusan.SporOkonomi";
+				PRODUCT_BUNDLE_IDENTIFIER = com.nithusan.SporOkonomi;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -460,7 +460,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.nithusan.SporOkonomiTests";
+				PRODUCT_BUNDLE_IDENTIFIER = com.nithusan.SporOkonomiTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -482,7 +482,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.nithusan.SporOkonomiTests";
+				PRODUCT_BUNDLE_IDENTIFIER = com.nithusan.SporOkonomiTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -502,7 +502,7 @@
 				DEVELOPMENT_TEAM = K392629S8S;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.nithusan.SporOkonomiUITests";
+				PRODUCT_BUNDLE_IDENTIFIER = com.nithusan.SporOkonomiUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -510,7 +510,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = "SporOkonomi";
+				TEST_TARGET_NAME = SporOkonomi;
 			};
 			name = Debug;
 		};
@@ -522,7 +522,7 @@
 				DEVELOPMENT_TEAM = K392629S8S;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.nithusan.SporOkonomiUITests";
+				PRODUCT_BUNDLE_IDENTIFIER = com.nithusan.SporOkonomiUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -530,7 +530,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = "SporOkonomi";
+				TEST_TARGET_NAME = SporOkonomi;
 			};
 			name = Release;
 		};
