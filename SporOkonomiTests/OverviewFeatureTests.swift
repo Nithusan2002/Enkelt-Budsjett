@@ -33,18 +33,20 @@ struct OverviewFeatureTests {
             income: 15_500,
             spent: 14_356.76
         )
-        let negative = OverviewBudgetStatus(
-            hasPlan: false,
-            planned: 0,
-            remaining: 0,
-            net: -107.4,
-            income: 10_000,
-            spent: 10_107.4
+        let overBudget = OverviewBudgetStatus(
+            hasPlan: true,
+            planned: 12_000,
+            remaining: -677.4,
+            net: 3_200,
+            income: 15_000,
+            spent: 12_677.4
         )
 
         #expect(viewModel.heroAmountText(status: positive) == "1 143 kr")
         #expect(viewModel.heroMetricValue(amount: positive.spent) == "14 357 kr")
-        #expect(viewModel.heroMetricValue(amount: negative.net, isRemaining: true) == "107 kr over")
+        #expect(viewModel.heroMetricValue(amount: overBudget.planned) == "12 000 kr")
+        #expect(viewModel.heroAmountText(status: overBudget) == "677 kr over")
+        #expect(viewModel.heroStatusLine(status: overBudget, hasTransactions: true) == "Over budsjett med 677 kr")
     }
 
     @Test

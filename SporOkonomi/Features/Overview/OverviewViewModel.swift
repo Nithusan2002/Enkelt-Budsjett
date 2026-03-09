@@ -109,14 +109,21 @@ final class OverviewViewModel: ObservableObject {
     }
 
     func heroAmountText(status: OverviewBudgetStatus) -> String {
-        let rounded = roundedKr(abs(status.net))
-        if status.net < 0 {
+        let focusAmount = status.hasPlan ? status.remaining : status.net
+        let rounded = roundedKr(abs(focusAmount))
+        if focusAmount < 0 {
             return "\(rounded) over"
         }
         return rounded
     }
 
     func heroStatusLine(status: OverviewBudgetStatus, hasTransactions: Bool) -> String {
+        if status.hasPlan && status.remaining < 0 {
+            return "Over budsjett med \(roundedKr(abs(status.remaining)))"
+        }
+        if status.hasPlan {
+            return "Innenfor budsjettet så langt."
+        }
         if !hasTransactions {
             return "Basert på det du har lagt inn så langt."
         }
@@ -129,10 +136,7 @@ final class OverviewViewModel: ObservableObject {
         return "Registrer flere transaksjoner for en mer presis oversikt."
     }
 
-    func heroMetricValue(amount: Double, isRemaining: Bool = false) -> String {
-        if isRemaining && amount < 0 {
-            return "\(roundedKr(abs(amount))) over"
-        }
+    func heroMetricValue(amount: Double) -> String {
         return roundedKr(amount)
     }
 

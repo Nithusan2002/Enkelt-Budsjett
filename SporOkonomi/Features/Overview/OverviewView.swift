@@ -139,7 +139,7 @@ struct OverviewView: View {
             Text(areAmountsHidden ? "Beløp skjult" : viewModel.heroAmountText(status: budgetStatus))
                 .font(.system(size: 40, weight: .bold, design: .rounded))
                 .monospacedDigit()
-                .foregroundStyle(AppTheme.textPrimary)
+                .foregroundStyle(heroAmountTone)
                 .contentTransition(.numericText(value: budgetStatus.net))
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
@@ -150,15 +150,7 @@ struct OverviewView: View {
 
             HStack(alignment: .top, spacing: 12) {
                 overviewMetric(
-                    title: "Inntekt",
-                    value: areAmountsHidden ? "Skjult" : viewModel.heroMetricValue(amount: budgetStatus.income),
-                    tone: AppTheme.textPrimary
-                )
-
-                Divider()
-
-                overviewMetric(
-                    title: "Brukt",
+                    title: "Brukt så langt",
                     value: areAmountsHidden ? "Skjult" : viewModel.heroMetricValue(amount: budgetStatus.spent),
                     tone: AppTheme.textPrimary
                 )
@@ -166,9 +158,9 @@ struct OverviewView: View {
                 Divider()
 
                 overviewMetric(
-                    title: "Igjen",
-                    value: areAmountsHidden ? "Skjult" : viewModel.heroMetricValue(amount: budgetStatus.net, isRemaining: true),
-                    tone: budgetStatus.net < 0 ? AppTheme.warning : AppTheme.textPrimary
+                    title: "Planlagt",
+                    value: areAmountsHidden ? "Skjult" : viewModel.heroMetricValue(amount: budgetStatus.planned),
+                    tone: AppTheme.textPrimary
                 )
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -431,6 +423,11 @@ struct OverviewView: View {
         }
         let sign = value >= 0 ? "+" : "−"
         return "\(sign)\(formatNOK(abs(value)))"
+    }
+
+    private var heroAmountTone: Color {
+        let focusAmount = budgetStatus.hasPlan ? budgetStatus.remaining : budgetStatus.net
+        return focusAmount < 0 ? AppTheme.warning : AppTheme.textPrimary
     }
 
     private func openInvestments() {
