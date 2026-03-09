@@ -105,13 +105,8 @@ struct BudgetView: View {
                     )
                 } label: {
                     HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Se detaljer")
-                                .appSecondaryStyle()
-                            Text("Faste poster, inntekter og sparing")
-                                .font(.footnote)
-                                .foregroundStyle(AppTheme.textSecondary)
-                        }
+                        Text("Se detaljer")
+                            .appSecondaryStyle()
                         Spacer()
                         Image(systemName: "chevron.right")
                             .font(.caption.weight(.semibold))

@@ -197,8 +197,6 @@ struct OverviewView: View {
                     Text("Investeringer")
                         .appCardTitleStyle()
                     Spacer()
-                    Text("Åpne")
-                        .appSecondaryStyle()
                 }
 
                 if let latestSnapshot {
@@ -362,8 +360,6 @@ struct OverviewView: View {
             Text(support)
                 .appBodyStyle()
                 .foregroundStyle(AppTheme.textPrimary)
-            Text("Se detaljer i Budsjett")
-                .appSecondaryStyle()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()

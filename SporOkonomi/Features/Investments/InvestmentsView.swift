@@ -201,9 +201,6 @@ struct InvestmentsView: View {
                     .overlay(AppTheme.divider)
                     .padding(.vertical, 2)
 
-                Text("Utvikling")
-                    .appCardTitleStyle()
-
                 InvestmentsDevelopmentChartView(
                     points: viewModel.developmentChartPoints(snapshots: snapshots, buckets: buckets),
                     period: $viewModel.developmentPeriod,

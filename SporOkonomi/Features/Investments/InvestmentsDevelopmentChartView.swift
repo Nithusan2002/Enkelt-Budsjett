@@ -318,8 +318,6 @@ struct InvestmentsDevelopmentChartView: View {
             }
             controls
             content
-            Text("Basert på totalsummene du legger inn.")
-                .appSecondaryStyle()
         }
         .padding(embedded ? 0 : 14)
         .background {
