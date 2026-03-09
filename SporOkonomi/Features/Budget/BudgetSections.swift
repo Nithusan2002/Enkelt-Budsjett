@@ -10,7 +10,7 @@ struct BudgetBottomAddTransactionButton: View {
             HStack(spacing: 10) {
                 Image(systemName: "plus")
                     .font(.title3.weight(.bold))
-                Text("Legg til utgift")
+                Text("Legg til transaksjon")
                     .font(.title3.weight(.semibold))
                     .lineLimit(1)
             }
@@ -25,7 +25,7 @@ struct BudgetBottomAddTransactionButton: View {
             .shadow(color: .black.opacity(0.22), radius: 12, x: 0, y: 6)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Legg til utgift")
+        .accessibilityLabel("Legg til transaksjon")
     }
 }
 
@@ -175,10 +175,6 @@ struct BudgetHeroCardView: View {
     let onSetLimits: () -> Void
     let summary: BudgetSummaryData
 
-    private var showsNoEntriesState: Bool {
-        !hasPlannedBudget && !hasTransactions
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             if hasPlannedBudget {
@@ -214,23 +210,11 @@ struct BudgetHeroCardView: View {
                     Text("\(groupsWithoutLimitWithSpendCount) grupper har aktivitet uten grense.")
                         .appSecondaryStyle()
                 }
-            } else if showsNoEntriesState {
-                Text("Ingen føringer denne måneden")
-                    .appCardTitleStyle()
-
-                Text("Når du legger til utgifter, vises de her mot budsjettet.")
-                    .appSecondaryStyle()
-
-                Button("Sett grenser") {
-                    onSetLimits()
-                }
-                .appProminentCTAStyle()
-                .controlSize(.large)
             } else {
                 Text("Ingen grenser satt")
                     .appCardTitleStyle()
 
-                Text("Sett enkle grenser for kategoriene du vil følge denne måneden.")
+                Text("Du kan fortsatt føre som vanlig. Sett grenser når du vil ha mer oversikt.")
                     .appSecondaryStyle()
 
                 Button("Sett grenser") {
@@ -248,7 +232,7 @@ struct BudgetHeroCardView: View {
         .accessibilityLabel(
             hasPlannedBudget
                 ? "Igjen denne måneden"
-                : (showsNoEntriesState ? "Ingen føringer denne måneden" : "Ingen grenser satt")
+                : "Ingen grenser satt"
         )
         .accessibilityValue(hasPlannedBudget ? "\(formatNOK(remaining)). \(summary.statusLine)" : "Sett grenser")
     }
@@ -294,7 +278,7 @@ struct GroupListView: View {
                     Text(
                         hasPlannedBudget
                             ? "Ingen føringer denne måneden"
-                            : "Sett enkle grenser for kategoriene du vil følge denne måneden."
+                            : "Du kan fortsatt føre som vanlig. Sett grenser når du vil ha mer oversikt."
                     )
                     .appSecondaryStyle()
 
