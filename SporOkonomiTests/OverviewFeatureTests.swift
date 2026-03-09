@@ -24,13 +24,21 @@ struct OverviewFeatureTests {
 
     @Test
     @MainActor
-    func overviewShowsMonthlyProgressOnlyWhenBudgetMakesSense() {
+    func overviewShowsMonthlyProgressWhenBudgetExists() {
         let viewModel = OverviewViewModel()
         let withPlan = OverviewBudgetStatus(
             hasPlan: true,
             planned: 10_000,
+            remaining: 10_000,
+            net: 32_000,
+            income: 32_000,
+            spent: 0
+        )
+        let withPlanAndSpend = OverviewBudgetStatus(
+            hasPlan: true,
+            planned: 10_000,
             remaining: 6_000,
-            net: 26_000,
+            net: 28_000,
             income: 32_000,
             spent: 4_000
         )
@@ -43,10 +51,13 @@ struct OverviewFeatureTests {
             spent: 4_000
         )
 
-        let progress = viewModel.monthlyProgress(status: withPlan)
+        let progressWithoutSpend = viewModel.monthlyProgress(status: withPlan)
+        let progressWithSpend = viewModel.monthlyProgress(status: withPlanAndSpend)
 
-        #expect(progress?.value == 4_000)
-        #expect(progress?.total == 10_000)
+        #expect(progressWithoutSpend?.value == 0)
+        #expect(progressWithoutSpend?.total == 10_000)
+        #expect(progressWithSpend?.value == 4_000)
+        #expect(progressWithSpend?.total == 10_000)
         #expect(viewModel.monthlyProgress(status: withoutPlan) == nil)
     }
 }

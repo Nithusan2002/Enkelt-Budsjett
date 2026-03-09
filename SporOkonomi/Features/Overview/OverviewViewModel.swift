@@ -141,7 +141,7 @@ final class OverviewViewModel: ObservableObject {
     }
 
     func shouldShowMonthlyProgress(status: OverviewBudgetStatus) -> Bool {
-        status.hasPlan && status.planned > 0 && status.spent > 0
+        status.hasPlan && status.planned > 0
     }
 
     func monthlyProgress(status: OverviewBudgetStatus) -> (value: Double, total: Double)? {
