@@ -143,9 +143,6 @@ struct OverviewView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
 
-            Text(viewModel.heroIntroText(status: budgetStatus, hasTransactions: !transactions.isEmpty))
-                .appSecondaryStyle()
-
             Text(viewModel.heroStatusLine(status: budgetStatus, hasTransactions: !transactions.isEmpty))
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(budgetStatus.net >= 0 ? AppTheme.positive : AppTheme.textSecondary)
@@ -173,16 +170,10 @@ struct OverviewView: View {
                 )
             }
 
-            Text(monthlyStatusText())
-                .appSecondaryStyle()
-
             if let progress = viewModel.monthlyProgress(status: budgetStatus) {
                 ProgressView(value: progress.value, total: progress.total)
                     .tint(AppTheme.primary)
             }
-
-            Text(viewModel.heroSupportText(status: budgetStatus, hasTransactions: !transactions.isEmpty))
-                .appSecondaryStyle()
 
             Button(viewModel.heroPrimaryCTATitle()) {
                 navigationState.selectedTab = .budget
@@ -411,19 +402,6 @@ struct OverviewView: View {
         }
         let sign = heroChange.kr >= 0 ? "+" : "−"
         return "Siden forrige registrering: \(sign)\(formatNOK(abs(heroChange.kr)))"
-    }
-
-    private func monthlyStatusText() -> String {
-        if transactions.isEmpty {
-            return "Ingen utgifter registrert ennå denne måneden."
-        }
-        if budgetStatus.hasPlan {
-            return "Du har brukt \(displayedAmount(budgetStatus.spent)) og har \(displayedAmount(budgetStatus.remaining)) igjen denne måneden."
-        }
-        if budgetStatus.income > 0 {
-            return "Du har lagt inn \(displayedAmount(budgetStatus.income)) i inntekt og \(displayedAmount(budgetStatus.spent)) i utgifter denne måneden."
-        }
-        return "Du har registrert \(displayedAmount(budgetStatus.spent)) i utgifter så langt denne måneden."
     }
 
     private func goalTrajectoryText(summary: GoalSummary) -> String {

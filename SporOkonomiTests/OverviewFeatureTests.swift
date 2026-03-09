@@ -17,9 +17,7 @@ struct OverviewFeatureTests {
         )
 
         #expect(viewModel.heroTitle() == "Tilgjengelig denne måneden")
-        #expect(viewModel.heroIntroText(status: status, hasTransactions: true) == "Dette er det du har å gå på denne måneden basert på inntekten du har lagt inn.")
         #expect(viewModel.heroStatusLine(status: status, hasTransactions: true) == "Du er i gang denne måneden.")
-        #expect(viewModel.heroSupportText(status: status, hasTransactions: true) == "Legg til utgifter underveis for en mer presis oversikt.")
         #expect(viewModel.heroPrimaryCTATitle() == "Legg til transaksjon")
     }
 
