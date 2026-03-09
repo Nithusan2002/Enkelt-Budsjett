@@ -303,11 +303,11 @@ struct InvestmentsDevelopmentChartView: View {
     }
 
     private var areaOpacity: Double {
-        colorScheme == .dark ? 0.56 : 0.38
+        colorScheme == .dark ? 0.42 : 0.24
     }
 
     private var totalLineColor: Color {
-        colorScheme == .dark ? AppTheme.primary.opacity(0.96) : AppTheme.primary.opacity(0.9)
+        colorScheme == .dark ? AppTheme.primary.opacity(0.98) : AppTheme.primary.opacity(0.94)
     }
 
     private var periodDelta: Double {
@@ -399,8 +399,8 @@ struct InvestmentsDevelopmentChartView: View {
     private var content: some View {
         if points.isEmpty {
             emptyState(
-                title: "Legg inn første innsjekk",
-                body: "Ny innsjekk starter utviklingsgrafen."
+                title: "Ingen registreringer ennå",
+                body: "Oppdater verdien når du vil følge utviklingen."
             )
         } else if points.count == 1 {
             singlePointState(points[0])
@@ -427,7 +427,7 @@ struct InvestmentsDevelopmentChartView: View {
                     x: .value("Måned", point.date),
                     y: .value("Total", point.total)
                 )
-                .lineStyle(StrokeStyle(lineWidth: 3.2, lineCap: .round, lineJoin: .round))
+                .lineStyle(StrokeStyle(lineWidth: 3.6, lineCap: .round, lineJoin: .round))
                 .foregroundStyle(totalLineColor)
             }
 
@@ -447,15 +447,15 @@ struct InvestmentsDevelopmentChartView: View {
         }
         .frame(height: 260)
         .chartForegroundStyleScale(domain: stackedColorDomain, range: stackedColorRange)
-        .chartLegend(position: .bottom, spacing: 8) {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 90), alignment: .leading)], alignment: .leading, spacing: 8) {
+        .chartLegend(position: .bottom, spacing: 6) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 86), alignment: .leading)], alignment: .leading, spacing: 6) {
                 ForEach(latest.buckets) { bucket in
-                    HStack(spacing: 6) {
+                    HStack(spacing: 5) {
                         Circle()
                             .fill(bucket.color)
-                            .frame(width: 10, height: 10)
+                            .frame(width: 8, height: 8)
                         Text(bucket.name)
-                            .font(.footnote)
+                            .font(.caption)
                             .foregroundStyle(AppTheme.textSecondary)
                             .lineLimit(1)
                     }
@@ -478,8 +478,8 @@ struct InvestmentsDevelopmentChartView: View {
         }
         .chartYAxis {
             AxisMarks(position: .leading, values: yTicks) { value in
-                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.7))
-                    .foregroundStyle(AppTheme.divider.opacity(0.35))
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                    .foregroundStyle(AppTheme.divider.opacity(0.22))
                 AxisValueLabel {
                     if let amount = value.as(Double.self) {
                         Text(formatAxisNOK(amount))
@@ -593,7 +593,7 @@ struct InvestmentsDevelopmentChartView: View {
                 .appCardTitleStyle()
             Text(body)
                 .appSecondaryStyle()
-            Button("Ny innsjekk") {
+            Button("Oppdater verdi") {
                 onUpdateValues()
             }
             .appProminentCTAStyle()

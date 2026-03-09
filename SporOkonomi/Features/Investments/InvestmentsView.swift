@@ -156,24 +156,8 @@ struct InvestmentsView: View {
     private var heroSection: some View {
         Section {
             VStack(alignment: .leading, spacing: 12) {
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Total verdi")
-                            .appSecondaryStyle()
-                        Text("Basert på snapshots du legger inn.")
-                            .appSecondaryStyle()
-                    }
-                    Spacer()
-                    Button {
-                        openCheckIn()
-                    } label: {
-                        Label("Legg til innsjekk", systemImage: "plus.circle")
-                    }
-                    .font(.footnote.weight(.semibold))
-                    .buttonStyle(.bordered)
-                    .tint(AppTheme.primary)
-                    .disabled(isReadOnlyMode)
-                }
+                Text("Total verdi")
+                    .appSecondaryStyle()
 
                 Text(displayedAmount(viewModel.displayedTotal))
                     .appBigNumberStyle()
@@ -186,7 +170,7 @@ struct InvestmentsView: View {
                     .layoutPriority(2)
 
                 if latest == nil {
-                    Text("Ingen innsjekker ennå. Legg til første innsjekk når du er klar.")
+                    Text("Ingen registreringer ennå. Oppdater verdien når du vil følge utviklingen.")
                         .appSecondaryStyle()
                 } else {
                     VStack(alignment: .leading, spacing: 6) {
@@ -197,6 +181,16 @@ struct InvestmentsView: View {
                             .appSecondaryStyle()
                     }
                 }
+
+                Button {
+                    openCheckIn()
+                } label: {
+                    Label("Oppdater verdi", systemImage: "plus.circle")
+                }
+                .font(.footnote.weight(.semibold))
+                .buttonStyle(.bordered)
+                .tint(AppTheme.primary)
+                .disabled(isReadOnlyMode)
 
                 Divider()
                     .overlay(AppTheme.divider)
@@ -420,9 +414,9 @@ struct InvestmentsView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Ingen innsjekker ennå")
                             .appCardTitleStyle()
-                        Text("Legg til første innsjekk når du vil følge utviklingen over tid.")
+                        Text("Oppdater verdien når du vil følge utviklingen over tid.")
                             .appSecondaryStyle()
-                        Button("Legg til innsjekk") {
+                        Button("Oppdater verdi") {
                             openCheckIn()
                         }
                         .appProminentCTAStyle()
@@ -477,18 +471,18 @@ struct InvestmentsView: View {
     private func changeSummaryText(changeKr: Double, changePct: Double?) -> String {
         if areAmountsHidden {
             guard changeKr != 0 || changePct != nil else {
-                return "Siden forrige innsjekk: ingen endring ennå"
+                return "Siden sist oppdatert: ingen endring ennå"
             }
             return changeKr >= 0
-                ? "Siden forrige innsjekk: opp"
-                : "Siden forrige innsjekk: ned"
+                ? "Siden sist oppdatert: opp"
+                : "Siden sist oppdatert: ned"
         }
         guard changeKr != 0 || changePct != nil else {
-            return "Siden forrige innsjekk: ingen endring ennå"
+            return "Siden sist oppdatert: ingen endring ennå"
         }
         let sign = changeKr >= 0 ? "+" : "−"
         let pctText = changePct.map { " (\(formatPercent($0)))" } ?? ""
-        return "Siden forrige innsjekk: \(sign)\(formatNOK(abs(changeKr)))\(pctText)"
+        return "Siden sist oppdatert: \(sign)\(formatNOK(abs(changeKr)))\(pctText)"
     }
 
     private func bucketRow(_ row: InvestmentBucketRowData) -> some View {
