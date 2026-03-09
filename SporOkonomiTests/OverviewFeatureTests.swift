@@ -17,8 +17,34 @@ struct OverviewFeatureTests {
         )
 
         #expect(viewModel.heroTitle() == "Tilgjengelig denne måneden")
-        #expect(viewModel.heroStatusLine(status: status, hasTransactions: true) == "Du er i gang denne måneden.")
+        #expect(viewModel.heroStatusLine(status: status, hasTransactions: true) == "Legg til flere transaksjoner for en mer presis oversikt.")
         #expect(viewModel.heroPrimaryCTATitle() == "Legg til transaksjon")
+    }
+
+    @Test
+    @MainActor
+    func overviewHeroUsesRoundedKrAndOverLabel() {
+        let viewModel = OverviewViewModel()
+        let positive = OverviewBudgetStatus(
+            hasPlan: false,
+            planned: 0,
+            remaining: 0,
+            net: 1_143.24,
+            income: 15_500,
+            spent: 14_356.76
+        )
+        let negative = OverviewBudgetStatus(
+            hasPlan: false,
+            planned: 0,
+            remaining: 0,
+            net: -107.4,
+            income: 10_000,
+            spent: 10_107.4
+        )
+
+        #expect(viewModel.heroAmountText(status: positive) == "1 143 kr")
+        #expect(viewModel.heroMetricValue(amount: positive.spent) == "14 357 kr")
+        #expect(viewModel.heroMetricValue(amount: negative.net, isRemaining: true) == "107 kr over")
     }
 
     @Test

@@ -108,40 +108,32 @@ final class OverviewViewModel: ObservableObject {
         "Tilgjengelig denne måneden"
     }
 
-    func heroIntroText(status: OverviewBudgetStatus, hasTransactions: Bool) -> String {
-        if !hasTransactions {
-            return "Dette er det du har å gå på denne måneden basert på det du har lagt inn så langt."
+    func heroAmountText(status: OverviewBudgetStatus) -> String {
+        let rounded = roundedKr(abs(status.net))
+        if status.net < 0 {
+            return "\(rounded) over"
         }
-        if status.income > 0 && status.spent <= 0 {
-            return "Dette er det du har å gå på denne måneden basert på inntekten du har lagt inn."
-        }
-        return "Dette er det du har å gå på denne måneden basert på det du har lagt inn så langt."
+        return rounded
     }
 
     func heroStatusLine(status: OverviewBudgetStatus, hasTransactions: Bool) -> String {
-        if status.income > 0 && status.spent <= 0 {
-            return "Du er i gang denne måneden."
-        }
         if !hasTransactions {
-            return "Start rolig med det du vet akkurat nå."
+            return "Basert på det du har lagt inn så langt."
+        }
+        if status.income > 0 && status.spent <= 0 {
+            return "Legg til flere transaksjoner for en mer presis oversikt."
         }
         if status.net >= 0 {
-            return "Så langt ser dette rolig ut."
+            return "Basert på det du har lagt inn så langt."
         }
         return "Registrer flere transaksjoner for en mer presis oversikt."
     }
 
-    func heroSupportText(status: OverviewBudgetStatus, hasTransactions: Bool) -> String {
-        if !hasTransactions {
-            return "Legg til en inntekt eller utgift for å gjøre oversikten mer presis."
+    func heroMetricValue(amount: Double, isRemaining: Bool = false) -> String {
+        if isRemaining && amount < 0 {
+            return "\(roundedKr(abs(amount))) over"
         }
-        if status.income > 0 && status.spent <= 0 {
-            return "Legg til utgifter underveis for en mer presis oversikt."
-        }
-        if status.hasPlan {
-            return "Legg til utgifter underveis for en mer presis oversikt."
-        }
-        return "Legg til utgifter underveis, eller sett grenser når du vil ha mer oversikt."
+        return roundedKr(amount)
     }
 
     func heroPrimaryCTATitle() -> String {
@@ -179,6 +171,17 @@ final class OverviewViewModel: ObservableObject {
 
     func investmentsEmptySupportText() -> String {
         "Legg inn verdien når du vil følge utviklingen over tid."
+    }
+
+    private func roundedKr(_ value: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.locale = Locale(identifier: "nb_NO")
+        formatter.numberStyle = .decimal
+        formatter.maximumFractionDigits = 0
+        formatter.minimumFractionDigits = 0
+        let number = NSNumber(value: value.rounded())
+        let formatted = formatter.string(from: number) ?? String(Int(value.rounded()))
+        return "\(formatted) kr"
     }
 
     func scopeText(activeGoal: Goal?) -> String {

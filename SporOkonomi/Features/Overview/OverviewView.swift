@@ -136,8 +136,9 @@ struct OverviewView: View {
                 Spacer()
             }
 
-            Text(displayedAmount(budgetStatus.net))
-                .appBigNumberStyle()
+            Text(areAmountsHidden ? "Beløp skjult" : viewModel.heroAmountText(status: budgetStatus))
+                .font(.system(size: 40, weight: .bold, design: .rounded))
+                .monospacedDigit()
                 .foregroundStyle(AppTheme.textPrimary)
                 .contentTransition(.numericText(value: budgetStatus.net))
                 .lineLimit(1)
@@ -147,28 +148,30 @@ struct OverviewView: View {
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(budgetStatus.net >= 0 ? AppTheme.positive : AppTheme.textSecondary)
 
-            LazyVGrid(
-                columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3),
-                spacing: 10
-            ) {
+            HStack(alignment: .top, spacing: 12) {
                 overviewMetric(
                     title: "Inntekt",
-                    value: displayedAmount(budgetStatus.income),
+                    value: areAmountsHidden ? "Skjult" : viewModel.heroMetricValue(amount: budgetStatus.income),
                     tone: AppTheme.textPrimary
                 )
+
+                Divider()
 
                 overviewMetric(
                     title: "Brukt",
-                    value: displayedAmount(budgetStatus.spent),
+                    value: areAmountsHidden ? "Skjult" : viewModel.heroMetricValue(amount: budgetStatus.spent),
                     tone: AppTheme.textPrimary
                 )
 
+                Divider()
+
                 overviewMetric(
                     title: "Igjen",
-                    value: displayedAmount(budgetStatus.net),
+                    value: areAmountsHidden ? "Skjult" : viewModel.heroMetricValue(amount: budgetStatus.net, isRemaining: true),
                     tone: budgetStatus.net < 0 ? AppTheme.warning : AppTheme.textPrimary
                 )
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             if let progress = viewModel.monthlyProgress(status: budgetStatus) {
                 ProgressView(value: progress.value, total: progress.total)
@@ -190,7 +193,7 @@ struct OverviewView: View {
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(viewModel.heroTitle())
-        .accessibilityValue(areAmountsHidden ? "Beløp skjult" : formatNOK(budgetStatus.net))
+        .accessibilityValue(areAmountsHidden ? "Beløp skjult" : viewModel.heroAmountText(status: budgetStatus))
     }
 
     private var investmentsSummaryModule: some View {
@@ -388,9 +391,6 @@ struct OverviewView: View {
                 .minimumScaleFactor(0.75)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(AppTheme.background, in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.divider, lineWidth: 1))
     }
 
     private func changeSincePreviousText() -> String {
