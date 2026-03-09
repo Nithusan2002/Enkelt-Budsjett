@@ -355,7 +355,7 @@ struct SettingsView: View {
             Button {
                 showGoalSheet = true
             } label: {
-                settingsRow(title: "Mål", value: "", showsChevron: true)
+                settingsRow(title: "Formue Mål", value: "", showsChevron: true)
             }
             .buttonStyle(.plain)
 
