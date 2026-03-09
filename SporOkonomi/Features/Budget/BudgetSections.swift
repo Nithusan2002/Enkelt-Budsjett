@@ -1460,74 +1460,84 @@ struct BudgetGroupDetailView: View {
                             .appSecondaryStyle()
                     }
 
-                    ForEach(groupedTransactions, id: \.title) { section in
-                        VStack(alignment: .leading, spacing: 8) {
+                    ForEach(Array(groupedTransactions.enumerated()), id: \.element.title) { index, section in
+                        VStack(alignment: .leading, spacing: 10) {
                             Text(section.title)
-                                .font(.footnote.weight(.semibold))
-                                .foregroundStyle(AppTheme.textSecondary)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(AppTheme.textPrimary)
+                                .padding(.top, index == 0 ? 2 : 10)
 
-                            ForEach(section.rows, id: \.persistentModelID) { transaction in
-                                Button {
-                                    editingTransaction = transaction
-                                } label: {
-                                    HStack(alignment: .top, spacing: 12) {
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text(categoryTitle(for: transaction))
-                                                .font(.subheadline.weight(.semibold))
-                                                .foregroundStyle(AppTheme.textPrimary)
-                                                .lineLimit(1)
-
-                                            if !transaction.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                                Text(transaction.note)
-                                                    .font(.footnote)
-                                                    .foregroundStyle(AppTheme.textSecondary)
+                            VStack(alignment: .leading, spacing: 0) {
+                                ForEach(Array(section.rows.enumerated()), id: \.element.persistentModelID) { rowIndex, transaction in
+                                    Button {
+                                        editingTransaction = transaction
+                                    } label: {
+                                        HStack(alignment: .top, spacing: 12) {
+                                            VStack(alignment: .leading, spacing: 4) {
+                                                Text(categoryTitle(for: transaction))
+                                                    .font(.subheadline.weight(.semibold))
+                                                    .foregroundStyle(AppTheme.textPrimary)
                                                     .lineLimit(1)
-                                            }
 
-                                            if transaction.recurringKey != nil || transaction.kind == .manualSaving {
-                                                HStack(spacing: 8) {
-                                                    if transaction.recurringKey != nil {
-                                                        transactionMetaPill(text: "Fast post", color: AppTheme.primary)
-                                                    } else if transaction.kind == .manualSaving {
-                                                        transactionMetaPill(text: "Sparing", color: AppTheme.secondary)
+                                                if !transaction.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                                    Text(transaction.note)
+                                                        .font(.footnote)
+                                                        .foregroundStyle(AppTheme.textSecondary)
+                                                        .lineLimit(1)
+                                                }
+
+                                                if transaction.recurringKey != nil || transaction.kind == .manualSaving {
+                                                    HStack(spacing: 8) {
+                                                        if transaction.recurringKey != nil {
+                                                            transactionMetaPill(text: "Fast post", color: AppTheme.primary)
+                                                        } else if transaction.kind == .manualSaving {
+                                                            transactionMetaPill(text: "Sparing", color: AppTheme.secondary)
+                                                        }
                                                     }
                                                 }
                                             }
+
+                                            Spacer()
+
+                                            VStack(alignment: .trailing, spacing: 2) {
+                                                Text(formatNOK(BudgetService.trackedBudgetImpact(transaction)))
+                                                    .foregroundStyle(transactionAmountColor(for: transaction))
+                                                    .monospacedDigit()
+                                            }
+                                        }
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 10)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .contextMenu {
+                                        Button {
+                                            guard !isReadOnlyMode else {
+                                                viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+                                                return
+                                            }
+                                            editingTransaction = transaction
+                                        } label: {
+                                            Label("Rediger", systemImage: "pencil")
                                         }
 
-                                        Spacer()
-
-                                        VStack(alignment: .trailing, spacing: 2) {
-                                            Text(formatNOK(BudgetService.trackedBudgetImpact(transaction)))
-                                                .foregroundStyle(transactionAmountColor(for: transaction))
-                                                .monospacedDigit()
+                                        Button(role: .destructive) {
+                                            guard !isReadOnlyMode else {
+                                                viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+                                                return
+                                            }
+                                            viewModel.deleteTransaction(context: modelContext, transaction: transaction)
+                                        } label: {
+                                            Label("Slett", systemImage: "trash")
                                         }
                                     }
-                                    .padding(.vertical, 4)
-                                }
-                                .buttonStyle(.plain)
-                                .contextMenu {
-                                    Button {
-                                        guard !isReadOnlyMode else {
-                                            viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
-                                            return
-                                        }
-                                        editingTransaction = transaction
-                                    } label: {
-                                        Label("Rediger", systemImage: "pencil")
-                                    }
 
-                                    Button(role: .destructive) {
-                                        guard !isReadOnlyMode else {
-                                            viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
-                                            return
-                                        }
-                                        viewModel.deleteTransaction(context: modelContext, transaction: transaction)
-                                    } label: {
-                                        Label("Slett", systemImage: "trash")
+                                    if rowIndex < section.rows.count - 1 {
+                                        Divider()
+                                            .padding(.leading, 12)
                                     }
                                 }
                             }
+                            .background(AppTheme.surfaceElevated, in: RoundedRectangle(cornerRadius: 12))
                         }
                     }
                 }
