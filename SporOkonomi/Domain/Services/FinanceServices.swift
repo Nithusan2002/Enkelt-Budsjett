@@ -547,20 +547,6 @@ enum ChallengeService {
 enum BootstrapService {
     private static let dedupeLastRunKey = "bootstrap_dedupe_last_run_at"
     private static let dedupeInterval: TimeInterval = 60 * 60 * 24
-    private static let demoFixedItemPrefix = "fixed_demo_"
-
-    @discardableResult
-    static func removeDemoDataIfPresent(context: ModelContext, now: Date = .now) throws -> Bool {
-        let fixedItems = try context.fetch(FetchDescriptor<FixedItem>())
-        guard fixedItems.contains(where: { $0.id.hasPrefix(demoFixedItemPrefix) }) else {
-            return false
-        }
-
-        try DemoDataSeeder.wipeAllData(context: context)
-        try ensurePreference(context: context)
-        try ensureCurrentBudgetMonthAndRecurring(context: context, now: now)
-        return true
-    }
 
     static func ensurePreference(context: ModelContext) throws {
         var didChange = false

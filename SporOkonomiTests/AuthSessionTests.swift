@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import SwiftUI
 import Testing
 @testable import SporOkonomi
 
@@ -82,24 +83,44 @@ struct AuthSessionTests {
 
     @Test
     @MainActor
-    func bootstrapRemovesSyncedDemoDataAndRestoresSafeBaseline() throws {
+    func bootstrapKeepsManuallyLoadedDemoData() async throws {
         let container = try TestModelContainerFactory.makeInMemoryContainer()
         let context = container.mainContext
 
         _ = try DemoDataSeeder.seedRealisticYear(context: context, year: 2026)
+        let viewModel = AppRootViewModel()
 
-        let removed = try BootstrapService.removeDemoDataIfPresent(context: context, now: .now)
+        viewModel.bootstrap(context: context)
+        try await Task.sleep(for: .milliseconds(100))
 
-        #expect(removed)
         let fixedItems = try context.fetch(FetchDescriptor<FixedItem>())
         let snapshots = try context.fetch(FetchDescriptor<InvestmentSnapshot>())
         let preferences = try context.fetch(FetchDescriptor<UserPreference>())
         let months = try context.fetch(FetchDescriptor<BudgetMonth>())
 
-        #expect(!fixedItems.contains { $0.id.hasPrefix("fixed_demo_") })
-        #expect(snapshots.isEmpty)
+        #expect(fixedItems.contains { $0.id.hasPrefix("fixed_demo_") })
+        #expect(!snapshots.isEmpty)
         #expect(preferences.count == 1)
         #expect(!months.isEmpty)
+    }
+
+    @Test
+    @MainActor
+    func activeLifecycleTransitionKeepsManuallyLoadedDemoData() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+
+        _ = try DemoDataSeeder.seedRealisticYear(context: context, year: 2026)
+        let viewModel = AppRootViewModel()
+
+        viewModel.handleScenePhaseChange(.background)
+        viewModel.handleScenePhaseChange(.active)
+
+        let fixedItems = try context.fetch(FetchDescriptor<FixedItem>())
+        let snapshots = try context.fetch(FetchDescriptor<InvestmentSnapshot>())
+
+        #expect(fixedItems.contains { $0.id.hasPrefix("fixed_demo_") })
+        #expect(!snapshots.isEmpty)
     }
 
     @Test
