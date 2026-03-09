@@ -112,10 +112,6 @@ struct BudgetView: View {
                     hasPlannedBudget: hasPlannedBudget,
                     hasTransactions: !monthTransactions.isEmpty,
                     isReadOnlyMode: isReadOnlyMode,
-                    onAddTransaction: {
-                        addTransactionInitialType = .expense
-                        viewModel.showAddTransaction = true
-                    },
                     onSetLimits: {
                         if isReadOnlyMode {
                             viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription

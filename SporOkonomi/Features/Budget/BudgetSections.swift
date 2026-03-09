@@ -175,6 +175,10 @@ struct BudgetHeroCardView: View {
     let onSetLimits: () -> Void
     let summary: BudgetSummaryData
 
+    private var showsNoEntriesState: Bool {
+        !hasPlannedBudget && !hasTransactions
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             if hasPlannedBudget {
@@ -210,20 +214,24 @@ struct BudgetHeroCardView: View {
                     Text("\(groupsWithoutLimitWithSpendCount) grupper har aktivitet uten grense.")
                         .appSecondaryStyle()
                 }
+            } else if showsNoEntriesState {
+                Text("Ingen føringer denne måneden")
+                    .appCardTitleStyle()
+
+                Text("Når du legger til utgifter, vises de her mot budsjettet.")
+                    .appSecondaryStyle()
+
+                Button("Sett grenser") {
+                    onSetLimits()
+                }
+                .appProminentCTAStyle()
+                .controlSize(.large)
             } else {
                 Text("Ingen grenser satt")
                     .appCardTitleStyle()
 
                 Text("Sett enkle grenser for kategoriene du vil følge denne måneden.")
                     .appSecondaryStyle()
-
-                if hasTransactions {
-                    Text("Ingen føringer denne måneden")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(AppTheme.textPrimary)
-                    Text("Når du legger til utgifter, vises de her mot budsjettet.")
-                        .appSecondaryStyle()
-                }
 
                 Button("Sett grenser") {
                     onSetLimits()
@@ -237,7 +245,11 @@ struct BudgetHeroCardView: View {
         .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(hasPlannedBudget ? "Igjen denne måneden" : "Ingen grenser satt")
+        .accessibilityLabel(
+            hasPlannedBudget
+                ? "Igjen denne måneden"
+                : (showsNoEntriesState ? "Ingen føringer denne måneden" : "Ingen grenser satt")
+        )
         .accessibilityValue(hasPlannedBudget ? "\(formatNOK(remaining)). \(summary.statusLine)" : "Sett grenser")
     }
 
@@ -260,71 +272,22 @@ struct BudgetHeroCardView: View {
 
 }
 
-struct BudgetPrimaryActionCard: View {
-    let hasPlannedBudget: Bool
-    let hasTransactions: Bool
-    let isReadOnlyMode: Bool
-    let onAddExpense: () -> Void
-    let onSetLimits: () -> Void
-
-    private var shouldPrioritizeExpenseEntry: Bool {
-        hasPlannedBudget || hasTransactions
-    }
-
-    private var title: String {
-        shouldPrioritizeExpenseEntry ? "Legg til utgift" : "Sett grense"
-    }
-
-    private var subtitle: String {
-        if shouldPrioritizeExpenseEntry {
-            return "Legg til neste utgift her. Du kan endre grenser senere."
-        }
-        return "Sett en enkel grense for måneden når du er klar."
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(title)
-                .appCardTitleStyle()
-
-            Text(subtitle)
-                .appSecondaryStyle()
-
-            Button(title) {
-                if shouldPrioritizeExpenseEntry {
-                    onAddExpense()
-                } else {
-                    onSetLimits()
-                }
-            }
-            .appProminentCTAStyle()
-            .controlSize(.large)
-            .disabled(isReadOnlyMode)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.divider, lineWidth: 1))
-    }
-}
-
 struct GroupListView: View {
     let rows: [BudgetGroupRow]
     let fixedByGroup: [String: Double]
     let hasPlannedBudget: Bool
     let hasTransactions: Bool
     let isReadOnlyMode: Bool
-    let onAddTransaction: () -> Void
     let onSetLimits: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Kategorier")
+            Text("Grupper")
                 .appCardTitleStyle()
 
             if rows.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text(hasPlannedBudget ? "Ingen kategorier å vise ennå" : "Ingen grenser satt")
+                    Text(hasPlannedBudget ? "Ingen grupper å vise ennå" : "Ingen grenser satt")
                         .font(.headline.weight(.semibold))
                         .foregroundStyle(AppTheme.textPrimary)
 
