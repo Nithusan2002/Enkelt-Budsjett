@@ -3,6 +3,7 @@ import SwiftData
 
 struct BudgetView: View {
     @Environment(\.modelContext) private var modelContext
+    @AppStorage("overview_amounts_hidden") private var areAmountsHidden = false
     @Query(sort: \Category.sortOrder) private var categories: [Category]
     @Query(sort: \BudgetMonth.startDate) private var months: [BudgetMonth]
     @Query private var groupPlans: [BudgetGroupPlan]
@@ -65,6 +66,7 @@ struct BudgetView: View {
 
                 BudgetHeroCardView(
                     hasPlannedBudget: hasPlannedBudget,
+                    isAmountsHidden: areAmountsHidden,
                     remaining: summary.remaining,
                     trackedActual: summary.trackedActual,
                     expenseTotal: summary.expenseTotal,
@@ -72,10 +74,23 @@ struct BudgetView: View {
                     overBudgetCount: overBudgetCount,
                     groupsWithoutLimitWithSpendCount: groupsWithoutLimitWithSpendCount,
                     hasTransactions: !monthTransactions.isEmpty,
-                    isOverBudgetFilterActive: viewModel.selectedFilter == .overLimit,
-                    onToggleOverBudget: {
-                        viewModel.selectedFilter = viewModel.selectedFilter == .overLimit ? .all : .overLimit
+                    onSetLimits: {
+                        if isReadOnlyMode {
+                            viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+                        } else {
+                            viewModel.showGroupLimitsSheet = true
+                        }
                     },
+                    summary: summary
+                )
+
+                GroupListView(
+                    rows: groupRows,
+                    fixedByGroup: fixedByGroup,
+                    isAmountsHidden: areAmountsHidden,
+                    hasPlannedBudget: hasPlannedBudget,
+                    hasTransactions: !monthTransactions.isEmpty,
+                    isReadOnlyMode: isReadOnlyMode,
                     onSetLimits: {
                         if isReadOnlyMode {
                             viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
@@ -94,10 +109,8 @@ struct BudgetView: View {
                 } label: {
                     HStack {
                         Text("Se detaljer")
-                            .appBodyStyle()
-                        Spacer()
-                        Text("Faste poster, inntekter og sparing")
                             .appSecondaryStyle()
+                        Spacer()
                         Image(systemName: "chevron.right")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(AppTheme.textSecondary)
@@ -105,27 +118,9 @@ struct BudgetView: View {
                     .padding()
                     .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
                     .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.divider, lineWidth: 1))
+                    .opacity(0.82)
                 }
                 .buttonStyle(.plain)
-
-                GroupListView(
-                    rows: groupRows,
-                    fixedByGroup: fixedByGroup,
-                    hasPlannedBudget: hasPlannedBudget,
-                    hasTransactions: !monthTransactions.isEmpty,
-                    isReadOnlyMode: isReadOnlyMode,
-                    onAddTransaction: {
-                        addTransactionInitialType = .expense
-                        viewModel.showAddTransaction = true
-                    },
-                    onSetLimits: {
-                        if isReadOnlyMode {
-                            viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
-                        } else {
-                            viewModel.showGroupLimitsSheet = true
-                        }
-                    }
-                )
             }
             .padding()
         }

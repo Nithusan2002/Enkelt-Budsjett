@@ -16,6 +16,23 @@ struct BudgetSummaryData {
     let remaining: Double
 
     var actual: Double { trackedActual }
+
+    var isWithinBudget: Bool {
+        remaining >= 0
+    }
+
+    func statusLine(isAmountsHidden: Bool = false) -> String {
+        if planned <= 0 {
+            return "Ingen grenser satt"
+        }
+        if remaining < 0 {
+            if isAmountsHidden {
+                return "Over budsjett"
+            }
+            return "Over budsjett med \(formatNOK(abs(remaining)))"
+        }
+        return "Innenfor budsjett"
+    }
 }
 
 struct BudgetGroupRow: Identifiable {
@@ -40,6 +57,24 @@ struct BudgetGroupRow: Identifiable {
     var remaining: Double? {
         guard let planned else { return nil }
         return planned - spent
+    }
+
+    var progressValue: Double? {
+        guard let planned, planned > 0 else { return nil }
+        return min(max(spent / planned, 0), 1)
+    }
+
+    var remainingLabel: String {
+        guard let remaining else { return "Ingen grense satt" }
+        if remaining < 0 {
+            return "\(formatNOK(abs(remaining))) over"
+        }
+        return "\(formatNOK(remaining)) igjen"
+    }
+
+    var supportLabel: String {
+        guard let planned else { return "Ingen grense satt" }
+        return "\(formatNOK(spent)) av \(formatNOK(planned)) brukt"
     }
 }
 
@@ -226,8 +261,9 @@ final class BudgetViewModel: ObservableObject {
         }
 
         let sorted = rows.sorted { lhs, rhs in
-            if lhs.isOverBudget != rhs.isOverBudget { return lhs.isOverBudget && !rhs.isOverBudget }
-            if lhs.spent != rhs.spent { return lhs.spent > rhs.spent }
+            if lhs.group.sortOrder != rhs.group.sortOrder {
+                return lhs.group.sortOrder < rhs.group.sortOrder
+            }
             return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
         }
 

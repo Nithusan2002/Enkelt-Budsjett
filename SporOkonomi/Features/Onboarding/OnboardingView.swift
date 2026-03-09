@@ -138,10 +138,6 @@ struct OnboardingView: View {
             VStack(alignment: .leading, spacing: 10) {
                 if let amountLabel = viewModel.summaryAmountLabel {
                     summaryRow("Månedlig inntekt", value: amountLabel)
-                } else {
-                    Text("Du kan legge til inntekt eller utgifter når du trenger det.")
-                        .appBodyStyle()
-                        .foregroundStyle(AppTheme.textPrimary)
                 }
 
                 Text(viewModel.summaryHelpText)

@@ -11,8 +11,10 @@ struct GoalSummary {
 
 struct OverviewBudgetStatus {
     let hasPlan: Bool
+    let planned: Double
     let remaining: Double
     let net: Double
+    let income: Double
     let spent: Double
 }
 
@@ -39,14 +41,6 @@ final class OverviewViewModel: ObservableObject {
             latestInvestmentTotal: latestSnapshot?.totalValue ?? 0,
             accounts: accounts,
             includeAccounts: activeGoal?.includeAccounts ?? true
-        )
-    }
-
-    func savedYTD(transactions: [Transaction], categories: [Category]) -> Double {
-        SavingsService.savedYearToDate(
-            definition: .incomeMinusExpense,
-            transactions: transactions,
-            categories: categories
         )
     }
 
@@ -102,10 +96,103 @@ final class OverviewViewModel: ObservableObject {
         let remaining = planned - actual
         return OverviewBudgetStatus(
             hasPlan: hasPlan,
+            planned: planned,
             remaining: remaining,
             net: net,
+            income: income,
             spent: actual
         )
+    }
+
+    func heroTitle() -> String {
+        "Tilgjengelig denne måneden"
+    }
+
+    func heroAmountText(status: OverviewBudgetStatus) -> String {
+        let focusAmount = status.hasPlan ? status.remaining : status.net
+        let rounded = roundedKr(abs(focusAmount))
+        if focusAmount < 0 {
+            return "\(rounded) over"
+        }
+        return rounded
+    }
+
+    func heroStatusLine(
+        status: OverviewBudgetStatus,
+        hasTransactions: Bool,
+        areAmountsHidden: Bool = false
+    ) -> String {
+        if status.hasPlan && status.remaining < 0 {
+            if areAmountsHidden {
+                return "Over budsjett"
+            }
+            return "Over budsjett med \(roundedKr(abs(status.remaining)))"
+        }
+        if status.hasPlan {
+            return "Innenfor budsjettet så langt."
+        }
+        if !hasTransactions {
+            return "Basert på det du har lagt inn så langt."
+        }
+        if status.income > 0 && status.spent <= 0 {
+            return "Legg til flere transaksjoner for en mer presis oversikt."
+        }
+        if status.net >= 0 {
+            return "Basert på det du har lagt inn så langt."
+        }
+        return "Registrer flere transaksjoner for en mer presis oversikt."
+    }
+
+    func heroMetricValue(amount: Double) -> String {
+        return roundedKr(amount)
+    }
+
+    func heroPrimaryCTATitle() -> String {
+        "Legg til transaksjon"
+    }
+
+    func shouldShowMonthlyProgress(status: OverviewBudgetStatus) -> Bool {
+        status.hasPlan && status.planned > 0
+    }
+
+    func monthlyProgress(status: OverviewBudgetStatus) -> (value: Double, total: Double)? {
+        guard shouldShowMonthlyProgress(status: status) else { return nil }
+        return clampedProgress(value: status.spent, total: status.planned)
+    }
+
+    func registeredSavingsHeadline() -> String {
+        "Satt til side"
+    }
+
+    func registeredSavingsSupportText() -> String {
+        "Penger du har registrert til sparing."
+    }
+
+    func goalEmptySupportText() -> String {
+        "Et enkelt mål gjør fremgangen lettere å følge."
+    }
+
+    func goalProgressTitle() -> String {
+        "På vei mot målet ditt"
+    }
+
+    func investmentsEmptyTitle() -> String {
+        "Ingen registreringer ennå"
+    }
+
+    func investmentsEmptySupportText() -> String {
+        "Legg inn verdien når du vil følge utviklingen over tid."
+    }
+
+    private func roundedKr(_ value: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.locale = Locale(identifier: "nb_NO")
+        formatter.numberStyle = .decimal
+        formatter.maximumFractionDigits = 0
+        formatter.minimumFractionDigits = 0
+        let number = NSNumber(value: value.rounded())
+        let formatted = formatter.string(from: number) ?? String(Int(value.rounded()))
+        return "\(formatted) kr"
     }
 
     func scopeText(activeGoal: Goal?) -> String {

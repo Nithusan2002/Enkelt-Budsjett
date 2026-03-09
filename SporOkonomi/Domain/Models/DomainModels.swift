@@ -26,6 +26,16 @@ enum BudgetGroup: String, Codable, CaseIterable, Identifiable {
         }
     }
 
+    var sortOrder: Int {
+        switch self {
+        case .fast: return 0
+        case .bolig: return 1
+        case .hverdags: return 2
+        case .fritid: return 3
+        case .annet: return 4
+        }
+    }
+
     static func from(key: String) -> BudgetGroup {
         BudgetGroup(rawValue: key) ?? .annet
     }
@@ -156,6 +166,9 @@ final class Category {
             if key.contains("husleie") || key.contains("bolig") || key.contains("innbo") ||
                 key.contains("kommunale") || key.contains("vann") || key.contains("avlop") || key.contains("feiing") {
                 return BudgetGroup.bolig.rawValue
+            }
+            if key.contains("fast") {
+                return BudgetGroup.fast.rawValue
             }
             if key.contains("abonnement") || key.contains("spotify") || key.contains("netflix") ||
                 key.contains("apple") || key.contains("icloud") || key.contains("internett") ||

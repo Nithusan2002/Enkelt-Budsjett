@@ -508,6 +508,78 @@ En oppgave er ferdig når:
 
 ---
 
+# Cost-aware execution rules
+
+Mål:
+Bruk Codex effektivt og unngå unødvendig token- og kreditbruk.
+
+### Standard arbeidsmåte
+- Foretrekk små, avgrensede oppgaver fremfor store brede oppgaver.
+- Endre kun filer som er nødvendige for oppgaven.
+- Ikke gjør opportunistisk refaktorering.
+- Ikke skann hele repoet hvis oppgaven gjelder én skjerm eller én feature.
+
+### Før implementasjon
+- Start med en kort plan.
+- Identifiser hvilke filer som sannsynligvis må endres før kode skrives.
+- Hvis scope er uklart: stopp og be om avklaring i stedet for å gjette.
+
+### Build policy
+- Ikke bygg Xcode-prosjektet for rene copy-endringer, spacing, farger eller små UI-justeringer.
+- Ikke bygg prosjektet for små visuelle endringer som er isolert til én View, med mindre det er høy risiko for compile-feil.
+- Bygg prosjektet når:
+  - ViewModel er endret
+  - SwiftData-modeller eller schema er endret
+  - navigasjon er endret
+  - nye filer eller nye typer er introdusert
+  - avhengigheter mellom filer er endret
+  - logikk for beregninger eller dataflyt er endret
+
+### Verifikasjon før build
+Før build vurderes skal agenten:
+- gjøre en manuell compile-risk-vurdering
+- se etter åpenbare typefeil, manglende imports, ugyldige kall, rename-konflikter og binding-feil
+- rapportere om endringen virker lav, medium eller høy risiko
+
+### Test policy
+- Ikke skriv eller kjør unødvendige tester for ren copy eller små layoutendringer.
+- Skriv tester når oppgaven endrer logikk, dato-regler, dataflyt, import/eksport, onboarding, mål, challenges eller faste poster.
+- Ved bugfix i logikk: prioriter reproduksjonstest først.
+
+### Token-effektiv responsstil
+Når agenten svarer:
+- vær kort og konkret
+- ikke gjenta hele problemet
+- ikke forklar grunnleggende SwiftUI-konsepter med mindre det blir bedt om
+- ikke dump store mengder kode som ikke er endret
+- vis kun relevante filer og relevante endringer
+
+### Scope control
+- Hvis oppgaven gjelder én skjerm, jobb kun i den skjermen og nærmeste relevante ViewModel/Service.
+- Ikke les eller vurder urelaterte features.
+- Ikke foreslå større arkitekturendringer med mindre brukeren ber om det eksplisitt.
+
+### Change batching
+- Foretrekk én tydelig oppgave per kjøring.
+- Ikke kombiner designforbedring, refaktorering, ny feature og bugfix i samme oppgave.
+- Del heller opp i små steg.
+
+### Når agenten skal stoppe
+Stopp og be om avklaring hvis:
+- oppgaven krever gjennomgang av mange filer
+- flere tolkninger gir ulik produktoppførsel
+- løsningen krever stor refaktorering
+- build/test virker nødvendig, men kostnaden er høy og nytten er uklar
+
+### Standard leveranseformat
+- Plan
+- Endrede filer
+- Kort forklaring på hva som ble gjort
+- Verifikasjon
+- Om prosjektet ikke ble bygget: forklar hvorfor
+
+---
+
 # Arbeidsmodus for Codex
 
 Når en oppgave mottas:

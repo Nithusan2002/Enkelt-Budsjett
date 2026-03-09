@@ -38,16 +38,16 @@ struct OverviewView: View {
         viewModel.currentWealth(activeGoal: activeGoal, latestSnapshot: latestSnapshot, accounts: accounts)
     }
 
-    private var savedYTD: Double {
-        viewModel.savedYTD(transactions: transactions, categories: categories)
-    }
-
     private var registeredSavingYTD: Double {
         viewModel.registeredSavingYTD(transactions: transactions, categories: categories)
     }
 
     private var hasSavedData: Bool {
-        abs(savedYTD) >= 1 || abs(registeredSavingYTD) >= 1
+        abs(registeredSavingYTD) >= 1
+    }
+
+    private var shouldShowRegisteredSavingsCard: Bool {
+        abs(registeredSavingYTD) >= 1
     }
 
     private var shouldShowPrimaryCTA: Bool {
@@ -79,11 +79,10 @@ struct OverviewView: View {
             } else {
                 VStack(alignment: .leading, spacing: 16) {
                     monthlyStatusHeroModule
-                    quickStatsModule
-                    investmentsSummaryModule
                     goalModule
+                    investmentsSummaryModule
                     if hasSavedData {
-                        savedModule
+                        historicalSavingsModule
                     }
                 }
                 .padding()
@@ -120,7 +119,7 @@ struct OverviewView: View {
     private var monthlyStatusHeroModule: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
-                Text("Tilgjengelig nå")
+                Text(viewModel.heroTitle())
                     .appSecondaryStyle()
                 Button {
                     areAmountsHidden.toggle()
@@ -137,33 +136,47 @@ struct OverviewView: View {
                 Spacer()
             }
 
-            Text(displayedAmount(budgetStatus.net))
-                .appBigNumberStyle()
-                .foregroundStyle(AppTheme.textPrimary)
+            Text(areAmountsHidden ? "Beløp skjult" : viewModel.heroAmountText(status: budgetStatus))
+                .font(.system(size: 40, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(heroAmountTone)
                 .contentTransition(.numericText(value: budgetStatus.net))
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
 
-            HStack(spacing: 12) {
+            Text(
+                viewModel.heroStatusLine(
+                    status: budgetStatus,
+                    hasTransactions: !transactions.isEmpty,
+                    areAmountsHidden: areAmountsHidden
+                )
+            )
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(budgetStatus.net >= 0 ? AppTheme.positive : AppTheme.textSecondary)
+
+            HStack(alignment: .top, spacing: 12) {
                 overviewMetric(
                     title: "Brukt så langt",
-                    value: displayedAmount(budgetStatus.spent),
+                    value: areAmountsHidden ? "Skjult" : viewModel.heroMetricValue(amount: budgetStatus.spent),
                     tone: AppTheme.textPrimary
                 )
 
+                Divider()
+
                 overviewMetric(
-                    title: budgetStatus.hasPlan ? "Igjen denne måneden" : "Budsjett",
-                    value: budgetStatus.hasPlan ? displayedAmount(budgetStatus.remaining) : "Ikke satt",
-                    tone: budgetStatus.hasPlan
-                        ? (budgetStatus.remaining < 0 ? AppTheme.warning : AppTheme.textPrimary)
-                        : AppTheme.textSecondary
+                    title: "Planlagt",
+                    value: areAmountsHidden ? "Skjult" : viewModel.heroMetricValue(amount: budgetStatus.planned),
+                    tone: AppTheme.textPrimary
                 )
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
-            Text(monthlyStatusText())
-                .appSecondaryStyle()
+            if let progress = viewModel.monthlyProgress(status: budgetStatus) {
+                ProgressView(value: progress.value, total: progress.total)
+                    .tint(AppTheme.primary)
+            }
 
-            Button("Legg til") {
+            Button(viewModel.heroPrimaryCTATitle()) {
                 navigationState.selectedTab = .budget
             }
             .appProminentCTAStyle()
@@ -171,63 +184,14 @@ struct OverviewView: View {
             if isCheckInDue && latestSnapshot == nil {
                 Text("Du kan legge til snapshot senere i Investeringer.")
                     .appSecondaryStyle()
-            } else if isCheckInDue {
-                Text("Neste snapshot kan fortsatt legges til senere i Investeringer.")
-                    .appSecondaryStyle()
             }
         }
         .padding()
         .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Tilgjengelig nå")
-        .accessibilityValue(areAmountsHidden ? "Beløp skjult" : formatNOK(budgetStatus.net))
-    }
-
-    private var quickStatsModule: some View {
-        HStack(spacing: 10) {
-            Button {
-                navigationState.selectedTab = .budget
-            } label: {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Spart hittil i år")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(AppTheme.textSecondary)
-                    Text(displayedAmount(savedYTD))
-                        .font(.title3.weight(.semibold))
-                        .monospacedDigit()
-                        .foregroundStyle(savedYTD >= 0 ? AppTheme.positive : AppTheme.negative)
-                    Text("Inntekt minus utgifter")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(AppTheme.textSecondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(12)
-                .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.divider, lineWidth: 1))
-            }
-            .buttonStyle(.plain)
-
-            Button {
-                viewModel.showGoalEditor = true
-            } label: {
-                let summary = viewModel.goalSummary(activeGoal: activeGoal, currentWealth: currentWealth)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Målprogresjon")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(AppTheme.textSecondary)
-                    Text(activeGoal == nil ? "Ikke satt" : "\(Int((summary.progress * 100).rounded())) %")
-                        .font(.title3.weight(.semibold))
-                        .monospacedDigit()
-                        .foregroundStyle(AppTheme.textPrimary)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(12)
-                .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.divider, lineWidth: 1))
-            }
-            .buttonStyle(.plain)
-        }
+        .accessibilityLabel(viewModel.heroTitle())
+        .accessibilityValue(areAmountsHidden ? "Beløp skjult" : viewModel.heroAmountText(status: budgetStatus))
     }
 
     private var investmentsSummaryModule: some View {
@@ -239,8 +203,6 @@ struct OverviewView: View {
                     Text("Investeringer")
                         .appCardTitleStyle()
                     Spacer()
-                    Text("Åpne")
-                        .appSecondaryStyle()
                 }
 
                 if let latestSnapshot {
@@ -269,9 +231,11 @@ struct OverviewView: View {
                                 .foregroundStyle(AppTheme.textPrimary)
                         }
 
-                        Text("Ingen snapshots ennå")
+                        Text(viewModel.investmentsEmptyTitle())
                             .appSecondaryStyle()
                             .foregroundStyle(AppTheme.textSecondary)
+                        Text(viewModel.investmentsEmptySupportText())
+                            .appSecondaryStyle()
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -294,7 +258,7 @@ struct OverviewView: View {
                 .appBodyStyle()
                 .foregroundStyle(AppTheme.textSecondary)
 
-            Button("Legg til") {
+            Button(viewModel.heroPrimaryCTATitle()) {
                 navigationState.selectedTab = .budget
             }
             .appProminentCTAStyle()
@@ -316,12 +280,14 @@ struct OverviewView: View {
                     if activeGoal == nil {
                         Text("Mål")
                             .appCardTitleStyle()
-                        Text("Sett formuemål")
+                        Text("Sett et mål")
                             .appBodyStyle()
                             .foregroundStyle(AppTheme.textSecondary)
+                        Text(viewModel.goalEmptySupportText())
+                            .appSecondaryStyle()
                     } else {
                         HStack {
-                            Text("Mål")
+                            Text(viewModel.goalProgressTitle())
                                 .appCardTitleStyle()
                             Spacer()
                             Image(systemName: "pencil")
@@ -366,30 +332,45 @@ struct OverviewView: View {
     }
 
     private var savedModule: some View {
-        return Button {
-            navigationState.selectedTab = .budget
-        } label: {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Registrert sparing")
-                    .appCardTitleStyle()
-                Text(areAmountsHidden ? "Beløp skjult" : displayedAmount(registeredSavingYTD))
-                    .font(.title3.weight(.semibold))
-                    .monospacedDigit()
-                    .foregroundStyle(registeredSavingYTD >= 0 ? AppTheme.positive : AppTheme.textPrimary)
-                Text("Beløp du har ført til sparekategorier hittil i år.")
-                    .appBodyStyle()
-                    .foregroundStyle(AppTheme.textPrimary)
-                Text("Se detaljer i Budsjett")
-                    .appSecondaryStyle()
+        historicalSavingsModule
+    }
+
+    private var historicalSavingsModule: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if shouldShowRegisteredSavingsCard {
+                Button {
+                    navigationState.selectedTab = .budget
+                } label: {
+                    savingsCard(
+                        title: viewModel.registeredSavingsHeadline(),
+                        value: displayedAmount(registeredSavingYTD),
+                        support: viewModel.registeredSavingsSupportText(),
+                        tone: registeredSavingYTD >= 0 ? AppTheme.positive : AppTheme.textPrimary
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(viewModel.registeredSavingsHeadline())
+                .accessibilityValue(areAmountsHidden ? "Beløp skjult" : formatNOK(registeredSavingYTD))
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding()
-            .background(AppTheme.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 16))
-            .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Registrert sparing")
-        .accessibilityValue(areAmountsHidden ? "Beløp skjult" : formatNOK(registeredSavingYTD))
+    }
+
+    private func savingsCard(title: String, value: String, support: String, tone: Color) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .appCardTitleStyle()
+            Text(value)
+                .font(.title3.weight(.semibold))
+                .monospacedDigit()
+                .foregroundStyle(tone)
+            Text(support)
+                .appBodyStyle()
+                .foregroundStyle(AppTheme.textPrimary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
     }
 
     private func overviewMetric(title: String, value: String, tone: Color) -> some View {
@@ -404,9 +385,6 @@ struct OverviewView: View {
                 .minimumScaleFactor(0.75)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(AppTheme.background, in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.divider, lineWidth: 1))
     }
 
     private func changeSincePreviousText() -> String {
@@ -418,16 +396,6 @@ struct OverviewView: View {
         }
         let sign = heroChange.kr >= 0 ? "+" : "−"
         return "Siden forrige registrering: \(sign)\(formatNOK(abs(heroChange.kr)))"
-    }
-
-    private func monthlyStatusText() -> String {
-        if transactions.isEmpty {
-            return "Dette er utgangspunktet ditt for denne måneden."
-        }
-        if budgetStatus.hasPlan {
-            return "Du har brukt \(displayedAmount(budgetStatus.spent)) og har \(displayedAmount(budgetStatus.remaining)) igjen denne måneden."
-        }
-        return "Du har registrert \(displayedAmount(budgetStatus.spent)) så langt denne måneden."
     }
 
     private func goalTrajectoryText(summary: GoalSummary) -> String {
@@ -457,6 +425,11 @@ struct OverviewView: View {
         }
         let sign = value >= 0 ? "+" : "−"
         return "\(sign)\(formatNOK(abs(value)))"
+    }
+
+    private var heroAmountTone: Color {
+        let focusAmount = budgetStatus.hasPlan ? budgetStatus.remaining : budgetStatus.net
+        return focusAmount < 0 ? AppTheme.warning : AppTheme.textPrimary
     }
 
     private func openInvestments() {

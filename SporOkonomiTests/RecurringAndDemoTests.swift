@@ -230,6 +230,41 @@ struct RecurringAndDemoTests {
 
     @Test
     @MainActor
+    func demoSeedUsesSimplifiedV1Categories() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+
+        _ = try DemoDataSeeder.seedRealisticYear(context: context, year: 2026)
+
+        let categories = try context.fetch(FetchDescriptor<Category>())
+        let ids = Set(categories.map(\.id))
+        let expenseIDs = Set(categories.filter { $0.type == .expense }.map(\.id))
+        let incomeIDs = Set(categories.filter { $0.type == .income }.map(\.id))
+        let savingsIDs = Set(categories.filter { $0.type == .savings }.map(\.id))
+
+        #expect(expenseIDs == [
+            "cat_housing",
+            "cat_food",
+            "cat_transport",
+            "cat_leisure",
+            "cat_fixed_costs",
+            "cat_other"
+        ])
+        #expect(incomeIDs == [
+            "cat_income_salary",
+            "cat_income_other"
+        ])
+        #expect(savingsIDs == [
+            "cat_savings_account"
+        ])
+        #expect(!ids.contains("cat_rent"))
+        #expect(!ids.contains("cat_subscriptions"))
+        #expect(!ids.contains("cat_eating_out"))
+        #expect(!ids.contains("cat_savings_bsu"))
+    }
+
+    @Test
+    @MainActor
     func demoSeedCreatesRealisticTransactionVolumeAcrossMonths() throws {
         let container = try TestModelContainerFactory.makeInMemoryContainer()
         let context = container.mainContext
