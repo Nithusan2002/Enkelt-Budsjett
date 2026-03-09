@@ -11,8 +11,10 @@ struct GoalSummary {
 
 struct OverviewBudgetStatus {
     let hasPlan: Bool
+    let planned: Double
     let remaining: Double
     let net: Double
+    let income: Double
     let spent: Double
 }
 
@@ -102,10 +104,69 @@ final class OverviewViewModel: ObservableObject {
         let remaining = planned - actual
         return OverviewBudgetStatus(
             hasPlan: hasPlan,
+            planned: planned,
             remaining: remaining,
             net: net,
+            income: income,
             spent: actual
         )
+    }
+
+    func heroTitle() -> String {
+        "Tilgjengelig denne måneden"
+    }
+
+    func heroIntroText(status: OverviewBudgetStatus, hasTransactions: Bool) -> String {
+        if !hasTransactions {
+            return "Dette er utgangspunktet ditt for denne måneden basert på det du har lagt inn så langt."
+        }
+        if status.income > 0 && status.spent <= 0 {
+            return "Dette er utgangspunktet ditt for denne måneden basert på inntekten du har lagt inn."
+        }
+        return "Dette er utgangspunktet ditt for denne måneden basert på det du har lagt inn så langt."
+    }
+
+    func heroSupportText(status: OverviewBudgetStatus, hasTransactions: Bool) -> String {
+        if !hasTransactions {
+            return "Legg til en inntekt eller utgift for å gjøre oversikten mer presis."
+        }
+        if status.hasPlan {
+            return "Legg til utgifter underveis for en mer presis oversikt."
+        }
+        return "Legg til utgifter underveis, eller sett grenser når du vil ha mer oversikt."
+    }
+
+    func heroPrimaryCTATitle() -> String {
+        "Legg til transaksjon"
+    }
+
+    func shouldShowMonthlyProgress(status: OverviewBudgetStatus) -> Bool {
+        status.hasPlan && status.planned > 0 && status.spent > 0
+    }
+
+    func monthlyProgress(status: OverviewBudgetStatus) -> (value: Double, total: Double)? {
+        guard shouldShowMonthlyProgress(status: status) else { return nil }
+        return clampedProgress(value: status.spent, total: status.planned)
+    }
+
+    func savingsHeadline() -> String {
+        "Til overs hittil i år"
+    }
+
+    func savingsSupportText() -> String {
+        "Basert på inntekter og utgifter"
+    }
+
+    func goalEmptySupportText() -> String {
+        "Et enkelt mål gjør fremgangen lettere å følge."
+    }
+
+    func investmentsEmptyTitle() -> String {
+        "Ingen registreringer ennå"
+    }
+
+    func investmentsEmptySupportText() -> String {
+        "Legg til første snapshot når du vil følge utviklingen."
     }
 
     func scopeText(activeGoal: Goal?) -> String {
