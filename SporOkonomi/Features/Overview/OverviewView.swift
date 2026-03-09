@@ -172,9 +172,10 @@ struct OverviewView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
 
             if let progress = viewModel.monthlyProgress(status: budgetStatus) {
-                ProgressView(value: progress.value, total: progress.total)
-                    .tint(AppTheme.primary)
-                    .scaleEffect(x: 1, y: 1.15, anchor: .center)
+                OverviewProgressBar(
+                    progress: progress.value / max(progress.total, 1),
+                    tone: AppTheme.primary
+                )
             }
 
             Button(viewModel.heroPrimaryCTATitle()) {
@@ -305,9 +306,10 @@ struct OverviewView: View {
                             .background(AppTheme.primary.opacity(0.12), in: Capsule())
 
                         let progress = clampedProgress(value: summary.progress, total: 1)
-                        ProgressView(value: progress.value, total: progress.total)
-                            .tint(AppTheme.primary)
-                            .scaleEffect(x: 1, y: 1.15, anchor: .center)
+                        OverviewProgressBar(
+                            progress: progress.value / max(progress.total, 1),
+                            tone: AppTheme.primary
+                        )
 
                         Text(viewModel.goalPlanStatusText(summary: summary))
                             .font(.footnote.weight(.semibold))
@@ -349,6 +351,25 @@ struct OverviewView: View {
             return AppTheme.textSecondary
         case .behind, .expired:
             return AppTheme.warning
+        }
+    }
+
+    private struct OverviewProgressBar: View {
+        let progress: Double
+        let tone: Color
+
+        var body: some View {
+            GeometryReader { proxy in
+                let width = max(proxy.size.width * min(max(progress, 0), 1), 6)
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(AppTheme.background)
+                    Capsule()
+                        .fill(tone.opacity(0.9))
+                        .frame(width: width)
+                }
+            }
+            .frame(height: 10)
         }
     }
 
