@@ -1090,11 +1090,6 @@ struct GroupRowView: View {
                     progress: progressValue,
                     tone: remainingTone
                 )
-            } else {
-                BudgetGroupProgressBar(
-                    progress: 0,
-                    tone: AppTheme.divider.opacity(0.6)
-                )
             }
         }
         .padding(.vertical, 6)
@@ -1108,22 +1103,25 @@ struct GroupRowView: View {
     }
 
     private var remainingTone: Color {
-        guard let remaining = row.remaining else { return AppTheme.textSecondary }
+        guard let remaining = row.remaining else { return AppTheme.primary }
         return remaining < 0 ? AppTheme.warning : AppTheme.positive
     }
 
     private var displayedRemainingLabel: String {
+        if row.remaining == nil { return "Sett grense" }
         guard isAmountsHidden else { return row.remainingLabel }
-        if row.remaining == nil { return "Grense ikke satt" }
         if row.isOverBudget { return "Over grensen" }
         return "Innenfor grensen"
     }
 
     private var displayedSupportLabel: String {
-        guard isAmountsHidden else { return row.supportLabel }
         if row.planned == nil {
-            return row.spent > 0 ? "Aktivitet registrert" : "Ingen registreringer ennå"
+            if isAmountsHidden {
+                return row.spent > 0 ? "Brukt hittil: skjult" : "Ingen registreringer ennå"
+            }
+            return "Brukt hittil: \(formatNOK(row.spent))"
         }
+        guard isAmountsHidden else { return row.supportLabel }
         return row.spent > 0 ? "Forbruk registrert denne måneden" : "Ingen forbruk registrert ennå"
     }
 
