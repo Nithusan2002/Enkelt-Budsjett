@@ -73,4 +73,20 @@ struct OverviewFeatureTests {
         #expect(viewModel.registeredSavingsSupportText() == "Penger du har registrert til sparing.")
         #expect(viewModel.investmentsEmptySupportText() == "Legg inn verdien når du vil følge utviklingen over tid.")
     }
+
+    @Test
+    @MainActor
+    func overviewUsesNaturalCopyWhenMonthlyNetIsNegative() {
+        let viewModel = OverviewViewModel()
+        let status = OverviewBudgetStatus(
+            hasPlan: false,
+            planned: 0,
+            remaining: 0,
+            net: -500,
+            income: 10_000,
+            spent: 10_500
+        )
+
+        #expect(viewModel.heroStatusLine(status: status, hasTransactions: true) == "Registrer flere transaksjoner for en mer presis oversikt.")
+    }
 }

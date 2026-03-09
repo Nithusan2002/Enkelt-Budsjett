@@ -136,7 +136,7 @@ final class OverviewViewModel: ObservableObject {
         if status.net >= 0 {
             return "Så langt ser dette rolig ut."
         }
-        return "Før litt til for å få bedre oversikt denne måneden."
+        return "Registrer flere transaksjoner for en mer presis oversikt."
     }
 
     func heroSupportText(status: OverviewBudgetStatus, hasTransactions: Bool) -> String {
