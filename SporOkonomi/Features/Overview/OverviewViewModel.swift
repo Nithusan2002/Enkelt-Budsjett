@@ -4,9 +4,18 @@ import Combine
 struct GoalSummary {
     let targetAmount: Double
     let targetDate: Date
+    let createdAt: Date
     let progress: Double
     let monthsRemaining: Int
     let perMonth: Double
+}
+
+enum GoalPlanState {
+    case ahead
+    case onTrack
+    case behind
+    case complete
+    case expired
 }
 
 struct OverviewBudgetStatus {
@@ -64,6 +73,7 @@ final class OverviewViewModel: ObservableObject {
     func goalSummary(activeGoal: Goal?, currentWealth: Double) -> GoalSummary {
         let targetAmount = activeGoal?.targetAmount ?? 0
         let targetDate = activeGoal?.targetDate ?? .now
+        let createdAt = activeGoal?.createdAt ?? .now
         let progress = targetAmount > 0 ? min(1, currentWealth / targetAmount) : 0
         let monthsRemaining = DateService.monthsRemaining(from: .now, to: targetDate)
         let perMonth = GoalService.requiredMonthlySaving(
@@ -74,6 +84,7 @@ final class OverviewViewModel: ObservableObject {
         return GoalSummary(
             targetAmount: targetAmount,
             targetDate: targetDate,
+            createdAt: createdAt,
             progress: progress,
             monthsRemaining: monthsRemaining,
             perMonth: perMonth
@@ -174,6 +185,66 @@ final class OverviewViewModel: ObservableObject {
 
     func goalProgressTitle() -> String {
         "På vei mot målet ditt"
+    }
+
+    func goalPercentText(summary: GoalSummary) -> String {
+        "\(Int((summary.progress * 100).rounded())) %"
+    }
+
+    func goalAmountsText(currentWealth: Double, summary: GoalSummary, areAmountsHidden: Bool) -> String {
+        if areAmountsHidden {
+            return "•••• kr / •••• kr"
+        }
+        return "\(roundedKr(currentWealth)) / \(roundedKr(summary.targetAmount))"
+    }
+
+    func goalMonthlyNeedText(summary: GoalSummary, areAmountsHidden: Bool) -> String {
+        if areAmountsHidden {
+            return "•••• kr / måned"
+        }
+        return "\(roundedKr(summary.perMonth)) / måned"
+    }
+
+    func goalContextText(summary: GoalSummary, areAmountsHidden: Bool) -> String {
+        let targetText = areAmountsHidden ? "•••• kr" : roundedKr(summary.targetAmount)
+        return "Mål: \(targetText) innen \(formatMonthYearShort(summary.targetDate))"
+    }
+
+    func goalPlanState(summary: GoalSummary, now: Date = .now) -> GoalPlanState {
+        if summary.progress >= 1 {
+            return .complete
+        }
+        if summary.monthsRemaining <= 0 {
+            return .expired
+        }
+
+        let totalDuration = max(summary.targetDate.timeIntervalSince(summary.createdAt), 1)
+        let elapsed = min(max(now.timeIntervalSince(summary.createdAt), 0), totalDuration)
+        let expectedProgress = elapsed / totalDuration
+        let delta = summary.progress - expectedProgress
+
+        if delta > 0.07 {
+            return .ahead
+        }
+        if delta < -0.07 {
+            return .behind
+        }
+        return .onTrack
+    }
+
+    func goalPlanStatusText(summary: GoalSummary) -> String {
+        switch goalPlanState(summary: summary) {
+        case .ahead:
+            return "Du ligger foran planen"
+        case .onTrack:
+            return "Du ligger i rute"
+        case .behind:
+            return "Du ligger litt bak planen"
+        case .complete:
+            return "Du er i mål"
+        case .expired:
+            return "Målfristen er passert"
+        }
     }
 
     func investmentsEmptyTitle() -> String {

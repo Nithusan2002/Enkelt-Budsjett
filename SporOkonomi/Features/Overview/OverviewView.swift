@@ -286,6 +286,7 @@ struct OverviewView: View {
                         Text(viewModel.goalEmptySupportText())
                             .appSecondaryStyle()
                     } else {
+                        let planState = viewModel.goalPlanState(summary: summary)
                         HStack {
                             Text(viewModel.goalProgressTitle())
                                 .appCardTitleStyle()
@@ -295,31 +296,38 @@ struct OverviewView: View {
                                 .foregroundStyle(AppTheme.primary)
                         }
 
-                        HStack(alignment: .firstTextBaseline) {
-                            Text("\(Int((summary.progress * 100).rounded())) %")
-                                .font(.title3.weight(.semibold))
-                                .monospacedDigit()
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .background(AppTheme.primary.opacity(0.12), in: Capsule())
-                            Spacer()
-                            Text(areAmountsHidden ? "Ca. beløp skjult per måned" : "Ca. \(formatNOK(summary.perMonth)) per måned")
-                                .appSecondaryStyle()
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.75)
-                        }
-
-                        Text(goalTrajectoryText(summary: summary))
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(AppTheme.textSecondary)
+                        Text(viewModel.goalPercentText(summary: summary))
+                            .font(.title3.weight(.semibold))
+                            .monospacedDigit()
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(AppTheme.primary.opacity(0.12), in: Capsule())
 
                         let progress = clampedProgress(value: summary.progress, total: 1)
                         ProgressView(value: progress.value, total: progress.total)
                             .tint(AppTheme.primary)
 
-                        Text(areAmountsHidden ? "Beløp skjult / beløp skjult" : "\(formatNOK(currentWealth)) / \(formatNOK(summary.targetAmount))")
-                            .appBodyStyle()
-                            .foregroundStyle(AppTheme.textPrimary)
+                        Text(viewModel.goalPlanStatusText(summary: summary))
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(goalStatusColor(planState))
+
+                        HStack(alignment: .top, spacing: 12) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(viewModel.goalAmountsText(currentWealth: currentWealth, summary: summary, areAmountsHidden: areAmountsHidden))
+                                    .appBodyStyle()
+                                    .foregroundStyle(AppTheme.textPrimary)
+                                Text(viewModel.goalContextText(summary: summary, areAmountsHidden: areAmountsHidden))
+                                    .appSecondaryStyle()
+                            }
+
+                            Spacer()
+
+                            Text(viewModel.goalMonthlyNeedText(summary: summary, areAmountsHidden: areAmountsHidden))
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(AppTheme.textSecondary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.75)
+                        }
                     }
                 }
             }
@@ -329,6 +337,17 @@ struct OverviewView: View {
             .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
             .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
         )
+    }
+
+    private func goalStatusColor(_ state: GoalPlanState) -> Color {
+        switch state {
+        case .ahead, .complete:
+            return AppTheme.positive
+        case .onTrack:
+            return AppTheme.textSecondary
+        case .behind, .expired:
+            return AppTheme.warning
+        }
     }
 
     private var savedModule: some View {
@@ -396,19 +415,6 @@ struct OverviewView: View {
         }
         let sign = heroChange.kr >= 0 ? "+" : "−"
         return "Siden forrige registrering: \(sign)\(formatNOK(abs(heroChange.kr)))"
-    }
-
-    private func goalTrajectoryText(summary: GoalSummary) -> String {
-        if summary.progress >= 1 {
-            return "På mål allerede."
-        }
-        if summary.monthsRemaining <= 0 {
-            return "Fristen er passert. Oppdater mål for ny plan."
-        }
-        if areAmountsHidden {
-            return "For å nå målet innen \(formatMonthYearShort(summary.targetDate)): månedlig beløp er skjult."
-        }
-        return "For å nå målet innen \(formatMonthYearShort(summary.targetDate)): ca. \(formatNOK(summary.perMonth)) per måned."
     }
 
     private func displayedAmount(_ value: Double) -> String {
