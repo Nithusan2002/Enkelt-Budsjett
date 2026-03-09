@@ -72,14 +72,17 @@ struct BudgetView: View {
                     overBudgetCount: overBudgetCount,
                     groupsWithoutLimitWithSpendCount: groupsWithoutLimitWithSpendCount,
                     hasTransactions: !monthTransactions.isEmpty,
+                    isOverBudgetFilterActive: viewModel.selectedFilter == .overLimit,
+                    onToggleOverBudget: {
+                        viewModel.selectedFilter = viewModel.selectedFilter == .overLimit ? .all : .overLimit
+                    },
                     onSetLimits: {
                         if isReadOnlyMode {
                             viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
                         } else {
                             viewModel.showGroupLimitsSheet = true
                         }
-                    },
-                    summary: summary
+                    }
                 )
 
                 NavigationLink {
@@ -91,7 +94,7 @@ struct BudgetView: View {
                 } label: {
                     HStack {
                         Text("Se detaljer")
-                            .appSecondaryStyle()
+                            .appBodyStyle()
                         Spacer()
                         Text("Faste poster, inntekter og sparing")
                             .appSecondaryStyle()
@@ -102,7 +105,6 @@ struct BudgetView: View {
                     .padding()
                     .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
                     .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.divider, lineWidth: 1))
-                    .opacity(0.92)
                 }
                 .buttonStyle(.plain)
 
@@ -134,15 +136,13 @@ struct BudgetView: View {
         .navigationTitle("Budsjett")
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: 8) {
-                if hasPlannedBudget {
-                    BudgetBottomAddTransactionButton {
-                        addTransactionInitialType = .expense
-                        viewModel.showAddTransaction = true
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
-                    .disabled(isReadOnlyMode)
+                BudgetBottomAddTransactionButton {
+                    addTransactionInitialType = .expense
+                    viewModel.showAddTransaction = true
                 }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .disabled(isReadOnlyMode)
 
                 if isReadOnlyMode {
                     Text("Skrivende handlinger er låst fordi appen kjører uten varig lagring.")

@@ -16,20 +16,6 @@ struct BudgetSummaryData {
     let remaining: Double
 
     var actual: Double { trackedActual }
-
-    var isWithinBudget: Bool {
-        remaining >= 0
-    }
-
-    var statusLine: String {
-        if planned <= 0 {
-            return "Ingen grenser satt"
-        }
-        if remaining < 0 {
-            return "Over budsjett med \(formatNOK(abs(remaining)))"
-        }
-        return "Innenfor budsjett"
-    }
 }
 
 struct BudgetGroupRow: Identifiable {
@@ -54,24 +40,6 @@ struct BudgetGroupRow: Identifiable {
     var remaining: Double? {
         guard let planned else { return nil }
         return planned - spent
-    }
-
-    var progressValue: Double? {
-        guard let planned, planned > 0 else { return nil }
-        return min(max(spent / planned, 0), 1)
-    }
-
-    var remainingLabel: String {
-        guard let remaining else { return "Ingen grense satt" }
-        if remaining < 0 {
-            return "\(formatNOK(abs(remaining))) over"
-        }
-        return "\(formatNOK(remaining)) igjen"
-    }
-
-    var supportLabel: String {
-        guard let planned else { return "Ingen grense satt" }
-        return "\(formatNOK(spent)) av \(formatNOK(planned)) brukt"
     }
 }
 
