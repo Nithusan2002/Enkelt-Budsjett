@@ -466,26 +466,24 @@ struct SettingsView: View {
                     }
                 }
                 .buttonStyle(.plain)
+
+                Button(role: .destructive) {
+                    showDemoWipeConfirm = true
+                } label: {
+                    destructiveSettingsRow(title: "Tøm demo-data")
+                }
+                .buttonStyle(.plain)
             }
         } header: {
             sectionHeader("Avansert")
         } footer: {
-            Text("Viser teknisk lagringsstatus og handlinger som bør brukes med omtanke.")
+            Text("Viser teknisk lagringsstatus og demo-verktøy som bør brukes med omtanke.")
         }
         .disabled(isReadOnlyMode)
     }
 
     private var dangerousActionsSection: some View {
         Section {
-            if viewModel.shouldShowDemoTools() {
-                Button(role: .destructive) {
-                    showDemoWipeConfirm = true
-                } label: {
-                    destructiveSettingsRow(title: "Tøm alle data")
-                }
-                .buttonStyle(.plain)
-            }
-
             Button(role: .destructive) {
                 showDeleteAllConfirm = true
             } label: {
