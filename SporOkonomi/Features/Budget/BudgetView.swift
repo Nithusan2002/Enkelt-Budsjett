@@ -82,30 +82,6 @@ struct BudgetView: View {
                     summary: summary
                 )
 
-                NavigationLink {
-                    BudgetDetailsView(
-                        fixedTotalThisMonth: fixedTotalThisMonth,
-                        incomeRows: incomeRows,
-                        savingsRows: savingsRows
-                    )
-                } label: {
-                    HStack {
-                        Text("Se detaljer")
-                            .appSecondaryStyle()
-                        Spacer()
-                        Text("Faste poster, inntekter og sparing")
-                            .appSecondaryStyle()
-                        Image(systemName: "chevron.right")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(AppTheme.textSecondary)
-                    }
-                    .padding()
-                    .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
-                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.divider, lineWidth: 1))
-                    .opacity(0.92)
-                }
-                .buttonStyle(.plain)
-
                 GroupListView(
                     rows: groupRows,
                     fixedByGroup: fixedByGroup,
@@ -120,6 +96,33 @@ struct BudgetView: View {
                         }
                     }
                 )
+
+                NavigationLink {
+                    BudgetDetailsView(
+                        fixedTotalThisMonth: fixedTotalThisMonth,
+                        incomeRows: incomeRows,
+                        savingsRows: savingsRows
+                    )
+                } label: {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Se detaljer")
+                                .appSecondaryStyle()
+                            Text("Faste poster, inntekter og sparing")
+                                .font(.footnote)
+                                .foregroundStyle(AppTheme.textSecondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(AppTheme.textSecondary)
+                    }
+                    .padding()
+                    .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.divider, lineWidth: 1))
+                    .opacity(0.82)
+                }
+                .buttonStyle(.plain)
             }
             .padding()
         }
