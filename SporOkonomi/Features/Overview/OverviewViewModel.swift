@@ -44,14 +44,6 @@ final class OverviewViewModel: ObservableObject {
         )
     }
 
-    func savedYTD(transactions: [Transaction], categories: [Category]) -> Double {
-        SavingsService.savedYearToDate(
-            definition: .incomeMinusExpense,
-            transactions: transactions,
-            categories: categories
-        )
-    }
-
     func registeredSavingYTD(transactions: [Transaction], categories: [Category]) -> Double {
         SavingsService.savedYearToDate(
             definition: .savingsCategoryOnly,
@@ -163,14 +155,6 @@ final class OverviewViewModel: ObservableObject {
     func monthlyProgress(status: OverviewBudgetStatus) -> (value: Double, total: Double)? {
         guard shouldShowMonthlyProgress(status: status) else { return nil }
         return clampedProgress(value: status.spent, total: status.planned)
-    }
-
-    func savingsHeadline() -> String {
-        "Til overs i år"
-    }
-
-    func savingsSupportText() -> String {
-        "Inntekter minus utgifter så langt i år."
     }
 
     func registeredSavingsHeadline() -> String {

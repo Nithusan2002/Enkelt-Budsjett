@@ -67,8 +67,6 @@ struct OverviewFeatureTests {
     func overviewUsesDistinctHistoricalSavingsLabels() {
         let viewModel = OverviewViewModel()
 
-        #expect(viewModel.savingsHeadline() == "Til overs i år")
-        #expect(viewModel.savingsSupportText() == "Inntekter minus utgifter så langt i år.")
         #expect(viewModel.registeredSavingsHeadline() == "Satt til side")
         #expect(viewModel.registeredSavingsSupportText() == "Penger du har registrert til sparing.")
         #expect(viewModel.investmentsEmptySupportText() == "Legg inn verdien når du vil følge utviklingen over tid.")

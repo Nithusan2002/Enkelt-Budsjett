@@ -38,20 +38,12 @@ struct OverviewView: View {
         viewModel.currentWealth(activeGoal: activeGoal, latestSnapshot: latestSnapshot, accounts: accounts)
     }
 
-    private var savedYTD: Double {
-        viewModel.savedYTD(transactions: transactions, categories: categories)
-    }
-
     private var registeredSavingYTD: Double {
         viewModel.registeredSavingYTD(transactions: transactions, categories: categories)
     }
 
     private var hasSavedData: Bool {
-        abs(savedYTD) >= 1 || abs(registeredSavingYTD) >= 1
-    }
-
-    private var shouldShowNetSavingsCard: Bool {
-        abs(savedYTD) >= 1
+        abs(registeredSavingYTD) >= 1
     }
 
     private var shouldShowRegisteredSavingsCard: Bool {
@@ -355,22 +347,6 @@ struct OverviewView: View {
 
     private var historicalSavingsModule: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if shouldShowNetSavingsCard {
-                Button {
-                    navigationState.selectedTab = .budget
-                } label: {
-                    savingsCard(
-                        title: viewModel.savingsHeadline(),
-                        value: displayedAmount(savedYTD),
-                        support: viewModel.savingsSupportText(),
-                        tone: savedYTD >= 0 ? AppTheme.positive : AppTheme.negative
-                    )
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(viewModel.savingsHeadline())
-                .accessibilityValue(areAmountsHidden ? "Beløp skjult" : formatNOK(savedYTD))
-            }
-
             if shouldShowRegisteredSavingsCard {
                 Button {
                     navigationState.selectedTab = .budget
