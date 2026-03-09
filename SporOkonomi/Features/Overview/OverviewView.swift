@@ -174,6 +174,7 @@ struct OverviewView: View {
             if let progress = viewModel.monthlyProgress(status: budgetStatus) {
                 ProgressView(value: progress.value, total: progress.total)
                     .tint(AppTheme.primary)
+                    .scaleEffect(x: 1, y: 1.15, anchor: .center)
             }
 
             Button(viewModel.heroPrimaryCTATitle()) {
@@ -306,6 +307,7 @@ struct OverviewView: View {
                         let progress = clampedProgress(value: summary.progress, total: 1)
                         ProgressView(value: progress.value, total: progress.total)
                             .tint(AppTheme.primary)
+                            .scaleEffect(x: 1, y: 1.15, anchor: .center)
 
                         Text(viewModel.goalPlanStatusText(summary: summary))
                             .font(.footnote.weight(.semibold))

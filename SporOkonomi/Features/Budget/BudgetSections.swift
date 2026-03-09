@@ -1142,7 +1142,7 @@ struct BudgetGroupProgressBar: View {
                     .frame(width: width)
             }
         }
-        .frame(height: 8)
+        .frame(height: 10)
     }
 }
 
