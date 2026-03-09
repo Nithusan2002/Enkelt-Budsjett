@@ -170,7 +170,7 @@ final class OverviewViewModel: ObservableObject {
     }
 
     func savingsSupportText() -> String {
-        "Forskjellen mellom inntekter og utgifter så langt i år."
+        "Inntekter minus utgifter så langt i år."
     }
 
     func registeredSavingsHeadline() -> String {
