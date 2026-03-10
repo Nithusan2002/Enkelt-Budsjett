@@ -44,6 +44,7 @@ struct FixedItemsView: View {
                                         .appSecondaryStyle()
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
+                                .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel("Rediger \(item.title)")
