@@ -30,7 +30,8 @@ struct OverviewView: View {
             transactions: transactions,
             snapshots: snapshots,
             plans: budgetPlans,
-            accounts: accounts
+            accounts: accounts,
+            activeGoal: activeGoal
         )
     }
 

@@ -61,13 +61,22 @@ final class OverviewViewModel: ObservableObject {
         )
     }
 
+    func savedYTD(transactions: [Transaction], categories: [Category]) -> Double {
+        SavingsService.savedYearToDate(
+            definition: .incomeMinusExpense,
+            transactions: transactions,
+            categories: categories
+        )
+    }
+
     func shouldShowEmptyState(
         transactions: [Transaction],
         snapshots: [InvestmentSnapshot],
         plans: [BudgetPlan],
-        accounts: [Account]
+        accounts: [Account],
+        activeGoal: Goal?
     ) -> Bool {
-        transactions.isEmpty && snapshots.isEmpty && plans.isEmpty && accounts.isEmpty
+        transactions.isEmpty && snapshots.isEmpty && plans.isEmpty && accounts.isEmpty && activeGoal == nil
     }
 
     func goalSummary(activeGoal: Goal?, currentWealth: Double) -> GoalSummary {
@@ -214,7 +223,7 @@ final class OverviewViewModel: ObservableObject {
         if summary.progress >= 1 {
             return .complete
         }
-        if summary.monthsRemaining <= 0 {
+        if summary.targetDate < now {
             return .expired
         }
 

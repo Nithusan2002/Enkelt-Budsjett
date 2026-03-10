@@ -1,7 +1,45 @@
+import Foundation
 import Testing
 @testable import SporOkonomi
 
 struct OverviewFeatureTests {
+
+    @Test
+    @MainActor
+    func overviewDoesNotShowEmptyStateWhenActiveGoalExists() {
+        let viewModel = OverviewViewModel()
+        let goal = Goal(
+            targetAmount: 250_000,
+            targetDate: Calendar.current.date(byAdding: .year, value: 1, to: .now)!,
+            isActive: true
+        )
+
+        let shouldShowEmptyState = viewModel.shouldShowEmptyState(
+            transactions: [],
+            snapshots: [],
+            plans: [],
+            accounts: [],
+            activeGoal: goal
+        )
+
+        #expect(shouldShowEmptyState == false)
+    }
+
+    @Test
+    @MainActor
+    func overviewReturnsExpiredWhenGoalDateHasPassed() {
+        let viewModel = OverviewViewModel()
+        let summary = GoalSummary(
+            targetAmount: 100_000,
+            targetDate: Calendar.current.date(byAdding: .day, value: -2, to: .now)!,
+            createdAt: Calendar.current.date(byAdding: .month, value: -6, to: .now)!,
+            progress: 0.45,
+            monthsRemaining: 1,
+            perMonth: 10_000
+        )
+
+        #expect(viewModel.goalPlanState(summary: summary) == .expired)
+    }
 
     @Test
     @MainActor
