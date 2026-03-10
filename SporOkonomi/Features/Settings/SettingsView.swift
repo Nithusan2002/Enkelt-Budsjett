@@ -1102,6 +1102,8 @@ private struct AppearanceSettingsView: View {
                                     .foregroundStyle(AppTheme.primary)
                             }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }
