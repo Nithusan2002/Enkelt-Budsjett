@@ -57,6 +57,7 @@ struct OverviewFeatureTests {
         #expect(viewModel.heroTitle() == "Tilgjengelig denne måneden")
         #expect(viewModel.heroStatusLine(status: status, hasTransactions: true) == "Legg til flere transaksjoner for en mer presis oversikt.")
         #expect(viewModel.heroPrimaryCTATitle() == "Legg til transaksjon")
+        #expect(viewModel.dailyBudgetText(status: status, now: Calendar.current.date(from: DateComponents(year: 2026, month: 3, day: 10))!, areAmountsHidden: false) == "≈ 1 455 kr per dag resten av måneden")
     }
 
     @Test
@@ -131,7 +132,7 @@ struct OverviewFeatureTests {
     func overviewUsesDistinctHistoricalSavingsLabels() {
         let viewModel = OverviewViewModel()
 
-        #expect(viewModel.registeredSavingsHeadline() == "Satt til side")
+        #expect(viewModel.registeredSavingsHeadline() == "Registrert sparing")
         #expect(viewModel.registeredSavingsSupportText() == "Penger du har registrert til sparing.")
         #expect(viewModel.investmentsEmptySupportText() == "Legg inn verdien når du vil følge utviklingen over tid.")
     }
@@ -150,5 +151,41 @@ struct OverviewFeatureTests {
         )
 
         #expect(viewModel.heroStatusLine(status: status, hasTransactions: true) == "Registrer flere transaksjoner for en mer presis oversikt.")
+    }
+
+    @Test
+    @MainActor
+    func overviewScreenStatusReflectsBudgetUrgency() {
+        let viewModel = OverviewViewModel()
+        let nearLimit = OverviewBudgetStatus(
+            hasPlan: true,
+            planned: 10_000,
+            remaining: 1_000,
+            net: 20_000,
+            income: 30_000,
+            spent: 9_000
+        )
+        let overBudget = OverviewBudgetStatus(
+            hasPlan: true,
+            planned: 10_000,
+            remaining: -500,
+            net: 20_000,
+            income: 30_000,
+            spent: 10_500
+        )
+
+        #expect(viewModel.screenStatusText(status: nearLimit, goalSummary: nil, hasTransactions: true) == "Nær budsjettgrensen")
+        #expect(viewModel.screenStatusText(status: overBudget, goalSummary: nil, hasTransactions: true) == "Over budsjett")
+    }
+
+    @Test
+    @MainActor
+    func overviewInvestmentCopyUsesUpdatedWording() {
+        let viewModel = OverviewViewModel()
+        let now = Calendar.current.date(from: DateComponents(year: 2026, month: 2, day: 26)) ?? .now
+        let snapshot = InvestmentSnapshot(periodKey: "2026-02", capturedAt: now, totalValue: 100_000)
+
+        #expect(viewModel.investmentLastUpdatedText(snapshot: snapshot) == "Oppdatert 26 feb")
+        #expect(viewModel.investmentChangeText(change: 5_920, previousSnapshot: snapshot, areAmountsHidden: false) == "Siden sist: +5 920 kr")
     }
 }

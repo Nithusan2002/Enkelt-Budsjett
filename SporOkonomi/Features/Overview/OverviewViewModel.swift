@@ -18,6 +18,12 @@ enum GoalPlanState {
     case expired
 }
 
+enum OverviewToneRole {
+    case positive
+    case warning
+    case neutral
+}
+
 struct OverviewBudgetStatus {
     let hasPlan: Bool
     let planned: Double
@@ -128,6 +134,47 @@ final class OverviewViewModel: ObservableObject {
         "Tilgjengelig denne måneden"
     }
 
+    func screenStatusText(status: OverviewBudgetStatus, goalSummary: GoalSummary?, hasTransactions: Bool) -> String {
+        if status.hasPlan && status.remaining < 0 {
+            return "Over budsjett"
+        }
+        if status.hasPlan && status.planned > 0 {
+            let ratio = status.remaining / status.planned
+            if ratio <= 0.15 {
+                return "Nær budsjettgrensen"
+            }
+            return "På budsjett denne måneden"
+        }
+        if let goalSummary {
+            switch goalPlanState(summary: goalSummary) {
+            case .behind:
+                return "Litt bak spareplan"
+            case .ahead, .onTrack, .complete:
+                return "På vei mot målet"
+            case .expired:
+                return "Målfristen er passert"
+            }
+        }
+        return hasTransactions ? "På budsjett denne måneden" : "I gang med denne måneden"
+    }
+
+    func screenStatusTone(status: OverviewBudgetStatus, goalSummary: GoalSummary?) -> OverviewToneRole {
+        if status.hasPlan && status.remaining < 0 {
+            return .warning
+        }
+        if status.hasPlan && status.planned > 0 {
+            let ratio = status.remaining / status.planned
+            if ratio <= 0.15 {
+                return .warning
+            }
+            return .positive
+        }
+        if let goalSummary, goalPlanState(summary: goalSummary) == .behind {
+            return .warning
+        }
+        return .neutral
+    }
+
     func heroAmountText(status: OverviewBudgetStatus) -> String {
         let focusAmount = status.hasPlan ? status.remaining : status.net
         let rounded = roundedKr(abs(focusAmount))
@@ -167,6 +214,45 @@ final class OverviewViewModel: ObservableObject {
         return roundedKr(amount)
     }
 
+    func dailyBudgetText(status: OverviewBudgetStatus, now: Date = .now, areAmountsHidden: Bool) -> String? {
+        let baseAmount = status.hasPlan ? status.remaining : status.net
+        guard abs(baseAmount) >= 1 else { return nil }
+
+        let daysRemaining = remainingDaysInMonth(from: now)
+        guard daysRemaining > 0 else { return nil }
+
+        if areAmountsHidden {
+            return baseAmount >= 0 ? "≈ •••• kr per dag resten av måneden" : "Du bruker ca. •••• kr for mye per dag"
+        }
+
+        let perDay = abs(baseAmount) / Double(daysRemaining)
+        let rounded = roundedKr(perDay)
+        if baseAmount < 0 {
+            return "Du bruker ca. \(rounded) for mye per dag"
+        }
+        return "≈ \(rounded) per dag resten av måneden"
+    }
+
+    func spentPlannedText(status: OverviewBudgetStatus, areAmountsHidden: Bool) -> String? {
+        guard status.hasPlan, status.planned > 0 else { return nil }
+        if areAmountsHidden {
+            return "•••• kr / •••• kr"
+        }
+        return "\(roundedKr(status.spent)) / \(roundedKr(status.planned))"
+    }
+
+    func monthlyProgressTone(status: OverviewBudgetStatus) -> OverviewToneRole {
+        guard status.hasPlan, status.planned > 0 else { return .neutral }
+        if status.remaining < 0 {
+            return .warning
+        }
+        let ratio = status.remaining / status.planned
+        if ratio <= 0.15 {
+            return .warning
+        }
+        return .positive
+    }
+
     func heroPrimaryCTATitle() -> String {
         "Legg til transaksjon"
     }
@@ -181,7 +267,7 @@ final class OverviewViewModel: ObservableObject {
     }
 
     func registeredSavingsHeadline() -> String {
-        "Satt til side"
+        "Registrert sparing"
     }
 
     func registeredSavingsSupportText() -> String {
@@ -244,13 +330,13 @@ final class OverviewViewModel: ObservableObject {
     func goalPlanStatusText(summary: GoalSummary) -> String {
         switch goalPlanState(summary: summary) {
         case .ahead:
-            return "Du ligger foran planen"
+            return "Foran planen"
         case .onTrack:
-            return "Du ligger i rute"
+            return "På vei mot målet"
         case .behind:
-            return "Du ligger litt bak planen"
+            return "Litt bak spareplan"
         case .complete:
-            return "Du er i mål"
+            return "Målet er nådd"
         case .expired:
             return "Målfristen er passert"
         }
@@ -264,6 +350,22 @@ final class OverviewViewModel: ObservableObject {
         "Legg inn verdien når du vil følge utviklingen over tid."
     }
 
+    func investmentLastUpdatedText(snapshot: InvestmentSnapshot?) -> String? {
+        guard let snapshot else { return nil }
+        return "Oppdatert \(formatDayMonth(snapshot.capturedAt))"
+    }
+
+    func investmentChangeText(change: Double, previousSnapshot: InvestmentSnapshot?, areAmountsHidden: Bool) -> String {
+        guard previousSnapshot != nil else {
+            return "Siden sist: ikke tilgjengelig ennå"
+        }
+        if areAmountsHidden {
+            return "Siden sist: beløp skjult"
+        }
+        let sign = change >= 0 ? "+" : "−"
+        return "Siden sist: \(sign)\(roundedKr(abs(change)))"
+    }
+
     private func roundedKr(_ value: Double) -> String {
         let formatter = NumberFormatter()
         formatter.locale = Locale(identifier: "nb_NO")
@@ -273,6 +375,22 @@ final class OverviewViewModel: ObservableObject {
         let number = NSNumber(value: value.rounded())
         let formatted = formatter.string(from: number) ?? String(Int(value.rounded()))
         return "\(formatted) kr"
+    }
+
+    private func formatDayMonth(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "nb_NO")
+        formatter.dateFormat = "d MMM"
+        return formatter.string(from: date).lowercased()
+    }
+
+    private func remainingDaysInMonth(from date: Date) -> Int {
+        let calendar = Calendar.current
+        guard
+            let dayRange = calendar.range(of: .day, in: .month, for: date)
+        else { return 0 }
+        let currentDay = calendar.component(.day, from: date)
+        return max(dayRange.count - currentDay + 1, 0)
     }
 
     func scopeText(activeGoal: Goal?) -> String {
