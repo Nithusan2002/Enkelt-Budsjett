@@ -652,6 +652,7 @@ struct SettingsView: View {
                     .foregroundStyle(AppTheme.textSecondary)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
     }
 
@@ -662,6 +663,7 @@ struct SettingsView: View {
                 .foregroundStyle(AppTheme.negative)
             Spacer()
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
     }
 
