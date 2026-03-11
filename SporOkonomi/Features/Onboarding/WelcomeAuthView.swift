@@ -54,7 +54,10 @@ struct WelcomeAuthView: View {
                                     tint: AppTheme.surface,
                                     stroke: AppTheme.divider
                                 ) {
-                                    GoogleMarkView(size: 20)
+                                    Image("Google-logo")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 20, height: 20)
                                 }
                             }
                             .buttonStyle(.plain)
@@ -182,74 +185,4 @@ struct WelcomeAuthView: View {
                 .appSecondaryStyle()
         }
     }
-}
-
-private struct GoogleMarkView: View {
-    let size: CGFloat
-
-    var body: some View {
-        ZStack {
-            Circle()
-                .fill(.white)
-
-            GeometryReader { geometry in
-                let stroke = max(2.4, geometry.size.width * 0.18)
-                let radius = (min(geometry.size.width, geometry.size.height) - stroke) / 2
-                let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
-
-                ZStack {
-                    GoogleArc(start: .degrees(-40), end: .degrees(42))
-                        .stroke(GoogleBrand.blue, style: StrokeStyle(lineWidth: stroke, lineCap: .round))
-                    GoogleArc(start: .degrees(42), end: .degrees(118))
-                        .stroke(GoogleBrand.red, style: StrokeStyle(lineWidth: stroke, lineCap: .round))
-                    GoogleArc(start: .degrees(118), end: .degrees(205))
-                        .stroke(GoogleBrand.yellow, style: StrokeStyle(lineWidth: stroke, lineCap: .round))
-                    GoogleArc(start: .degrees(205), end: .degrees(320))
-                        .stroke(GoogleBrand.green, style: StrokeStyle(lineWidth: stroke, lineCap: .round))
-
-                    Path { path in
-                        path.move(
-                            to: CGPoint(
-                                x: center.x + radius * 0.12,
-                                y: center.y
-                            )
-                        )
-                        path.addLine(
-                            to: CGPoint(
-                                x: center.x + radius * 0.92,
-                                y: center.y
-                            )
-                        )
-                    }
-                    .stroke(GoogleBrand.blue, style: StrokeStyle(lineWidth: stroke, lineCap: .round))
-                }
-            }
-            .padding(size * 0.12)
-        }
-        .frame(width: size, height: size)
-    }
-}
-
-private struct GoogleArc: Shape {
-    let start: Angle
-    let end: Angle
-
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.addArc(
-            center: CGPoint(x: rect.midX, y: rect.midY),
-            radius: rect.width / 2,
-            startAngle: start,
-            endAngle: end,
-            clockwise: false
-        )
-        return path
-    }
-}
-
-private enum GoogleBrand {
-    static let blue = Color(red: 66 / 255, green: 133 / 255, blue: 244 / 255)
-    static let red = Color(red: 219 / 255, green: 68 / 255, blue: 55 / 255)
-    static let yellow = Color(red: 244 / 255, green: 180 / 255, blue: 0 / 255)
-    static let green = Color(red: 15 / 255, green: 157 / 255, blue: 88 / 255)
 }
