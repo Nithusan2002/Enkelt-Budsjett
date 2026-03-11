@@ -778,6 +778,13 @@ private struct BucketDetailView: View {
         return "\(sign)\(formatNOK(abs(changeSinceLast))) siden forrige innsjekk"
     }
 
+    private func formatShortDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "nb_NO")
+        formatter.setLocalizedDateFormatFromTemplate("d MMM")
+        return formatter.string(from: date).lowercased()
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
