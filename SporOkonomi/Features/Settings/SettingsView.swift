@@ -325,8 +325,9 @@ struct SettingsView: View {
                     }
                 )
             } label: {
-                settingsRow(title: "Konto og synk", value: accountOverviewText(), showsChevron: false)
+                settingsRow(title: "Konto og synk", value: accountOverviewText(), showsChevron: true)
             }
+            .buttonStyle(.plain)
 
             NavigationLink {
                 AppSettingsHomeView(
@@ -338,8 +339,9 @@ struct SettingsView: View {
                     onApplyReminderSettings: applyReminderSettings
                 )
             } label: {
-                settingsRow(title: "Appinnstillinger", value: currentAppearanceMode.title, showsChevron: false)
+                settingsRow(title: "Appinnstillinger", value: currentAppearanceMode.title, showsChevron: true)
             }
+            .buttonStyle(.plain)
 
             NavigationLink {
                 EconomySettingsHomeView(
@@ -348,8 +350,9 @@ struct SettingsView: View {
                     investmentBuckets: investmentBuckets
                 )
             } label: {
-                settingsRow(title: "Økonomi", value: "", showsChevron: false)
+                settingsRow(title: "Økonomi", value: "", showsChevron: true)
             }
+            .buttonStyle(.plain)
 
             NavigationLink {
                 DataPrivacySettingsHomeView(
@@ -376,14 +379,16 @@ struct SettingsView: View {
                     onConfirmDemoWipe: { showDemoWipeConfirm = true }
                 )
             } label: {
-                settingsRow(title: "Data og personvern", value: storageLocationText(), showsChevron: false)
+                settingsRow(title: "Data og personvern", value: storageLocationText(), showsChevron: true)
             }
+            .buttonStyle(.plain)
 
             NavigationLink {
                 AboutAppView()
             } label: {
-                settingsRow(title: "Om appen", value: appVersionText(), showsChevron: false)
+                settingsRow(title: "Om appen", value: appVersionText(), showsChevron: true)
             }
+            .buttonStyle(.plain)
         }
     }
 
@@ -392,14 +397,16 @@ struct SettingsView: View {
             NavigationLink {
                 AppearanceSettingsView(selection: appearanceModeBinding)
             } label: {
-                settingsRow(title: "Visning", value: currentAppearanceMode.title, showsChevron: false)
+                settingsRow(title: "Visning", value: currentAppearanceMode.title, showsChevron: true)
             }
+            .buttonStyle(.plain)
 
             NavigationLink {
                 LanguageSettingsView()
             } label: {
-                settingsRow(title: "Språk", value: "Norsk", showsChevron: false)
+                settingsRow(title: "Språk", value: "Norsk", showsChevron: true)
             }
+            .buttonStyle(.plain)
 
             Toggle(isOn: reminderEnabledBinding) {
                 VStack(alignment: .leading, spacing: 2) {
@@ -439,8 +446,9 @@ struct SettingsView: View {
             NavigationLink {
                 FixedItemsView()
             } label: {
-                settingsRow(title: "Faste poster", value: "", showsChevron: false)
+                settingsRow(title: "Faste poster", value: "", showsChevron: true)
             }
+            .buttonStyle(.plain)
 
             Button {
                 showBucketTypesSheet = true
@@ -459,8 +467,9 @@ struct SettingsView: View {
             NavigationLink {
                 CategoryManagementView()
             } label: {
-                settingsRow(title: "Kategorier", value: "", showsChevron: false)
+                settingsRow(title: "Kategorier", value: "", showsChevron: true)
             }
+            .buttonStyle(.plain)
         } header: {
             sectionHeader("Økonomi")
         }
@@ -477,8 +486,9 @@ struct SettingsView: View {
                     isReadOnlyMode: isReadOnlyMode
                 )
             } label: {
-                settingsRow(title: "Lagring", value: storageLocationText(), showsChevron: false)
+                settingsRow(title: "Lagring", value: storageLocationText(), showsChevron: true)
             }
+            .buttonStyle(.plain)
 
             Button {
                 performExport()
@@ -531,8 +541,9 @@ struct SettingsView: View {
             NavigationLink {
                 AboutAppView()
             } label: {
-                settingsRow(title: "Versjon", value: appVersionText(), showsChevron: false)
+                settingsRow(title: "Versjon", value: appVersionText(), showsChevron: true)
             }
+            .buttonStyle(.plain)
         } header: {
             sectionHeader("Om appen")
         }
@@ -548,8 +559,9 @@ struct SettingsView: View {
                     isReadOnlyMode: isReadOnlyMode
                 )
             } label: {
-                settingsRow(title: "Synk og diagnose", value: storeModeText(), showsChevron: false)
+                settingsRow(title: "Synk og diagnose", value: storeModeText(), showsChevron: true)
             }
+            .buttonStyle(.plain)
 
             if viewModel.shouldShowDemoTools() {
                 Button("Last inn demo (3 år realistisk)") {
@@ -1235,14 +1247,16 @@ private struct AppSettingsHomeView: View {
                 NavigationLink {
                     AppearanceSettingsView(selection: $appearanceModeBinding)
                 } label: {
-                    settingsRow(title: "Visning", value: appearanceModeBinding.title, showsChevron: false)
+                    settingsRow(title: "Visning", value: appearanceModeBinding.title, showsChevron: true)
                 }
+                .buttonStyle(.plain)
 
                 NavigationLink {
                     LanguageSettingsView()
                 } label: {
-                    settingsRow(title: "Språk", value: "Norsk", showsChevron: false)
+                    settingsRow(title: "Språk", value: "Norsk", showsChevron: true)
                 }
+                .buttonStyle(.plain)
 
                 Toggle(isOn: reminderEnabledBinding) {
                     VStack(alignment: .leading, spacing: 2) {
@@ -1350,8 +1364,9 @@ private struct EconomySettingsHomeView: View {
                 NavigationLink {
                     FixedItemsView()
                 } label: {
-                    settingsRow(title: "Faste poster", value: "", showsChevron: false)
+                    settingsRow(title: "Faste poster", value: "", showsChevron: true)
                 }
+                .buttonStyle(.plain)
 
                 Button {
                     showBucketTypesSheet = true
@@ -1370,8 +1385,9 @@ private struct EconomySettingsHomeView: View {
                 NavigationLink {
                     CategoryManagementView()
                 } label: {
-                    settingsRow(title: "Kategorier", value: "", showsChevron: false)
+                    settingsRow(title: "Kategorier", value: "", showsChevron: true)
                 }
+                .buttonStyle(.plain)
             }
         }
         .scrollContentBackground(.hidden)
@@ -1444,8 +1460,9 @@ private struct DataPrivacySettingsHomeView: View {
                         isReadOnlyMode: isReadOnlyMode
                     )
                 } label: {
-                    settingsRow(title: "Lagring", value: storageLocationText, showsChevron: false)
+                    settingsRow(title: "Lagring", value: storageLocationText, showsChevron: true)
                 }
+                .buttonStyle(.plain)
 
                 Button {
                     onExport()
@@ -1488,8 +1505,9 @@ private struct DataPrivacySettingsHomeView: View {
                         isReadOnlyMode: isReadOnlyMode
                     )
                 } label: {
-                    settingsRow(title: "Synk og diagnose", value: storeModeText, showsChevron: false)
+                    settingsRow(title: "Synk og diagnose", value: storeModeText, showsChevron: true)
                 }
+                .buttonStyle(.plain)
 
                 if shouldShowDemoTools {
                     Button("Last inn demo (3 år realistisk)") {
@@ -1552,6 +1570,7 @@ private struct DataPrivacySettingsHomeView: View {
             if !value.isEmpty {
                 Text(value)
                     .appSecondaryStyle()
+                    .truncationMode(.tail)
             }
             if showsChevron {
                 Image(systemName: "chevron.right")
