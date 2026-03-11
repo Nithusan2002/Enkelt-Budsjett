@@ -111,9 +111,6 @@ struct BudgetView: View {
                         Text("Se detaljer")
                             .appSecondaryStyle()
                         Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(AppTheme.textSecondary)
                     }
                     .padding()
                     .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))

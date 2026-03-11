@@ -1235,13 +1235,13 @@ private struct AppSettingsHomeView: View {
                 NavigationLink {
                     AppearanceSettingsView(selection: $appearanceModeBinding)
                 } label: {
-                    settingsRow(title: "Visning", value: appearanceModeBinding.title, showsChevron: true)
+                    settingsRow(title: "Visning", value: appearanceModeBinding.title, showsChevron: false)
                 }
 
                 NavigationLink {
                     LanguageSettingsView()
                 } label: {
-                    settingsRow(title: "Språk", value: "Norsk", showsChevron: true)
+                    settingsRow(title: "Språk", value: "Norsk", showsChevron: false)
                 }
 
                 Toggle(isOn: reminderEnabledBinding) {
@@ -1350,7 +1350,7 @@ private struct EconomySettingsHomeView: View {
                 NavigationLink {
                     FixedItemsView()
                 } label: {
-                    settingsRow(title: "Faste poster", value: "", showsChevron: true)
+                    settingsRow(title: "Faste poster", value: "", showsChevron: false)
                 }
 
                 Button {
@@ -1370,7 +1370,7 @@ private struct EconomySettingsHomeView: View {
                 NavigationLink {
                     CategoryManagementView()
                 } label: {
-                    settingsRow(title: "Kategorier", value: "", showsChevron: true)
+                    settingsRow(title: "Kategorier", value: "", showsChevron: false)
                 }
             }
         }
@@ -1444,7 +1444,7 @@ private struct DataPrivacySettingsHomeView: View {
                         isReadOnlyMode: isReadOnlyMode
                     )
                 } label: {
-                    settingsRow(title: "Lagring", value: storageLocationText, showsChevron: true)
+                    settingsRow(title: "Lagring", value: storageLocationText, showsChevron: false)
                 }
 
                 Button {
@@ -1488,7 +1488,7 @@ private struct DataPrivacySettingsHomeView: View {
                         isReadOnlyMode: isReadOnlyMode
                     )
                 } label: {
-                    settingsRow(title: "Synk og diagnose", value: storeModeText, showsChevron: true)
+                    settingsRow(title: "Synk og diagnose", value: storeModeText, showsChevron: false)
                 }
 
                 if shouldShowDemoTools {

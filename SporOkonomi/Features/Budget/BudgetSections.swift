@@ -354,9 +354,6 @@ struct BudgetDetailsView: View {
                         Text(formatNOK(fixedTotalThisMonth))
                             .font(.headline.weight(.semibold))
                             .monospacedDigit()
-                        Image(systemName: "chevron.right")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(AppTheme.textSecondary)
                     }
                     .padding()
                     .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
@@ -1079,9 +1076,6 @@ struct GroupRowView: View {
                         .font(.subheadline.weight(.semibold))
                         .monospacedDigit()
                         .foregroundStyle(remainingTone)
-                    Image(systemName: "chevron.right")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(AppTheme.textSecondary)
                 }
             }
 
