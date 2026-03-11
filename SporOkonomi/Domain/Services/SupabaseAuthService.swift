@@ -278,14 +278,14 @@ final class SupabaseAuthClient: AuthClientProtocol {
     }
 
     func deleteAccount() async throws {
-        guard let accessToken = storedAccessToken(), !accessToken.isEmpty else {
+        guard let authenticatedSession = try await restoreSession() else {
             throw AuthServiceError.requestFailed("Du må være logget inn for å slette kontoen.")
         }
 
         var request = URLRequest(url: endpointURL(for: "functions/v1/delete-account"))
         request.httpMethod = "POST"
         request.setValue(configuration.publishableKey, forHTTPHeaderField: "apikey")
-        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(authenticatedSession.accessToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = Data("{}".utf8)
 

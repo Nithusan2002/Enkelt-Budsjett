@@ -521,6 +521,79 @@ struct AuthSessionTests {
         #expect(tokenStore.savedTokens?.accessToken == "google-access")
         #expect(tokenStore.savedTokens?.refreshToken == "google-refresh")
     }
+
+    @Test
+    @MainActor
+    func deleteAccountRefreshesExpiredAccessTokenBeforeCallingFunction() async throws {
+        let configuration = try SupabaseConfiguration.load(
+            projectURLString: "https://example.supabase.co",
+            publishableKey: "publishable-key",
+            redirectScheme: "sporokonomi",
+            redirectHost: "auth-callback"
+        )
+        let tokenStore = MockTokenStore(
+            initialTokens: StoredAuthTokens(
+                accessToken: "expired-access",
+                refreshToken: "refresh-123",
+                tokenType: "bearer"
+            )
+        )
+        let sessionConfiguration = URLSessionConfiguration.ephemeral
+        sessionConfiguration.protocolClasses = [MockURLProtocol.self]
+        let session = URLSession(configuration: sessionConfiguration)
+        let client = SupabaseAuthClient(
+            configuration: configuration,
+            session: session,
+            tokenStore: tokenStore,
+            webAuthCoordinator: MockOAuthCoordinator()
+        )
+
+        var functionAuthorizationHeader: String?
+
+        MockURLProtocol.requestHandler = { request in
+            if request.url?.path == "/auth/v1/user",
+               request.value(forHTTPHeaderField: "Authorization") == "Bearer expired-access" {
+                let response = HTTPURLResponse(url: request.url!, statusCode: 401, httpVersion: nil, headerFields: nil)!
+                let data = #"{"error":"invalid_grant","message":"invalid login credentials"}"#.data(using: .utf8)!
+                return (response, data)
+            }
+
+            if request.url?.path == "/auth/v1/token",
+               request.url?.query == "grant_type=refresh_token" {
+                let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+                let data = #"""
+                {
+                  "access_token": "fresh-access",
+                  "refresh_token": "fresh-refresh",
+                  "token_type": "bearer",
+                  "user": {
+                    "id": "user-123",
+                    "email": "hei@example.com",
+                    "user_metadata": {
+                      "display_name": "Hei"
+                    }
+                  }
+                }
+                """#.data(using: .utf8)!
+                return (response, data)
+            }
+
+            if request.url?.path == "/functions/v1/delete-account" {
+                functionAuthorizationHeader = request.value(forHTTPHeaderField: "Authorization")
+                let response = HTTPURLResponse(url: request.url!, statusCode: 204, httpVersion: nil, headerFields: nil)!
+                return (response, Data())
+            }
+
+            throw URLError(.badServerResponse)
+        }
+
+        try await client.deleteAccount()
+
+        #expect(functionAuthorizationHeader == "Bearer fresh-access")
+        #expect(tokenStore.savedTokens?.accessToken == "fresh-access")
+        #expect(tokenStore.savedTokens?.refreshToken == "fresh-refresh")
+        #expect(tokenStore.load() == nil)
+    }
 }
 
 private final class MockAuthClient: AuthClientProtocol {
