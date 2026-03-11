@@ -196,9 +196,9 @@ struct SettingsView: View {
             } message: {
             Text(importMessage)
             }
-            .alert("Slett alle data?", isPresented: $showDeleteAllConfirm) {
+            .alert("Slett lokale data?", isPresented: $showDeleteAllConfirm) {
             Button("Avbryt", role: .cancel) { }
-            Button("Slett alt", role: .destructive) {
+            Button("Slett lokale data", role: .destructive) {
                 do {
                     try viewModel.deleteAllData(context: modelContext)
                     showDeleteAllSuccess = true
@@ -207,7 +207,7 @@ struct SettingsView: View {
                 }
             }
             } message: {
-            Text("Dette sletter budsjett, investeringer, mål og innstillinger lokalt på enheten.")
+            Text("Dette sletter budsjett, investeringer, mål og innstillinger lokalt på denne enheten. Dette sletter ikke kontoen din.")
             }
             .alert("Kunne ikke slette data", isPresented: $showDeleteAllError) {
             Button("OK", role: .cancel) { }
@@ -487,7 +487,7 @@ struct SettingsView: View {
             Button(role: .destructive) {
                 showDeleteAllConfirm = true
             } label: {
-                destructiveSettingsRow(title: "Slett all data")
+                destructiveSettingsRow(title: "Slett lokale data")
             }
             .buttonStyle(.plain)
         } header: {
