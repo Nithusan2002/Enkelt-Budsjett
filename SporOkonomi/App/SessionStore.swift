@@ -231,6 +231,31 @@ final class SessionStore: ObservableObject {
         }
     }
 
+    func deleteAccount(preference: UserPreference, context: ModelContext) async -> Bool {
+        guard !isWorking else { return false }
+        isWorking = true
+        defer { isWorking = false }
+
+        do {
+            try await authClient.deleteAccount()
+            try DemoDataSeeder.wipeAllData(context: context)
+            try BootstrapService.ensurePreference(context: context)
+            try BootstrapService.ensureCurrentBudgetMonthAndRecurring(context: context)
+
+            let refreshedPreference = try context.fetch(FetchDescriptor<UserPreference>()).first ?? preference
+            updatePreference(
+                refreshedPreference,
+                mode: .local,
+                session: nil,
+                context: context
+            )
+            return true
+        } catch {
+            authErrorMessage = (error as? LocalizedError)?.errorDescription ?? "Kunne ikke slette kontoen nå."
+            return false
+        }
+    }
+
     func clearError() {
         authErrorMessage = nil
     }
@@ -296,6 +321,10 @@ private struct UnconfiguredAuthClient: AuthClientProtocol {
     }
 
     func restoreSession() async throws -> AuthClientSession? { nil }
+
+    func deleteAccount() async throws {
+        throw configurationError
+    }
 
     func signOut(accessToken: String?) async {}
 

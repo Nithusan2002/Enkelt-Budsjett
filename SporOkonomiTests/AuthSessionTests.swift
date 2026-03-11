@@ -5,6 +5,7 @@ import Testing
 @testable import SporOkonomi
 
 private typealias Category = SporOkonomi.Category
+private typealias Transaction = SporOkonomi.Transaction
 
 struct AuthSessionTests {
 
@@ -246,6 +247,93 @@ struct AuthSessionTests {
 
     @Test
     @MainActor
+    func deleteAccountRemovesRemoteSessionAndLocalData() async throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+        let preference = UserPreference(
+            authSessionModeRaw: AuthSessionMode.authenticated.rawValue,
+            authProviderRaw: AuthProvider.email.rawValue,
+            authUserID: "user-42",
+            authEmail: "hei@example.com"
+        )
+        context.insert(preference)
+        context.insert(Transaction(date: .now, amount: 499, kind: .expense, categoryID: "cat_food"))
+        try context.save()
+
+        let authClient = MockAuthClient(
+            restoredSession: AuthClientSession(
+                userID: "user-42",
+                email: "hei@example.com",
+                displayName: nil,
+                accessToken: "access-token",
+                refreshToken: "refresh-token"
+            ),
+            storedAccessToken: "access-token"
+        )
+        let sessionStore = SessionStore(authClient: authClient)
+
+        await sessionStore.restore(from: preference, context: context)
+        await sessionStore.deleteAccount(preference: preference, context: context)
+
+        let transactions = try context.fetch(FetchDescriptor<Transaction>())
+        let preferences = try context.fetch(FetchDescriptor<UserPreference>())
+
+        #expect(authClient.deleteAccountCallCount == 1)
+        #expect(authClient.clearedStoredSession)
+        #expect(sessionStore.sessionMode == .local)
+        #expect(sessionStore.currentSession == nil)
+        #expect(sessionStore.authErrorMessage == nil)
+        #expect(transactions.isEmpty)
+        #expect(preferences.count == 1)
+        #expect(preferences.first?.authSessionModeRaw == AuthSessionMode.local.rawValue)
+        #expect(preferences.first?.authUserID == nil)
+    }
+
+    @Test
+    @MainActor
+    func deleteAccountKeepsLocalDataWhenRemoteDeletionFails() async throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+        let preference = UserPreference(
+            authSessionModeRaw: AuthSessionMode.authenticated.rawValue,
+            authProviderRaw: AuthProvider.email.rawValue,
+            authUserID: "user-42",
+            authEmail: "hei@example.com"
+        )
+        context.insert(preference)
+        context.insert(Transaction(date: .now, amount: 499, kind: .expense, categoryID: "cat_food"))
+        try context.save()
+
+        let authClient = MockAuthClient(
+            restoredSession: AuthClientSession(
+                userID: "user-42",
+                email: "hei@example.com",
+                displayName: nil,
+                accessToken: "access-token",
+                refreshToken: "refresh-token"
+            ),
+            storedAccessToken: "access-token",
+            deleteAccountError: AuthServiceError.requestFailed("Kunne ikke slette kontoen nå.")
+        )
+        let sessionStore = SessionStore(authClient: authClient)
+
+        await sessionStore.restore(from: preference, context: context)
+        await sessionStore.deleteAccount(preference: preference, context: context)
+
+        let transactions = try context.fetch(FetchDescriptor<Transaction>())
+
+        #expect(authClient.deleteAccountCallCount == 1)
+        #expect(!authClient.clearedStoredSession)
+        #expect(sessionStore.sessionMode == .authenticated)
+        #expect(sessionStore.currentSession?.userID == "user-42")
+        #expect(sessionStore.authErrorMessage == "Kunne ikke slette kontoen nå.")
+        #expect(transactions.count == 1)
+        #expect(preference.authSessionModeRaw == AuthSessionMode.authenticated.rawValue)
+        #expect(preference.authUserID == "user-42")
+    }
+
+    @Test
+    @MainActor
     func signUpWithoutSessionPromptsForEmailConfirmation() async throws {
         let container = try TestModelContainerFactory.makeInMemoryContainer()
         let context = container.mainContext
@@ -433,6 +521,79 @@ struct AuthSessionTests {
         #expect(tokenStore.savedTokens?.accessToken == "google-access")
         #expect(tokenStore.savedTokens?.refreshToken == "google-refresh")
     }
+
+    @Test
+    @MainActor
+    func deleteAccountRefreshesExpiredAccessTokenBeforeCallingFunction() async throws {
+        let configuration = try SupabaseConfiguration.load(
+            projectURLString: "https://example.supabase.co",
+            publishableKey: "publishable-key",
+            redirectScheme: "sporokonomi",
+            redirectHost: "auth-callback"
+        )
+        let tokenStore = MockTokenStore(
+            initialTokens: StoredAuthTokens(
+                accessToken: "expired-access",
+                refreshToken: "refresh-123",
+                tokenType: "bearer"
+            )
+        )
+        let sessionConfiguration = URLSessionConfiguration.ephemeral
+        sessionConfiguration.protocolClasses = [MockURLProtocol.self]
+        let session = URLSession(configuration: sessionConfiguration)
+        let client = SupabaseAuthClient(
+            configuration: configuration,
+            session: session,
+            tokenStore: tokenStore,
+            webAuthCoordinator: MockOAuthCoordinator()
+        )
+
+        var functionAuthorizationHeader: String?
+
+        MockURLProtocol.requestHandler = { request in
+            if request.url?.path == "/auth/v1/user",
+               request.value(forHTTPHeaderField: "Authorization") == "Bearer expired-access" {
+                let response = HTTPURLResponse(url: request.url!, statusCode: 401, httpVersion: nil, headerFields: nil)!
+                let data = #"{"error":"invalid_grant","message":"invalid login credentials"}"#.data(using: .utf8)!
+                return (response, data)
+            }
+
+            if request.url?.path == "/auth/v1/token",
+               request.url?.query == "grant_type=refresh_token" {
+                let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+                let data = #"""
+                {
+                  "access_token": "fresh-access",
+                  "refresh_token": "fresh-refresh",
+                  "token_type": "bearer",
+                  "user": {
+                    "id": "user-123",
+                    "email": "hei@example.com",
+                    "user_metadata": {
+                      "display_name": "Hei"
+                    }
+                  }
+                }
+                """#.data(using: .utf8)!
+                return (response, data)
+            }
+
+            if request.url?.path == "/functions/v1/delete-account" {
+                functionAuthorizationHeader = request.value(forHTTPHeaderField: "Authorization")
+                let response = HTTPURLResponse(url: request.url!, statusCode: 204, httpVersion: nil, headerFields: nil)!
+                return (response, Data())
+            }
+
+            throw URLError(.badServerResponse)
+        }
+
+        try await client.deleteAccount()
+
+        #expect(functionAuthorizationHeader == "Bearer fresh-access")
+        #expect(tokenStore.savedTokens?.accessToken == "fresh-access")
+        #expect(tokenStore.savedTokens?.refreshToken == "fresh-refresh")
+        #expect(tokenStore.load() == nil)
+    }
 }
 
 private final class MockAuthClient: AuthClientProtocol {
@@ -441,6 +602,10 @@ private final class MockAuthClient: AuthClientProtocol {
     var signInError: Error?
     var googleResult: AuthClientSession?
     var restoredSession: AuthClientSession?
+    var storedAccessTokenValue: String?
+    var deleteAccountError: Error?
+    var deleteAccountCallCount = 0
+    var clearedStoredSession = false
     var lastSignInEmail: String?
 
     init(
@@ -448,13 +613,17 @@ private final class MockAuthClient: AuthClientProtocol {
         signInResult: AuthClientSession? = nil,
         signInError: Error? = nil,
         googleResult: AuthClientSession? = nil,
-        restoredSession: AuthClientSession? = nil
+        restoredSession: AuthClientSession? = nil,
+        storedAccessToken: String? = nil,
+        deleteAccountError: Error? = nil
     ) {
         self.signUpResult = signUpResult
         self.signInResult = signInResult
         self.signInError = signInError
         self.googleResult = googleResult
         self.restoredSession = restoredSession
+        self.storedAccessTokenValue = storedAccessToken
+        self.deleteAccountError = deleteAccountError
     }
 
     func signUp(email: String, password: String, displayName: String?) async throws -> AuthClientSession? {
@@ -485,9 +654,19 @@ private final class MockAuthClient: AuthClientProtocol {
 
     func signOut(accessToken: String?) async {}
 
-    func storedAccessToken() -> String? { nil }
+    func deleteAccount() async throws {
+        deleteAccountCallCount += 1
+        if let deleteAccountError {
+            throw deleteAccountError
+        }
+    }
 
-    func clearStoredSession() {}
+    func storedAccessToken() -> String? { storedAccessTokenValue }
+
+    func clearStoredSession() {
+        clearedStoredSession = true
+        storedAccessTokenValue = nil
+    }
 }
 
 private final class MockOAuthCoordinator: OAuthWebAuthenticationCoordinating {
