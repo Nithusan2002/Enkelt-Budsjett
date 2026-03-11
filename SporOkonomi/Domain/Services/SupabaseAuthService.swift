@@ -302,6 +302,9 @@ final class SupabaseAuthClient: AuthClientProtocol {
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {
             debugLog("deleteAccount: function failed with status \((response as? HTTPURLResponse)?.statusCode ?? 500)")
+            if let body = String(data: data, encoding: .utf8), !body.isEmpty {
+                debugLog("deleteAccount: function body \(body)")
+            }
             throw mapError(from: data, statusCode: (response as? HTTPURLResponse)?.statusCode ?? 500)
         }
 
