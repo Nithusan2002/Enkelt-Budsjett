@@ -158,68 +158,71 @@ struct InvestmentsView: View {
 
     private var heroSection: some View {
         Section {
-            VStack(alignment: .leading, spacing: 12) {
-                if latest == nil {
-                    Text("Ingen registreringer ennå")
-                        .appCardTitleStyle()
-                        .foregroundStyle(AppTheme.textPrimary)
-                    Text("Legg inn første verdi for å følge utviklingen over tid.")
-                        .appBodyStyle()
-                        .foregroundStyle(AppTheme.textSecondary)
-                } else {
-                    Text("Min formue")
-                        .appSecondaryStyle()
-
-                    Text(displayedAmount(viewModel.displayedTotal))
-                        .appBigNumberStyle()
-                        .foregroundStyle(AppTheme.textPrimary)
-                        .contentTransition(.numericText(value: viewModel.displayedTotal))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.68)
-                        .allowsTightening(true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .layoutPriority(2)
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(changeSummaryText(changeKr: hero.changeKr, changePct: hero.changePct))
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(hero.changeKr >= 0 ? AppTheme.positive : AppTheme.negative)
-                        Text(hero.lastCheckInText)
+            HStack(spacing: 0) {
+                VStack(alignment: .leading, spacing: 12) {
+                    if latest == nil {
+                        Text("Ingen registreringer ennå")
+                            .appCardTitleStyle()
+                            .foregroundStyle(AppTheme.textPrimary)
+                        Text("Legg inn første verdi for å følge utviklingen over tid.")
+                            .appBodyStyle()
+                            .foregroundStyle(AppTheme.textSecondary)
+                    } else {
+                        Text("Min formue")
                             .appSecondaryStyle()
+
+                        Text(displayedAmount(viewModel.displayedTotal))
+                            .appBigNumberStyle()
+                            .foregroundStyle(AppTheme.textPrimary)
+                            .contentTransition(.numericText(value: viewModel.displayedTotal))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.68)
+                            .allowsTightening(true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .layoutPriority(2)
+
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(changeSummaryText(changeKr: hero.changeKr, changePct: hero.changePct))
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(hero.changeKr >= 0 ? AppTheme.positive : AppTheme.negative)
+                            Text(hero.lastCheckInText)
+                                .appSecondaryStyle()
+                        }
+                    }
+
+                    if latest == nil {
+                        Button("Oppdater verdi") {
+                            openCheckIn()
+                        }
+                        .appProminentCTAStyle()
+                        .disabled(isReadOnlyMode)
+                    } else {
+                        Button {
+                            openCheckIn()
+                        } label: {
+                            Label("Oppdater verdi", systemImage: "plus.circle")
+                        }
+                        .font(.footnote.weight(.semibold))
+                        .buttonStyle(.bordered)
+                        .tint(AppTheme.primary)
+                        .disabled(isReadOnlyMode)
+                    }
+
+                    if latest != nil {
+                        Divider()
+                            .overlay(AppTheme.divider)
+                            .padding(.vertical, 2)
+
+                        InvestmentsDevelopmentChartView(
+                            points: viewModel.developmentChartPoints(snapshots: snapshots, buckets: buckets),
+                            period: $viewModel.developmentPeriod,
+                            onUpdateValues: openCheckIn,
+                            embedded: true,
+                            showStatusRow: false
+                        )
                     }
                 }
-
-                if latest == nil {
-                    Button("Oppdater verdi") {
-                        openCheckIn()
-                    }
-                    .appProminentCTAStyle()
-                    .disabled(isReadOnlyMode)
-                } else {
-                    Button {
-                        openCheckIn()
-                    } label: {
-                        Label("Oppdater verdi", systemImage: "plus.circle")
-                    }
-                    .font(.footnote.weight(.semibold))
-                    .buttonStyle(.bordered)
-                    .tint(AppTheme.primary)
-                    .disabled(isReadOnlyMode)
-                }
-
-                if latest != nil {
-                    Divider()
-                        .overlay(AppTheme.divider)
-                        .padding(.vertical, 2)
-
-                    InvestmentsDevelopmentChartView(
-                        points: viewModel.developmentChartPoints(snapshots: snapshots, buckets: buckets),
-                        period: $viewModel.developmentPeriod,
-                        onUpdateValues: openCheckIn,
-                        embedded: true,
-                        showStatusRow: false
-                    )
-                }
+                Spacer(minLength: 0)
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
