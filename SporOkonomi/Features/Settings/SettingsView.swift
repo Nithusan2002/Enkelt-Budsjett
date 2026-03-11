@@ -197,35 +197,10 @@ struct SettingsView: View {
             } message: {
             Text(importMessage)
             }
-            .alert("Slett lokale data?", isPresented: $showDeleteAllConfirm) {
-            Button("Avbryt", role: .cancel) { }
-            Button("Slett lokale data", role: .destructive) {
-                do {
-                    try viewModel.deleteAllData(context: modelContext)
-                    showDeleteAllSuccess = true
-                } catch {
-                    showDeleteAllError = true
-                }
-            }
-            } message: {
-            Text("Dette sletter budsjett, investeringer, mål og innstillinger lokalt på denne enheten. Dette sletter ikke kontoen din.")
-            }
             .alert("Kunne ikke slette data", isPresented: $showDeleteAllError) {
             Button("OK", role: .cancel) { }
             } message: {
             Text("Prøv igjen litt senere.")
-            }
-            .alert("Slett konto?", isPresented: $showDeleteAccountConfirm) {
-            Button("Avbryt", role: .cancel) { }
-            Button("Slett konto", role: .destructive) {
-                Task {
-                    if await sessionStore.deleteAccount(preference: pref, context: modelContext) {
-                        showDeleteAccountSuccess = true
-                    }
-                }
-            }
-            } message: {
-            Text("Dette sletter kontoen din og rydder lokale data på denne enheten. iCloud-data fjernes når slettingen er synkronisert.")
             }
             .alert("Konto slettet", isPresented: $showDeleteAccountSuccess) {
             Button("OK", role: .cancel) { }
@@ -259,21 +234,6 @@ struct SettingsView: View {
             Button("OK", role: .cancel) { }
             } message: {
             Text("Prøv igjen litt senere.")
-            }
-            .alert("Tøm alle demo-data?", isPresented: $showDemoWipeConfirm) {
-            Button("Avbryt", role: .cancel) { }
-            Button("Tøm data", role: .destructive) {
-                do {
-                    try viewModel.wipeAllDataForDemo(context: modelContext)
-                    demoLoadMessage = "Alle lokale data er tømt."
-                    showDemoLoadSuccess = true
-                    showToast("Alle data tømt ✓")
-                } catch {
-                    showDemoLoadError = true
-                }
-            }
-            } message: {
-            Text("Dette sletter alt lokalt på enheten.")
             }
             .onChange(of: viewModel.preferencePersistenceErrorMessage) { _, newValue in
                 guard let newValue else { return }
@@ -367,10 +327,26 @@ struct SettingsView: View {
                     storeModeDetailText: storeModeDetailText(),
                     isAuthenticated: sessionStore.isAuthenticated,
                     shouldShowDemoTools: viewModel.shouldShowDemoTools(),
+                    showDeleteAccountConfirm: $showDeleteAccountConfirm,
+                    showDeleteAllConfirm: $showDeleteAllConfirm,
+                    showDemoWipeConfirm: $showDemoWipeConfirm,
                     onExport: performExport,
                     onImport: { showImportModeDialog = true },
-                    onConfirmDeleteAccount: { showDeleteAccountConfirm = true },
-                    onConfirmDeleteAll: { showDeleteAllConfirm = true },
+                    onConfirmDeleteAccount: {
+                        Task {
+                            if await sessionStore.deleteAccount(preference: pref, context: modelContext) {
+                                showDeleteAccountSuccess = true
+                            }
+                        }
+                    },
+                    onConfirmDeleteAll: {
+                        do {
+                            try viewModel.deleteAllData(context: modelContext)
+                            showDeleteAllSuccess = true
+                        } catch {
+                            showDeleteAllError = true
+                        }
+                    },
                     onLoadDemo: {
                         do {
                             let report = try viewModel.seedDemoRealisticYear(context: modelContext, year: nil)
@@ -381,7 +357,16 @@ struct SettingsView: View {
                             showDemoLoadError = true
                         }
                     },
-                    onConfirmDemoWipe: { showDemoWipeConfirm = true }
+                    onConfirmDemoWipe: {
+                        do {
+                            try viewModel.wipeAllDataForDemo(context: modelContext)
+                            demoLoadMessage = "Alle lokale data er tømt."
+                            showDemoLoadSuccess = true
+                            showToast("Alle data tømt ✓")
+                        } catch {
+                            showDemoLoadError = true
+                        }
+                    }
                 )
             } label: {
                 settingsRow(title: "Data og personvern", value: storageLocationText(), showsChevron: true)
@@ -1457,6 +1442,9 @@ private struct DataPrivacySettingsHomeView: View {
     let storeModeDetailText: String?
     let isAuthenticated: Bool
     let shouldShowDemoTools: Bool
+    @Binding var showDeleteAccountConfirm: Bool
+    @Binding var showDeleteAllConfirm: Bool
+    @Binding var showDemoWipeConfirm: Bool
     let onExport: () -> Void
     let onImport: () -> Void
     let onConfirmDeleteAccount: () -> Void
@@ -1579,6 +1567,30 @@ private struct DataPrivacySettingsHomeView: View {
         .scrollContentBackground(.hidden)
         .background(AppTheme.background)
         .navigationTitle("Data og personvern")
+        .alert("Tøm alle demo-data?", isPresented: $showDemoWipeConfirm) {
+            Button("Avbryt", role: .cancel) { }
+            Button("Tøm data", role: .destructive) {
+                onConfirmDemoWipe()
+            }
+        } message: {
+            Text("Dette sletter alt lokalt på enheten.")
+        }
+        .alert("Slett konto?", isPresented: $showDeleteAccountConfirm) {
+            Button("Avbryt", role: .cancel) { }
+            Button("Slett konto", role: .destructive) {
+                onConfirmDeleteAccount()
+            }
+        } message: {
+            Text("Dette sletter kontoen din og rydder lokale data på denne enheten. iCloud-data fjernes når slettingen er synkronisert.")
+        }
+        .alert("Slett lokale data?", isPresented: $showDeleteAllConfirm) {
+            Button("Avbryt", role: .cancel) { }
+            Button("Slett lokale data", role: .destructive) {
+                onConfirmDeleteAll()
+            }
+        } message: {
+            Text("Dette sletter budsjett, investeringer, mål og innstillinger lokalt på denne enheten. Dette sletter ikke kontoen din.")
+        }
         .safeAreaInset(edge: .bottom) {
             Color.clear
                 .frame(height: 86)
