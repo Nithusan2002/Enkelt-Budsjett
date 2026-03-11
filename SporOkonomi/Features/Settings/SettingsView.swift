@@ -1492,6 +1492,7 @@ private struct DataPrivacySettingsHomeView: View {
     let onConfirmDemoWipe: () -> Void
     @Environment(\.openURL) private var openURL
     @State private var pendingDangerousAction: DangerousAction?
+    @State private var showDemoLoadConfirm = false
 
     private let privacyPolicyURL = URL(string: "https://nithusan2002.github.io/spor-okonomi/personvern/")
     private let termsURL = URL(string: "https://nithusan2002.github.io/spor-okonomi/vilkar/")
@@ -1558,7 +1559,7 @@ private struct DataPrivacySettingsHomeView: View {
 
                 if shouldShowDemoTools {
                     Button("Last inn demo (3 år realistisk)") {
-                        onLoadDemo()
+                        showDemoLoadConfirm = true
                     }
                     .buttonStyle(.plain)
                     .disabled(isReadOnlyMode)
@@ -1607,6 +1608,14 @@ private struct DataPrivacySettingsHomeView: View {
         .scrollContentBackground(.hidden)
         .background(AppTheme.background)
         .navigationTitle("Data og personvern")
+        .alert("Last inn demo-data?", isPresented: $showDemoLoadConfirm) {
+            Button("Avbryt", role: .cancel) { }
+            Button("Last inn demo", role: .destructive) {
+                onLoadDemo()
+            }
+        } message: {
+            Text("Dette erstatter lokale data på denne enheten med demo-data.")
+        }
         .alert("Tøm alle demo-data?", isPresented: $showDemoWipeConfirm) {
             Button("Avbryt", role: .cancel) { }
             Button("Tøm data", role: .destructive) {
