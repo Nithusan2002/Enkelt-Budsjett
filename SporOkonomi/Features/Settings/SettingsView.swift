@@ -325,7 +325,7 @@ struct SettingsView: View {
                     }
                 )
             } label: {
-                settingsRow(title: "Konto og synk", value: accountOverviewText(), showsChevron: true)
+                settingsRow(title: "Konto og synk", value: accountOverviewText(), showsChevron: false)
             }
 
             NavigationLink {
@@ -338,7 +338,7 @@ struct SettingsView: View {
                     onApplyReminderSettings: applyReminderSettings
                 )
             } label: {
-                settingsRow(title: "Appinnstillinger", value: currentAppearanceMode.title, showsChevron: true)
+                settingsRow(title: "Appinnstillinger", value: currentAppearanceMode.title, showsChevron: false)
             }
 
             NavigationLink {
@@ -348,7 +348,7 @@ struct SettingsView: View {
                     investmentBuckets: investmentBuckets
                 )
             } label: {
-                settingsRow(title: "Økonomi", value: "", showsChevron: true)
+                settingsRow(title: "Økonomi", value: "", showsChevron: false)
             }
 
             NavigationLink {
@@ -376,13 +376,13 @@ struct SettingsView: View {
                     onConfirmDemoWipe: { showDemoWipeConfirm = true }
                 )
             } label: {
-                settingsRow(title: "Data og personvern", value: storageLocationText(), showsChevron: true)
+                settingsRow(title: "Data og personvern", value: storageLocationText(), showsChevron: false)
             }
 
             NavigationLink {
                 AboutAppView()
             } label: {
-                settingsRow(title: "Om appen", value: appVersionText(), showsChevron: true)
+                settingsRow(title: "Om appen", value: appVersionText(), showsChevron: false)
             }
         }
     }
