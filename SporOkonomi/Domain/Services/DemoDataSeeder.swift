@@ -353,7 +353,7 @@ enum DemoDataSeeder {
             targetAmount: 250_000,
             targetDate: date(year: 2028, month: 12, day: 1),
             scope: .wealth,
-            includeAccounts: true,
+            includeAccounts: false,
             isActive: true,
             createdAt: date(year: 2025, month: 9, day: 1)
         )
