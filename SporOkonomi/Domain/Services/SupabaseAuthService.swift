@@ -235,39 +235,31 @@ final class SupabaseAuthClient: AuthClientProtocol {
 
     func restoreSession() async throws -> AuthClientSession? {
         guard let storedTokens = tokenStore.load() else { return nil }
-        debugLog("restoreSession: found stored token \(redactedToken(storedTokens.accessToken)), refresh \(redactedToken(storedTokens.refreshToken))")
 
         do {
             let user = try await fetchUser(accessToken: storedTokens.accessToken)
-            debugLog("restoreSession: stored access token is still valid")
             return user.toAuthClientSession(
                 accessToken: storedTokens.accessToken,
                 refreshToken: storedTokens.refreshToken
             )
         } catch let error as AuthServiceError {
             guard case .invalidCredentials = error else {
-                debugLog("restoreSession: failed without refresh, error=\(error.errorDescription ?? String(describing: error))")
                 throw error
             }
-            debugLog("restoreSession: stored access token expired, attempting refresh")
 
             guard let refreshToken = storedTokens.refreshToken, !refreshToken.isEmpty else {
-                debugLog("restoreSession: no refresh token available, clearing stored session")
                 clearStoredSession()
                 return nil
             }
 
             do {
                 let refreshedSession = try await refreshSession(refreshToken: refreshToken)
-                debugLog("restoreSession: refresh succeeded, new access \(redactedToken(refreshedSession.accessToken)), new refresh \(redactedToken(refreshedSession.refreshToken))")
                 return refreshedSession.user.toAuthClientSession(from: refreshedSession)
             } catch let refreshError as AuthServiceError {
                 if case .invalidCredentials = refreshError {
-                    debugLog("restoreSession: refresh token invalid, clearing stored session")
                     clearStoredSession()
                     return nil
                 }
-                debugLog("restoreSession: refresh failed, error=\(refreshError.errorDescription ?? String(describing: refreshError))")
                 throw refreshError
             }
         }
@@ -289,7 +281,6 @@ final class SupabaseAuthClient: AuthClientProtocol {
         guard let authenticatedSession = try await restoreSession() else {
             throw AuthServiceError.requestFailed("Du må være logget inn for å slette kontoen.")
         }
-        debugLog("deleteAccount: calling function with access \(redactedToken(authenticatedSession.accessToken))")
 
         var request = URLRequest(url: endpointURL(for: "functions/v1/delete-account"))
         request.httpMethod = "POST"
@@ -301,14 +292,9 @@ final class SupabaseAuthClient: AuthClientProtocol {
         let (data, response) = try await session.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {
-            debugLog("deleteAccount: function failed with status \((response as? HTTPURLResponse)?.statusCode ?? 500)")
-            if let body = String(data: data, encoding: .utf8), !body.isEmpty {
-                debugLog("deleteAccount: function body \(body)")
-            }
             throw mapError(from: data, statusCode: (response as? HTTPURLResponse)?.statusCode ?? 500)
         }
 
-        debugLog("deleteAccount: function succeeded, clearing stored session")
         clearStoredSession()
     }
 
@@ -318,19 +304,6 @@ final class SupabaseAuthClient: AuthClientProtocol {
 
     func clearStoredSession() {
         tokenStore.clear()
-    }
-
-    private func debugLog(_ message: String) {
-#if DEBUG
-        print("[AuthDebug] \(message)")
-#endif
-    }
-
-    private func redactedToken(_ token: String?) -> String {
-        guard let token, !token.isEmpty else { return "nil" }
-        let prefix = token.prefix(6)
-        let suffix = token.suffix(4)
-        return "\(prefix)...\(suffix)"
     }
 
     private func googleOAuthURL(codeVerifier: String) throws -> URL {
