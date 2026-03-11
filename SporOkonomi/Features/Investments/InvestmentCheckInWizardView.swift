@@ -88,6 +88,9 @@ struct InvestmentCheckInWizardView: View {
                 }
             }
             .navigationTitle("Oppdater verdier")
+            .background(AppTheme.background)
+            .toolbarBackground(AppTheme.background, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Avbryt") {
@@ -300,6 +303,9 @@ private struct InvestmentMonthPickerSheet: View {
                 .labelsHidden()
             }
             .navigationTitle("Velg måned")
+            .background(AppTheme.background)
+            .toolbarBackground(AppTheme.background, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Avbryt") {
@@ -583,7 +589,11 @@ private struct AddInvestmentTypeDuringCheckInSheet: View {
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background)
             .navigationTitle("Legg til type")
+            .toolbarBackground(AppTheme.background, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Avbryt") {
