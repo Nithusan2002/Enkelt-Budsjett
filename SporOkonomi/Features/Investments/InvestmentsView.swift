@@ -167,7 +167,7 @@ struct InvestmentsView: View {
                         .appBodyStyle()
                         .foregroundStyle(AppTheme.textSecondary)
                 } else {
-                    Text("Total verdi")
+                    Text("Min formue")
                         .appSecondaryStyle()
 
                     Text(displayedAmount(viewModel.displayedTotal))
