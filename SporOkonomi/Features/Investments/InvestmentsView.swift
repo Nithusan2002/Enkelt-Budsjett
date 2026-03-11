@@ -31,6 +31,7 @@ struct InvestmentsView: View {
     private var filteredSnapshots: [InvestmentSnapshot] {
         viewModel.filteredSnapshots(snapshots, range: viewModel.selectedRange)
     }
+    private var hasSnapshots: Bool { !snapshots.isEmpty }
     private var activeBuckets: [InvestmentBucket] {
         buckets.filter(\.isActive)
     }
@@ -45,11 +46,13 @@ struct InvestmentsView: View {
             List {
                 heroSection
                     .id(SectionAnchor.development.rawValue)
-                holdingsSection
-                distributionSection
-                    .id(SectionAnchor.distribution.rawValue)
-                administrationSection
-                historySection
+                if hasSnapshots {
+                    holdingsSection
+                    distributionSection
+                        .id(SectionAnchor.distribution.rawValue)
+                    administrationSection
+                    historySection
+                }
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
@@ -159,20 +162,23 @@ struct InvestmentsView: View {
                 Text("Total verdi")
                     .appSecondaryStyle()
 
-                Text(displayedAmount(viewModel.displayedTotal))
-                    .appBigNumberStyle()
-                    .foregroundStyle(AppTheme.textPrimary)
-                    .contentTransition(.numericText(value: viewModel.displayedTotal))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.68)
-                    .allowsTightening(true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .layoutPriority(2)
-
                 if latest == nil {
-                    Text("Ingen registreringer ennå. Oppdater verdien når du vil følge utviklingen.")
+                    Text("Ingen registreringer ennå")
+                        .appCardTitleStyle()
+                        .foregroundStyle(AppTheme.textPrimary)
+                    Text("Legg inn verdien når du vil følge utviklingen over tid.")
                         .appSecondaryStyle()
                 } else {
+                    Text(displayedAmount(viewModel.displayedTotal))
+                        .appBigNumberStyle()
+                        .foregroundStyle(AppTheme.textPrimary)
+                        .contentTransition(.numericText(value: viewModel.displayedTotal))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.68)
+                        .allowsTightening(true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .layoutPriority(2)
+
                     VStack(alignment: .leading, spacing: 6) {
                         Text(changeSummaryText(changeKr: hero.changeKr, changePct: hero.changePct))
                             .font(.footnote.weight(.semibold))
@@ -192,17 +198,19 @@ struct InvestmentsView: View {
                 .tint(AppTheme.primary)
                 .disabled(isReadOnlyMode)
 
-                Divider()
-                    .overlay(AppTheme.divider)
-                    .padding(.vertical, 2)
+                if latest != nil {
+                    Divider()
+                        .overlay(AppTheme.divider)
+                        .padding(.vertical, 2)
 
-                InvestmentsDevelopmentChartView(
-                    points: viewModel.developmentChartPoints(snapshots: snapshots, buckets: buckets),
-                    period: $viewModel.developmentPeriod,
-                    onUpdateValues: openCheckIn,
-                    embedded: true,
-                    showStatusRow: false
-                )
+                    InvestmentsDevelopmentChartView(
+                        points: viewModel.developmentChartPoints(snapshots: snapshots, buckets: buckets),
+                        period: $viewModel.developmentPeriod,
+                        onUpdateValues: openCheckIn,
+                        embedded: true,
+                        showStatusRow: false
+                    )
+                }
             }
             .padding(16)
             .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 18))
