@@ -87,6 +87,15 @@ final class SettingsViewModel {
         return report
     }
 
+    func seedMarketingDemo(context: ModelContext, referenceDate: Date = .now) throws -> DemoSeedReport {
+        if PersistenceGate.isReadOnlyMode {
+            throw PersistenceWriteError.readOnlyMode
+        }
+        let report = try DemoDataSeeder.seedMarketingDemo(context: context, referenceDate: referenceDate)
+        try ensureLocalAuthPreference(context: context)
+        return report
+    }
+
     func wipeAllDataForDemo(context: ModelContext) throws {
         if PersistenceGate.isReadOnlyMode {
             throw PersistenceWriteError.readOnlyMode

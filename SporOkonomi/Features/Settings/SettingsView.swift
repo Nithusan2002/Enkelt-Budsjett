@@ -354,6 +354,16 @@ struct SettingsView: View {
                             showDemoLoadError = true
                         }
                     },
+                    onLoadMarketingDemo: {
+                        do {
+                            let report = try viewModel.seedMarketingDemo(context: modelContext)
+                            demoLoadMessage = "Marketing-demo lastet ✓\n\nMåneder: \(report.budgetMonths)\nTransaksjoner: \(report.transactions)\nSnapshots: \(report.snapshots)"
+                            showDemoLoadSuccess = true
+                            showToast("Marketing-demo lastet ✓")
+                        } catch {
+                            showDemoLoadError = true
+                        }
+                    },
                     onConfirmDemoWipe: {
                         do {
                             try viewModel.wipeAllDataForDemo(context: modelContext)
@@ -1526,10 +1536,12 @@ private struct DataPrivacySettingsHomeView: View {
     let onConfirmDeleteAccount: () -> Void
     let onConfirmDeleteAll: () -> Void
     let onLoadDemo: () -> Void
+    let onLoadMarketingDemo: () -> Void
     let onConfirmDemoWipe: () -> Void
     @Environment(\.openURL) private var openURL
     @State private var dangerousConfirmation: DangerousConfirmation?
     @State private var showDemoLoadConfirm = false
+    @State private var showMarketingDemoLoadConfirm = false
 
     private let privacyPolicyURL = URL(string: "https://nithusan2002.github.io/spor-okonomi/personvern/")
     private let termsURL = URL(string: "https://nithusan2002.github.io/spor-okonomi/vilkar/")
@@ -1595,6 +1607,12 @@ private struct DataPrivacySettingsHomeView: View {
                 .buttonStyle(.plain)
 
                 if shouldShowDemoTools {
+                    Button("Last inn marketing-demo") {
+                        showMarketingDemoLoadConfirm = true
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isReadOnlyMode)
+
                     Button("Last inn demo (3 år realistisk)") {
                         showDemoLoadConfirm = true
                     }
@@ -1652,6 +1670,14 @@ private struct DataPrivacySettingsHomeView: View {
             }
         } message: {
             Text("Dette erstatter lokale data på denne enheten med demo-data.")
+        }
+        .alert("Last inn marketing-demo?", isPresented: $showMarketingDemoLoadConfirm) {
+            Button("Avbryt", role: .cancel) { }
+            Button("Last inn marketing-demo", role: .destructive) {
+                onLoadMarketingDemo()
+            }
+        } message: {
+            Text("Dette erstatter lokale data på denne enheten med et kuratert demooppsett for screenshots og markedsflater.")
         }
         .alert(item: $dangerousConfirmation) { confirmation in
             switch confirmation {
