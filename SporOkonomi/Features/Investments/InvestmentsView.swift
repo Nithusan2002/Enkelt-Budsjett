@@ -159,9 +159,6 @@ struct InvestmentsView: View {
     private var heroSection: some View {
         Section {
             VStack(alignment: .leading, spacing: 12) {
-                Text("Total verdi")
-                    .appSecondaryStyle()
-
                 if latest == nil {
                     Text("Ingen registreringer ennå")
                         .appCardTitleStyle()
@@ -170,6 +167,9 @@ struct InvestmentsView: View {
                         .appBodyStyle()
                         .foregroundStyle(AppTheme.textSecondary)
                 } else {
+                    Text("Total verdi")
+                        .appSecondaryStyle()
+
                     Text(displayedAmount(viewModel.displayedTotal))
                         .appBigNumberStyle()
                         .foregroundStyle(AppTheme.textPrimary)
