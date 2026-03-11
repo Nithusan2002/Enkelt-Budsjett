@@ -1436,6 +1436,45 @@ private struct EconomySettingsHomeView: View {
 }
 
 private struct DataPrivacySettingsHomeView: View {
+    private enum DangerousAction: String, Identifiable {
+        case wipeDemo
+        case deleteAccount
+        case deleteLocalData
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .wipeDemo, .deleteLocalData:
+                return "Er du helt sikker?"
+            case .deleteAccount:
+                return "Slette konto permanent?"
+            }
+        }
+
+        var message: String {
+            switch self {
+            case .wipeDemo:
+                return "Demo-dataene blir slettet permanent fra denne enheten."
+            case .deleteAccount:
+                return "Kontoen din blir slettet permanent. Denne handlingen kan ikke angres."
+            case .deleteLocalData:
+                return "Alle lokale data på denne enheten blir slettet. Denne handlingen kan ikke angres."
+            }
+        }
+
+        var confirmTitle: String {
+            switch self {
+            case .wipeDemo:
+                return "Ja, tøm demo-data"
+            case .deleteAccount:
+                return "Ja, slett konto"
+            case .deleteLocalData:
+                return "Ja, slett lokale data"
+            }
+        }
+    }
+
     let isReadOnlyMode: Bool
     let storageLocationText: String
     let storeModeText: String
@@ -1452,6 +1491,7 @@ private struct DataPrivacySettingsHomeView: View {
     let onLoadDemo: () -> Void
     let onConfirmDemoWipe: () -> Void
     @Environment(\.openURL) private var openURL
+    @State private var pendingDangerousAction: DangerousAction?
 
     private let privacyPolicyURL = URL(string: "https://nithusan2002.github.io/spor-okonomi/personvern/")
     private let termsURL = URL(string: "https://nithusan2002.github.io/spor-okonomi/vilkar/")
@@ -1570,7 +1610,7 @@ private struct DataPrivacySettingsHomeView: View {
         .alert("Tøm alle demo-data?", isPresented: $showDemoWipeConfirm) {
             Button("Avbryt", role: .cancel) { }
             Button("Tøm data", role: .destructive) {
-                onConfirmDemoWipe()
+                pendingDangerousAction = .wipeDemo
             }
         } message: {
             Text("Dette sletter alt lokalt på enheten.")
@@ -1578,7 +1618,7 @@ private struct DataPrivacySettingsHomeView: View {
         .alert("Slett konto?", isPresented: $showDeleteAccountConfirm) {
             Button("Avbryt", role: .cancel) { }
             Button("Slett konto", role: .destructive) {
-                onConfirmDeleteAccount()
+                pendingDangerousAction = .deleteAccount
             }
         } message: {
             Text("Dette sletter kontoen din og rydder lokale data på denne enheten. iCloud-data fjernes når slettingen er synkronisert.")
@@ -1586,10 +1626,27 @@ private struct DataPrivacySettingsHomeView: View {
         .alert("Slett lokale data?", isPresented: $showDeleteAllConfirm) {
             Button("Avbryt", role: .cancel) { }
             Button("Slett lokale data", role: .destructive) {
-                onConfirmDeleteAll()
+                pendingDangerousAction = .deleteLocalData
             }
         } message: {
             Text("Dette sletter budsjett, investeringer, mål og innstillinger lokalt på denne enheten. Dette sletter ikke kontoen din.")
+        }
+        .alert(item: $pendingDangerousAction) { action in
+            Alert(
+                title: Text(action.title),
+                message: Text(action.message),
+                primaryButton: .destructive(Text(action.confirmTitle)) {
+                    switch action {
+                    case .wipeDemo:
+                        onConfirmDemoWipe()
+                    case .deleteAccount:
+                        onConfirmDeleteAccount()
+                    case .deleteLocalData:
+                        onConfirmDeleteAll()
+                    }
+                },
+                secondaryButton: .cancel(Text("Avbryt"))
+            )
         }
         .safeAreaInset(edge: .bottom) {
             Color.clear
