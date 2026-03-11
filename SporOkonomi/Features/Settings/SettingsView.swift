@@ -575,6 +575,7 @@ struct SettingsView: View {
                     }
                 }
                 .buttonStyle(.plain)
+                .disabled(isReadOnlyMode)
 
                 Button(role: .destructive) {
                     showDemoWipeConfirm = true
@@ -588,7 +589,6 @@ struct SettingsView: View {
         } footer: {
             Text("Viser teknisk lagringsstatus og demo-verktøy som bør brukes med omtanke.")
         }
-        .disabled(isReadOnlyMode)
     }
 
     private var dangerousActionsSection: some View {
@@ -613,7 +613,6 @@ struct SettingsView: View {
         } footer: {
             Text("Disse handlingene kan ikke angres.")
         }
-        .disabled(isReadOnlyMode)
     }
 
     private func showToast(_ message: String) {
@@ -1514,6 +1513,7 @@ private struct DataPrivacySettingsHomeView: View {
                         onLoadDemo()
                     }
                     .buttonStyle(.plain)
+                    .disabled(isReadOnlyMode)
 
                     Button(role: .destructive) {
                         onConfirmDemoWipe()
@@ -1555,7 +1555,6 @@ private struct DataPrivacySettingsHomeView: View {
             } footer: {
                 Text("Disse handlingene kan ikke angres.")
             }
-            .disabled(isReadOnlyMode)
         }
         .scrollContentBackground(.hidden)
         .background(AppTheme.background)
