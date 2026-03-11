@@ -50,7 +50,12 @@ struct SettingsAccountSection: View {
                 .disabled(isReadOnlyMode || sessionStore.isWorking)
 
                 Button(action: onSignInWithGoogle) {
-                    settingsRow(title: "Logg inn med Google", value: "", showsChevron: true)
+                    settingsRow(
+                        title: "Logg inn med Google",
+                        value: "",
+                        showsChevron: true,
+                        leadingAssetName: "Google-logo"
+                    )
                 }
                 .buttonStyle(.plain)
                 .disabled(isReadOnlyMode || sessionStore.isWorking)
@@ -95,8 +100,19 @@ struct SettingsAccountSection: View {
         }
     }
 
-    private func settingsRow(title: String, value: String, showsChevron: Bool) -> some View {
+    private func settingsRow(
+        title: String,
+        value: String,
+        showsChevron: Bool,
+        leadingAssetName: String? = nil
+    ) -> some View {
         HStack {
+            if let leadingAssetName {
+                Image(leadingAssetName)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 18, height: 18)
+            }
             Text(title)
                 .appBodyStyle()
             Spacer()
@@ -111,6 +127,7 @@ struct SettingsAccountSection: View {
                     .foregroundStyle(AppTheme.textSecondary)
             }
         }
+        .padding(.vertical, 2)
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
     }
