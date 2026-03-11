@@ -47,6 +47,30 @@ enum DemoDataSeeder {
         return report
     }
 
+    static func seedMarketingDemo(
+        context: ModelContext,
+        referenceDate: Date = .now
+    ) throws -> DemoSeedReport {
+        try wipeAllData(context: context)
+
+        let categories = try createMarketingCategories(context: context)
+        try createMarketingBudgetMonth(context: context, referenceDate: referenceDate)
+        let periodKey = DateService.periodKey(from: referenceDate)
+        try createMarketingBudgetPlans(context: context, periodKey: periodKey)
+        try createMarketingGroupPlans(context: context, periodKey: periodKey)
+        try createMarketingTransactions(context: context, referenceDate: referenceDate)
+        try createMarketingInvestmentBuckets(context: context)
+        try createMarketingSnapshots(context: context, referenceDate: referenceDate)
+        try createMarketingGoalAndPreference(context: context, referenceDate: referenceDate)
+
+        _ = categories
+        try context.guardedSave(feature: "DemoData", operation: "save", enforceReadOnly: false)
+
+        let report = try buildReport(context: context)
+        print("[DemoDataSeeder] Marketing-demo lastet: months=\(report.budgetMonths), categories=\(report.categories), plans=\(report.budgetPlans), tx=\(report.transactions), buckets=\(report.buckets), snapshots=\(report.snapshots), goals=\(report.goals), prefs=\(report.preferences)")
+        return report
+    }
+
     static func wipeAllData(context: ModelContext) throws {
         try deleteAll(BudgetPlan.self, context: context)
         try deleteAll(BudgetGroupPlan.self, context: context)
@@ -93,6 +117,279 @@ enum DemoDataSeeder {
 
         try context.guardedSave(feature: "DemoData", operation: "save", enforceReadOnly: false)
         return all
+    }
+
+    private static func createMarketingCategories(context: ModelContext) throws -> [String: Category] {
+        let categoryDefinitions: [(id: String, name: String, type: CategoryType, groupKey: String?, sortOrder: Int)] = [
+            ("cat_marketing_bolig", "Bolig", .expense, BudgetGroup.bolig.rawValue, 1),
+            ("cat_marketing_fast", "Fast", .expense, BudgetGroup.fast.rawValue, 2),
+            ("cat_marketing_mat", "Mat", .expense, BudgetGroup.hverdags.rawValue, 3),
+            ("cat_marketing_transport", "Transport", .expense, BudgetGroup.hverdags.rawValue, 4),
+            ("cat_marketing_fritid", "Fritid", .expense, BudgetGroup.fritid.rawValue, 5),
+            ("cat_marketing_annet", "Annet", .expense, BudgetGroup.annet.rawValue, 6),
+            ("cat_marketing_income_salary", "Lønn", .income, BudgetGroup.fast.rawValue, 101),
+            ("cat_marketing_income_other", "Annen inntekt", .income, BudgetGroup.fast.rawValue, 102),
+            ("cat_marketing_savings", "Sparing", .savings, BudgetGroup.hverdags.rawValue, 201)
+        ]
+
+        var inserted: [String: Category] = [:]
+        for definition in categoryDefinitions {
+            let category = Category(
+                id: definition.id,
+                name: definition.name,
+                type: definition.type,
+                groupKey: definition.groupKey,
+                isActive: true,
+                sortOrder: definition.sortOrder
+            )
+            context.insert(category)
+            inserted[definition.id] = category
+        }
+
+        try context.guardedSave(feature: "DemoData", operation: "save", enforceReadOnly: false)
+        return inserted
+    }
+
+    private static func createMarketingBudgetMonth(context: ModelContext, referenceDate: Date) throws {
+        let periodKey = DateService.periodKey(from: referenceDate)
+        let bounds = DateService.monthBounds(for: referenceDate)
+        let components = Calendar.current.dateComponents([.year, .month], from: referenceDate)
+
+        context.insert(
+            BudgetMonth(
+                periodKey: periodKey,
+                year: components.year ?? Calendar.current.component(.year, from: referenceDate),
+                month: components.month ?? Calendar.current.component(.month, from: referenceDate),
+                startDate: bounds.start,
+                endDate: bounds.end,
+                isClosed: false
+            )
+        )
+
+        try context.guardedSave(feature: "DemoData", operation: "save", enforceReadOnly: false)
+    }
+
+    private static func createMarketingBudgetPlans(context: ModelContext, periodKey: String) throws {
+        let plans: [(String, Double)] = [
+            ("cat_marketing_bolig", 12_000),
+            ("cat_marketing_fast", 4_500),
+            ("cat_marketing_mat", 4_000),
+            ("cat_marketing_transport", 500),
+            ("cat_marketing_fritid", 2_000),
+            ("cat_marketing_annet", 1_500)
+        ]
+
+        for plan in plans {
+            context.insert(BudgetPlan(monthPeriodKey: periodKey, categoryID: plan.0, plannedAmount: plan.1))
+        }
+
+        try context.guardedSave(feature: "DemoData", operation: "save", enforceReadOnly: false)
+    }
+
+    private static func createMarketingGroupPlans(context: ModelContext, periodKey: String) throws {
+        let plans: [(BudgetGroup, Double)] = [
+            (.bolig, 12_000),
+            (.fast, 4_500),
+            (.hverdags, 4_500),
+            (.fritid, 2_000),
+            (.annet, 1_500)
+        ]
+
+        for plan in plans {
+            context.insert(
+                BudgetGroupPlan(
+                    monthPeriodKey: periodKey,
+                    groupKey: plan.0.rawValue,
+                    plannedAmount: plan.1
+                )
+            )
+        }
+
+        try context.guardedSave(feature: "DemoData", operation: "save", enforceReadOnly: false)
+    }
+
+    private static func createMarketingTransactions(context: ModelContext, referenceDate: Date) throws {
+        let components = Calendar.current.dateComponents([.year, .month], from: referenceDate)
+        let year = components.year ?? 2026
+        let month = components.month ?? 3
+
+        let transactions: [(day: Int, amount: Double, kind: TransactionKind, categoryID: String, note: String)] = [
+            (5, 2_000, .income, "cat_marketing_income_other", "Vipps"),
+            (15, 30_000, .income, "cat_marketing_income_salary", "Lønn"),
+
+            (1, 10_400, .expense, "cat_marketing_bolig", "Husleie"),
+            (3, 1_180, .expense, "cat_marketing_fast", "Strøm"),
+            (5, 149, .expense, "cat_marketing_fast", "Spotify"),
+            (8, 1_119, .expense, "cat_marketing_fast", "Forsikring"),
+            (10, 1_140, .expense, "cat_marketing_mat", "Rema 1000"),
+            (12, 329, .expense, "cat_marketing_mat", "Meny"),
+            (17, 240, .expense, "cat_marketing_transport", "Flytoget"),
+            (21, 1_420, .expense, "cat_marketing_mat", "Kiwi"),
+            (23, 620, .expense, "cat_marketing_fritid", "Kaffebrenneriet"),
+            (26, 1_223, .expense, "cat_marketing_fritid", "Kino"),
+            (27, 1_120, .expense, "cat_marketing_annet", "Vipps"),
+
+            (25, 1_200, .manualSaving, "cat_marketing_savings", "Overføring til buffer"),
+            (28, 800, .manualSaving, "cat_marketing_savings", "Månedssparing")
+        ]
+
+        for transaction in transactions {
+            insertTx(
+                context,
+                year,
+                month,
+                day: transaction.day,
+                amount: transaction.amount,
+                kind: transaction.kind,
+                categoryID: transaction.categoryID,
+                note: transaction.note
+            )
+        }
+
+        try context.guardedSave(feature: "DemoData", operation: "save", enforceReadOnly: false)
+    }
+
+    private static func createMarketingInvestmentBuckets(context: ModelContext) throws {
+        let buckets: [(String, String, Int, String)] = [
+            ("bucket_marketing_funds", "Indeksfond", 1, "#2C8C7A"),
+            ("bucket_marketing_stocks", "Aksjer", 2, "#5F7CF6"),
+            ("bucket_marketing_crypto", "Krypto", 3, "#D08A2E"),
+            ("bucket_marketing_buffer", "Buffer", 4, "#8BA7A1")
+        ]
+
+        for bucket in buckets {
+            context.insert(
+                InvestmentBucket(
+                    id: bucket.0,
+                    name: bucket.1,
+                    colorHex: bucket.3,
+                    isDefault: true,
+                    isActive: true,
+                    sortOrder: bucket.2
+                )
+            )
+        }
+
+        try context.guardedSave(feature: "DemoData", operation: "save", enforceReadOnly: false)
+    }
+
+    private static func createMarketingSnapshots(context: ModelContext, referenceDate: Date) throws {
+        let snapshotDefinitions: [(periodKey: String, capturedAt: Date, values: [InvestmentSnapshotValue])] = [
+            (
+                "2025-09",
+                date(year: 2025, month: 9, day: 26),
+                [
+                    .init(periodKey: "2025-09", bucketID: "bucket_marketing_funds", amount: 77_500),
+                    .init(periodKey: "2025-09", bucketID: "bucket_marketing_stocks", amount: 28_200),
+                    .init(periodKey: "2025-09", bucketID: "bucket_marketing_crypto", amount: 12_600),
+                    .init(periodKey: "2025-09", bucketID: "bucket_marketing_buffer", amount: 22_700)
+                ]
+            ),
+            (
+                "2025-10",
+                date(year: 2025, month: 10, day: 26),
+                [
+                    .init(periodKey: "2025-10", bucketID: "bucket_marketing_funds", amount: 79_200),
+                    .init(periodKey: "2025-10", bucketID: "bucket_marketing_stocks", amount: 28_900),
+                    .init(periodKey: "2025-10", bucketID: "bucket_marketing_crypto", amount: 13_400),
+                    .init(periodKey: "2025-10", bucketID: "bucket_marketing_buffer", amount: 23_000)
+                ]
+            ),
+            (
+                "2025-11",
+                date(year: 2025, month: 11, day: 26),
+                [
+                    .init(periodKey: "2025-11", bucketID: "bucket_marketing_funds", amount: 80_600),
+                    .init(periodKey: "2025-11", bucketID: "bucket_marketing_stocks", amount: 29_300),
+                    .init(periodKey: "2025-11", bucketID: "bucket_marketing_crypto", amount: 14_200),
+                    .init(periodKey: "2025-11", bucketID: "bucket_marketing_buffer", amount: 22_700)
+                ]
+            ),
+            (
+                "2025-12",
+                date(year: 2025, month: 12, day: 26),
+                [
+                    .init(periodKey: "2025-12", bucketID: "bucket_marketing_funds", amount: 82_000),
+                    .init(periodKey: "2025-12", bucketID: "bucket_marketing_stocks", amount: 29_900),
+                    .init(periodKey: "2025-12", bucketID: "bucket_marketing_crypto", amount: 14_800),
+                    .init(periodKey: "2025-12", bucketID: "bucket_marketing_buffer", amount: 22_500)
+                ]
+            ),
+            (
+                "2026-01",
+                date(year: 2026, month: 1, day: 26),
+                [
+                    .init(periodKey: "2026-01", bucketID: "bucket_marketing_funds", amount: 84_000),
+                    .init(periodKey: "2026-01", bucketID: "bucket_marketing_stocks", amount: 31_600),
+                    .init(periodKey: "2026-01", bucketID: "bucket_marketing_crypto", amount: 15_000),
+                    .init(periodKey: "2026-01", bucketID: "bucket_marketing_buffer", amount: 23_600)
+                ]
+            ),
+            (
+                "2026-02",
+                date(year: 2026, month: 2, day: 26),
+                [
+                    .init(periodKey: "2026-02", bucketID: "bucket_marketing_funds", amount: 87_120),
+                    .init(periodKey: "2026-02", bucketID: "bucket_marketing_stocks", amount: 31_680),
+                    .init(periodKey: "2026-02", bucketID: "bucket_marketing_crypto", amount: 15_840),
+                    .init(periodKey: "2026-02", bucketID: "bucket_marketing_buffer", amount: 23_760)
+                ]
+            )
+        ]
+
+        _ = referenceDate
+        for definition in snapshotDefinitions {
+            try InvestmentService.upsertSnapshot(
+                context: context,
+                periodKey: definition.periodKey,
+                capturedAt: definition.capturedAt,
+                values: definition.values
+            )
+        }
+    }
+
+    private static func createMarketingGoalAndPreference(context: ModelContext, referenceDate: Date) throws {
+        let goal = Goal(
+            targetAmount: 250_000,
+            targetDate: date(year: 2028, month: 12, day: 1),
+            scope: .wealth,
+            includeAccounts: true,
+            isActive: true,
+            createdAt: date(year: 2025, month: 9, day: 1)
+        )
+        context.insert(goal)
+
+        context.insert(
+            Account(
+                id: "account_marketing_buffer_offset",
+                name: "Hovedkonto",
+                type: .checking,
+                includeInNetWealth: true,
+                currentBalance: -7_980
+            )
+        )
+
+        context.insert(
+            UserPreference(
+                singletonKey: "main",
+                authSessionModeRaw: AuthSessionMode.local.rawValue,
+                savingsDefinition: .incomeMinusExpense,
+                yearStartRule: "calendarYear",
+                checkInReminderEnabled: true,
+                checkInReminderDay: 5,
+                checkInReminderHour: 18,
+                checkInReminderMinute: 0,
+                defaultGraphView: .oneYear,
+                faceIDLockEnabled: false,
+                onboardingCompleted: true,
+                onboardingCurrentStep: 0,
+                onboardingFocus: .both,
+                toneStyle: .warm
+            )
+        )
+
+        _ = referenceDate
+        try context.guardedSave(feature: "DemoData", operation: "save", enforceReadOnly: false)
     }
 
     private static func createInvestmentBuckets(context: ModelContext, profile: DemoProfile) throws {

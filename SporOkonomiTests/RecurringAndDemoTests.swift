@@ -393,4 +393,76 @@ struct RecurringAndDemoTests {
         #expect(first.snapshots == second.snapshots)
         #expect(first.buckets == second.buckets)
     }
+
+    @Test
+    @MainActor
+    func marketingDemoSeedCreatesCuratedCurrentMonthScenario() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+        let referenceDate = Calendar.current.date(from: DateComponents(year: 2026, month: 3, day: 11, hour: 12)) ?? .now
+
+        let report = try DemoDataSeeder.seedMarketingDemo(context: context, referenceDate: referenceDate)
+
+        #expect(report.budgetMonths == 1)
+        #expect(report.categories == 9)
+        #expect(report.buckets == 4)
+        #expect(report.snapshots == 6)
+        #expect(report.goals == 1)
+
+        let periodKey = "2026-03"
+        let categories = try context.fetch(FetchDescriptor<Category>())
+        let plans = try context.fetch(FetchDescriptor<BudgetPlan>())
+        let groupPlans = try context.fetch(FetchDescriptor<BudgetGroupPlan>())
+        let transactions = try context.fetch(FetchDescriptor<Transaction>())
+        let snapshots = try context.fetch(FetchDescriptor<InvestmentSnapshot>())
+        let goals = try context.fetch(FetchDescriptor<Goal>())
+        let accounts = try context.fetch(FetchDescriptor<Account>())
+
+        #expect(Set(categories.map(\.name)) == [
+            "Bolig",
+            "Fast",
+            "Mat",
+            "Transport",
+            "Fritid",
+            "Annet",
+            "Lønn",
+            "Annen inntekt",
+            "Sparing"
+        ])
+        #expect(BudgetService.plannedTotal(for: periodKey, plans: plans, categories: categories) == 24_500)
+        #expect(BudgetService.actualExpenseTotal(for: periodKey, transactions: transactions) == 18_940)
+        #expect(BudgetService.actualIncomeTotal(for: periodKey, transactions: transactions) == 32_000)
+        #expect(groupPlans.filter { $0.monthPeriodKey == periodKey }.count == 5)
+        #expect(transactions.filter { DateService.periodKey(from: $0.date) == periodKey }.count == 15)
+        #expect(transactions.filter { $0.kind == .manualSaving }.count == 2)
+        #expect(transactions.contains { $0.note == "Meny" && $0.amount == 329 && $0.kind == .expense })
+
+        let latestSnapshot = snapshots.sorted { $0.periodKey < $1.periodKey }.last
+        let previousSnapshot = snapshots.sorted { $0.periodKey < $1.periodKey }.dropLast().last
+        #expect(latestSnapshot?.totalValue == 158_400)
+        #expect(previousSnapshot?.totalValue == 154_200)
+        #expect(Calendar.current.component(.month, from: latestSnapshot?.capturedAt ?? referenceDate) == 2)
+        #expect(Calendar.current.component(.day, from: latestSnapshot?.capturedAt ?? referenceDate) == 26)
+
+        #expect(goals.count == 1)
+        #expect(goals.first?.targetAmount == 250_000)
+        #expect(accounts.reduce(0) { $0 + $1.currentBalance } == -7_980)
+    }
+
+    @Test
+    @MainActor
+    func marketingDemoSeedIsIdempotentWhenRunTwice() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+        let referenceDate = Calendar.current.date(from: DateComponents(year: 2026, month: 3, day: 11, hour: 12)) ?? .now
+
+        let first = try DemoDataSeeder.seedMarketingDemo(context: context, referenceDate: referenceDate)
+        let second = try DemoDataSeeder.seedMarketingDemo(context: context, referenceDate: referenceDate)
+
+        #expect(first.budgetMonths == second.budgetMonths)
+        #expect(first.categories == second.categories)
+        #expect(first.transactions == second.transactions)
+        #expect(first.snapshots == second.snapshots)
+        #expect(first.goals == second.goals)
+    }
 }
