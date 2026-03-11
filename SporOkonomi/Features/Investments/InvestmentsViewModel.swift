@@ -472,7 +472,10 @@ final class InvestmentsViewModel: ObservableObject {
     }
 
     private func formattedMonthDay(_ date: Date) -> String {
-        formatDate(date)
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "nb_NO")
+        formatter.setLocalizedDateFormatFromTemplate("d MMM")
+        return formatter.string(from: date).lowercased()
     }
 
     private func daysUntilNextCheckIn(day: Int, hour: Int, minute: Int, now: Date) -> String {

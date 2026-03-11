@@ -448,7 +448,7 @@ struct InvestmentsView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(formatPeriodKeyAsDate(snapshot.periodKey))
                                         .appBodyStyle()
-                                    Text(formatDate(snapshot.capturedAt))
+                                    Text(formatShortDate(snapshot.capturedAt))
                                         .appSecondaryStyle()
                                 }
                                 Spacer()
@@ -551,7 +551,7 @@ struct InvestmentsView: View {
                 .frame(width: 108, alignment: .trailing)
             }
 
-            Text("Sist oppdatert \(formatDate(row.lastUpdated ?? .now))")
+            Text("Sist oppdatert \(formatShortDate(row.lastUpdated ?? .now))")
                 .appSecondaryStyle()
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
@@ -586,6 +586,13 @@ struct InvestmentsView: View {
 
     private func displayedAmount(_ amount: Double) -> String {
         areAmountsHidden ? "•••• kr" : formatNOK(amount)
+    }
+
+    private func formatShortDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "nb_NO")
+        formatter.setLocalizedDateFormatFromTemplate("d MMM")
+        return formatter.string(from: date).lowercased()
     }
 
     private func portfolioColor(bucketID: String, fallbackName: String) -> Color {
@@ -786,7 +793,7 @@ private struct BucketDetailView: View {
                     Text(changeText)
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(abs(changeSinceLast) < 0.01 ? AppTheme.textSecondary : (changeSinceLast >= 0 ? AppTheme.positive : AppTheme.negative))
-                    Text("Sist oppdatert: \(latestSnapshot.map { formatDate($0.capturedAt) } ?? "Ikke satt")")
+                    Text("Sist oppdatert \(latestSnapshot.map { formatShortDate($0.capturedAt) } ?? "Ikke satt")")
                         .appSecondaryStyle()
                     Text("Andel: \(formatPercent(shareOfPortfolio)) av porteføljen")
                         .appSecondaryStyle()
@@ -939,7 +946,7 @@ private struct BucketDetailView: View {
                         .animation(.easeInOut(duration: 0.35), value: selectedRange)
 
                         if let selectedSnapshot {
-                            Text("\(formatDate(selectedSnapshot.capturedAt)): \(formatNOK(bucketAmount(in: selectedSnapshot)))")
+                            Text("\(formatShortDate(selectedSnapshot.capturedAt)): \(formatNOK(bucketAmount(in: selectedSnapshot)))")
                                 .font(.footnote.weight(.semibold))
                                 .foregroundStyle(AppTheme.textPrimary)
                         }
@@ -974,7 +981,7 @@ private struct BucketDetailView: View {
                         VStack(spacing: 8) {
                             ForEach(visibleHistory, id: \.periodKey) { snapshot in
                                 HStack {
-                                    Text(formatDate(snapshot.capturedAt))
+                                    Text(formatShortDate(snapshot.capturedAt))
                                         .appBodyStyle()
                                     Spacer()
                                     Text(formatNOK(bucketAmount(in: snapshot)))
