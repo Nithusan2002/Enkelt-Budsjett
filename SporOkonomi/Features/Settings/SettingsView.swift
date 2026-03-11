@@ -1841,32 +1841,41 @@ private struct FAQSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                Text("Her finner du korte svar på det nye brukere ofte lurer på.")
+                Text("Korte svar på det nye brukere ofte lurer på.")
                     .appSecondaryStyle()
 
                 VStack(spacing: 0) {
                     ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                        DisclosureGroup(
-                            isExpanded: Binding(
-                                get: { expandedQuestionID == item.id },
-                                set: { isExpanded in
-                                    expandedQuestionID = isExpanded ? item.id : nil
+                        VStack(spacing: 0) {
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    expandedQuestionID = expandedQuestionID == item.id ? nil : item.id
                                 }
-                            )
-                        ) {
-                            Text(item.answer)
-                                .appSecondaryStyle()
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.top, 6)
-                                .padding(.bottom, 14)
-                        } label: {
-                            Text(item.question)
-                                .font(.body.weight(.semibold))
-                                .foregroundStyle(AppTheme.textPrimary)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.vertical, 16)
+                            } label: {
+                                HStack(alignment: .top, spacing: 12) {
+                                    Text(item.question)
+                                        .font(.body.weight(.semibold))
+                                        .foregroundStyle(AppTheme.textPrimary)
+                                        .multilineTextAlignment(.leading)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                                    Image(systemName: expandedQuestionID == item.id ? "chevron.up" : "chevron.down")
+                                        .font(.footnote.weight(.semibold))
+                                        .foregroundStyle(AppTheme.textSecondary)
+                                        .padding(.top, 4)
+                                }
+                                .padding(.vertical, 14)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+
+                            if expandedQuestionID == item.id {
+                                Text(item.answer)
+                                    .appSecondaryStyle()
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.bottom, 14)
+                            }
                         }
-                        .tint(AppTheme.primary)
 
                         if index < items.count - 1 {
                             Divider()
@@ -1874,7 +1883,7 @@ private struct FAQSettingsView: View {
                         }
                     }
                 }
-                .padding(.horizontal, 18)
+                .padding(.horizontal, 16)
                 .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 22))
                 .overlay(
                     RoundedRectangle(cornerRadius: 22)
