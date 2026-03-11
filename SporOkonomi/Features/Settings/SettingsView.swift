@@ -327,9 +327,6 @@ struct SettingsView: View {
                     storeModeDetailText: storeModeDetailText(),
                     isAuthenticated: sessionStore.isAuthenticated,
                     shouldShowDemoTools: viewModel.shouldShowDemoTools(),
-                    showDeleteAccountConfirm: $showDeleteAccountConfirm,
-                    showDeleteAllConfirm: $showDeleteAllConfirm,
-                    showDemoWipeConfirm: $showDemoWipeConfirm,
                     onExport: performExport,
                     onImport: { showImportModeDialog = true },
                     onConfirmDeleteAccount: {
@@ -1481,9 +1478,6 @@ private struct DataPrivacySettingsHomeView: View {
     let storeModeDetailText: String?
     let isAuthenticated: Bool
     let shouldShowDemoTools: Bool
-    @Binding var showDeleteAccountConfirm: Bool
-    @Binding var showDeleteAllConfirm: Bool
-    @Binding var showDemoWipeConfirm: Bool
     let onExport: () -> Void
     let onImport: () -> Void
     let onConfirmDeleteAccount: () -> Void
@@ -1491,6 +1485,7 @@ private struct DataPrivacySettingsHomeView: View {
     let onLoadDemo: () -> Void
     let onConfirmDemoWipe: () -> Void
     @Environment(\.openURL) private var openURL
+    @State private var selectedDangerousAction: DangerousAction?
     @State private var pendingDangerousAction: DangerousAction?
     @State private var showDemoLoadConfirm = false
 
@@ -1565,7 +1560,7 @@ private struct DataPrivacySettingsHomeView: View {
                     .disabled(isReadOnlyMode)
 
                     Button(role: .destructive) {
-                        onConfirmDemoWipe()
+                        selectedDangerousAction = .wipeDemo
                     } label: {
                         destructiveSettingsRow(title: "Tøm demo-data")
                     }
@@ -1582,7 +1577,7 @@ private struct DataPrivacySettingsHomeView: View {
             Section {
                 if isAuthenticated {
                     Button(role: .destructive) {
-                        onConfirmDeleteAccount()
+                        selectedDangerousAction = .deleteAccount
                     } label: {
                         destructiveSettingsRow(title: "Slett konto")
                     }
@@ -1590,7 +1585,7 @@ private struct DataPrivacySettingsHomeView: View {
                 }
 
                 Button(role: .destructive) {
-                    onConfirmDeleteAll()
+                    selectedDangerousAction = .deleteLocalData
                 } label: {
                     destructiveSettingsRow(title: "Slett lokale data")
                 }
@@ -1616,29 +1611,27 @@ private struct DataPrivacySettingsHomeView: View {
         } message: {
             Text("Dette erstatter lokale data på denne enheten med demo-data.")
         }
-        .alert("Tøm alle demo-data?", isPresented: $showDemoWipeConfirm) {
-            Button("Avbryt", role: .cancel) { }
-            Button("Tøm data", role: .destructive) {
-                pendingDangerousAction = .wipeDemo
+        .confirmationDialog(
+            selectedDangerousAction?.title ?? "",
+            isPresented: Binding(
+                get: { selectedDangerousAction != nil },
+                set: { if !$0 { selectedDangerousAction = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            if let action = selectedDangerousAction {
+                Button(action.confirmTitle, role: .destructive) {
+                    pendingDangerousAction = action
+                    selectedDangerousAction = nil
+                }
+            }
+            Button("Avbryt", role: .cancel) {
+                selectedDangerousAction = nil
             }
         } message: {
-            Text("Dette sletter alt lokalt på enheten.")
-        }
-        .alert("Slett konto?", isPresented: $showDeleteAccountConfirm) {
-            Button("Avbryt", role: .cancel) { }
-            Button("Slett konto", role: .destructive) {
-                pendingDangerousAction = .deleteAccount
+            if let action = selectedDangerousAction {
+                Text(action.message)
             }
-        } message: {
-            Text("Dette sletter kontoen din og rydder lokale data på denne enheten. iCloud-data fjernes når slettingen er synkronisert.")
-        }
-        .alert("Slett lokale data?", isPresented: $showDeleteAllConfirm) {
-            Button("Avbryt", role: .cancel) { }
-            Button("Slett lokale data", role: .destructive) {
-                pendingDangerousAction = .deleteLocalData
-            }
-        } message: {
-            Text("Dette sletter budsjett, investeringer, mål og innstillinger lokalt på denne enheten. Dette sletter ikke kontoen din.")
         }
         .alert(item: $pendingDangerousAction) { action in
             Alert(
