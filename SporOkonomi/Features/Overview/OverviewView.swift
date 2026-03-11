@@ -364,7 +364,7 @@ struct OverviewView: View {
                         let progress = clampedProgress(value: summary.progress, total: 1)
                         OverviewProgressBar(
                             progress: progress.value / max(progress.total, 1),
-                            tone: AppTheme.primary
+                            tone: AppTheme.positive
                         )
 
                         Text(viewModel.goalPlanStatusText(summary: summary))
