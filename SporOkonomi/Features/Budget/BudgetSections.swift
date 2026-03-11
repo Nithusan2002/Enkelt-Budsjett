@@ -1189,6 +1189,7 @@ struct SetGroupLimitsSheet: View {
                                 HStack(spacing: 4) {
                                     TextField("Sett grense", text: binding(for: group))
                                         .keyboardType(.decimalPad)
+                                        .textFieldStyle(.appInput)
                                         .multilineTextAlignment(.trailing)
                                         .font(.body.weight(.semibold))
                                         .monospacedDigit()
@@ -1237,10 +1238,15 @@ struct SetGroupLimitsSheet: View {
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background)
             .navigationTitle("Månedsgrenser")
+            .toolbarBackground(AppTheme.background, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Avbryt") { dismiss() }
+                        .appBodyStyle()
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Lagre") {
@@ -1262,6 +1268,7 @@ struct SetGroupLimitsSheet: View {
                         )
                         dismiss()
                     }
+                    .appCTAStyle()
                     .disabled(!hasAnyInput && !hasExistingForMonth)
                 }
             }
