@@ -166,8 +166,9 @@ struct InvestmentsView: View {
                     Text("Ingen registreringer ennå")
                         .appCardTitleStyle()
                         .foregroundStyle(AppTheme.textPrimary)
-                    Text("Legg inn verdien når du vil følge utviklingen over tid.")
-                        .appSecondaryStyle()
+                    Text("Legg inn første verdi for å følge utviklingen over tid.")
+                        .appBodyStyle()
+                        .foregroundStyle(AppTheme.textSecondary)
                 } else {
                     Text(displayedAmount(viewModel.displayedTotal))
                         .appBigNumberStyle()
@@ -188,15 +189,23 @@ struct InvestmentsView: View {
                     }
                 }
 
-                Button {
-                    openCheckIn()
-                } label: {
-                    Label("Oppdater verdi", systemImage: "plus.circle")
+                if latest == nil {
+                    Button("Oppdater verdi") {
+                        openCheckIn()
+                    }
+                    .appProminentCTAStyle()
+                    .disabled(isReadOnlyMode)
+                } else {
+                    Button {
+                        openCheckIn()
+                    } label: {
+                        Label("Oppdater verdi", systemImage: "plus.circle")
+                    }
+                    .font(.footnote.weight(.semibold))
+                    .buttonStyle(.bordered)
+                    .tint(AppTheme.primary)
+                    .disabled(isReadOnlyMode)
                 }
-                .font(.footnote.weight(.semibold))
-                .buttonStyle(.bordered)
-                .tint(AppTheme.primary)
-                .disabled(isReadOnlyMode)
 
                 if latest != nil {
                     Divider()

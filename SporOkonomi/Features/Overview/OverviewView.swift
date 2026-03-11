@@ -308,7 +308,7 @@ struct OverviewView: View {
     }
 
     private var emptyStateModule: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 12) {
             Text("Ingen føringer ennå")
                 .appCardTitleStyle()
 
@@ -322,9 +322,9 @@ struct OverviewView: View {
             .appProminentCTAStyle()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
+        .padding(16)
+        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 18))
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(AppTheme.divider, lineWidth: 1))
     }
 
     private var goalModule: some View {
