@@ -69,6 +69,20 @@ struct AuthSessionTests {
 
     @Test
     @MainActor
+    func bootstrapCreatesDefaultInvestmentBucketsForNewUsers() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+
+        try BootstrapService.ensurePreference(context: context)
+
+        let buckets = try context.fetch(FetchDescriptor<InvestmentBucket>())
+        let names = Set(buckets.map(\.name))
+
+        #expect(names == ["Fond", "Aksjer", "Krypto", "Kontanter"])
+    }
+
+    @Test
+    @MainActor
     func bootstrapKeepsExistingLegacyCategoriesUntouched() throws {
         let container = try TestModelContainerFactory.makeInMemoryContainer()
         let context = container.mainContext

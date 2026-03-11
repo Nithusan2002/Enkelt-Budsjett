@@ -131,8 +131,7 @@ struct OnboardingFeatureTests {
         let buckets = try context.fetch(FetchDescriptor<InvestmentBucket>())
         let bucketNames = Set(buckets.map(\.name))
 
-        #expect(bucketNames == ["Fond", "Aksjer", "BSU", "Buffer"])
-        #expect(!bucketNames.contains("Krypto"))
+        #expect(bucketNames == ["Fond", "Aksjer", "Krypto", "Kontanter"])
     }
 
     @Test

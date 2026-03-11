@@ -17,8 +17,7 @@ struct InvestmentsFeatureTests {
         let buckets = try context.fetch(FetchDescriptor<InvestmentBucket>())
         let names = Set(buckets.map(\.name))
 
-        #expect(names == ["Fond", "Aksjer", "BSU", "Buffer"])
-        #expect(!names.contains("Krypto"))
+        #expect(names == ["Fond", "Aksjer", "Krypto", "Kontanter"])
     }
 
     @Test
@@ -34,7 +33,7 @@ struct InvestmentsFeatureTests {
         let buckets = try context.fetch(FetchDescriptor<InvestmentBucket>())
 
         #expect(buckets.count == 4)
-        #expect(Set(buckets.map(\.name)) == ["Fond", "Aksjer", "BSU", "Buffer"])
+        #expect(Set(buckets.map(\.name)) == ["Fond", "Aksjer", "Krypto", "Kontanter"])
     }
 
     @Test
@@ -55,7 +54,7 @@ struct InvestmentsFeatureTests {
         let fondBuckets = buckets.filter { $0.name == "Fond" }
 
         #expect(fondBuckets.count == 1)
-        #expect(Set(buckets.map(\.name)) == ["Fond", "Aksjer", "BSU", "Buffer"])
+        #expect(Set(buckets.map(\.name)) == ["Fond", "Aksjer", "Krypto", "Kontanter"])
     }
 
     @Test

@@ -181,7 +181,7 @@ final class OnboardingViewModel: ObservableObject {
                 reminderHour: 18,
                 reminderMinute: 0,
                 faceIDEnabled: false,
-                selectedBuckets: ["Fond", "Aksjer", "BSU", "Buffer"],
+                selectedBuckets: ["Fond", "Aksjer", "Krypto", "Kontanter"],
                 customBucketName: nil
             )
             logEvent("onboarding_completed")

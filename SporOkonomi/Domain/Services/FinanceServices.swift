@@ -572,6 +572,9 @@ enum BootstrapService {
             if ensureDefaultCategories(context: context) {
                 didChange = true
             }
+            if ensureDefaultInvestmentBuckets(context: context) {
+                didChange = true
+            }
             if ensureCategoryGroups(context: context) {
                 didChange = true
             }
@@ -593,6 +596,7 @@ enum BootstrapService {
             // Recovery path for broken/old local stores after schema changes.
             context.insert(UserPreference())
             _ = ensureDefaultCategories(context: context)
+            _ = ensureDefaultInvestmentBuckets(context: context)
             _ = ensureCategoryGroups(context: context)
             _ = ensureAuthChoiceMigration(context: context)
             try context.guardedSave(
@@ -718,6 +722,33 @@ enum BootstrapService {
             }
         }
         return didChange
+    }
+
+    @discardableResult
+    private static func ensureDefaultInvestmentBuckets(context: ModelContext) -> Bool {
+        let existing = (try? context.fetch(FetchDescriptor<InvestmentBucket>())) ?? []
+        let existingIDs = Set(existing.map(\.id))
+        let defaults: [(String, String, Int)] = [
+            ("bucket_fond", "Fond", 1),
+            ("bucket_aksjer", "Aksjer", 2),
+            ("bucket_krypto", "Krypto", 3),
+            ("bucket_kontanter", "Kontanter", 4)
+        ]
+
+        var didInsert = false
+        for item in defaults where !existingIDs.contains(item.0) {
+            context.insert(
+                InvestmentBucket(
+                    id: item.0,
+                    name: item.1,
+                    isDefault: true,
+                    isActive: true,
+                    sortOrder: item.2
+                )
+            )
+            didInsert = true
+        }
+        return didInsert
     }
 
     @discardableResult

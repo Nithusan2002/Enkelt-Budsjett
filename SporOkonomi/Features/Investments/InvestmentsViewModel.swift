@@ -419,10 +419,10 @@ final class InvestmentsViewModel: ObservableObject {
         guard !PersistenceGate.isReadOnlyMode else { return }
         let legacyDefaultHex: Set<String> = ["#0EA5E9", "#8B5CF6", "#22C55E", "#F59E0B", "#EA580C"]
         let defaults: [(id: String, name: String, colorHex: String)] = [
-            ("funds", "Fond", "#1F9BD3"),
-            ("stocks", "Aksjer", "#7A5AD6"),
-            ("bsu", "BSU", "#2FB66B"),
-            ("buffer", "Buffer", "#D9951F")
+            ("bucket_fond", "Fond", "#1F9BD3"),
+            ("bucket_aksjer", "Aksjer", "#7A5AD6"),
+            ("bucket_krypto", "Krypto", "#D08A2E"),
+            ("bucket_kontanter", "Kontanter", "#8BA7A1")
         ]
 
         let storedBuckets = (try? context.fetch(FetchDescriptor<InvestmentBucket>())) ?? []
