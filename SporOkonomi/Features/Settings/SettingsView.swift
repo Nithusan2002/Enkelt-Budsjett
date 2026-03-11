@@ -1440,7 +1440,29 @@ private struct DataPrivacySettingsHomeView: View {
 
         var id: String { rawValue }
 
-        var title: String {
+        var initialTitle: String {
+            switch self {
+            case .wipeDemo:
+                return "Tøm demo-data?"
+            case .deleteAccount:
+                return "Slett konto?"
+            case .deleteLocalData:
+                return "Slett lokale data?"
+            }
+        }
+
+        var initialMessage: String {
+            switch self {
+            case .wipeDemo:
+                return "Dette sletter alt lokalt på enheten."
+            case .deleteAccount:
+                return "Dette sletter kontoen din og rydder lokale data på denne enheten. iCloud-data fjernes når slettingen er synkronisert."
+            case .deleteLocalData:
+                return "Dette sletter budsjett, investeringer, mål og innstillinger lokalt på denne enheten. Dette sletter ikke kontoen din."
+            }
+        }
+
+        var finalTitle: String {
             switch self {
             case .wipeDemo, .deleteLocalData:
                 return "Er du helt sikker?"
@@ -1449,7 +1471,7 @@ private struct DataPrivacySettingsHomeView: View {
             }
         }
 
-        var message: String {
+        var finalMessage: String {
             switch self {
             case .wipeDemo:
                 return "Demo-dataene blir slettet permanent fra denne enheten."
@@ -1472,6 +1494,20 @@ private struct DataPrivacySettingsHomeView: View {
         }
     }
 
+    private enum DangerousConfirmation: Identifiable {
+        case initial(DangerousAction)
+        case final(DangerousAction)
+
+        var id: String {
+            switch self {
+            case .initial(let action):
+                return "initial-\(action.id)"
+            case .final(let action):
+                return "final-\(action.id)"
+            }
+        }
+    }
+
     let isReadOnlyMode: Bool
     let storageLocationText: String
     let storeModeText: String
@@ -1485,8 +1521,7 @@ private struct DataPrivacySettingsHomeView: View {
     let onLoadDemo: () -> Void
     let onConfirmDemoWipe: () -> Void
     @Environment(\.openURL) private var openURL
-    @State private var selectedDangerousAction: DangerousAction?
-    @State private var pendingDangerousAction: DangerousAction?
+    @State private var dangerousConfirmation: DangerousConfirmation?
     @State private var showDemoLoadConfirm = false
 
     private let privacyPolicyURL = URL(string: "https://nithusan2002.github.io/spor-okonomi/personvern/")
@@ -1560,7 +1595,7 @@ private struct DataPrivacySettingsHomeView: View {
                     .disabled(isReadOnlyMode)
 
                     Button(role: .destructive) {
-                        selectedDangerousAction = .wipeDemo
+                        dangerousConfirmation = .initial(.wipeDemo)
                     } label: {
                         destructiveSettingsRow(title: "Tøm demo-data")
                     }
@@ -1577,7 +1612,7 @@ private struct DataPrivacySettingsHomeView: View {
             Section {
                 if isAuthenticated {
                     Button(role: .destructive) {
-                        selectedDangerousAction = .deleteAccount
+                        dangerousConfirmation = .initial(.deleteAccount)
                     } label: {
                         destructiveSettingsRow(title: "Slett konto")
                     }
@@ -1585,7 +1620,7 @@ private struct DataPrivacySettingsHomeView: View {
                 }
 
                 Button(role: .destructive) {
-                    selectedDangerousAction = .deleteLocalData
+                    dangerousConfirmation = .initial(.deleteLocalData)
                 } label: {
                     destructiveSettingsRow(title: "Slett lokale data")
                 }
@@ -1611,44 +1646,34 @@ private struct DataPrivacySettingsHomeView: View {
         } message: {
             Text("Dette erstatter lokale data på denne enheten med demo-data.")
         }
-        .confirmationDialog(
-            selectedDangerousAction?.title ?? "",
-            isPresented: Binding(
-                get: { selectedDangerousAction != nil },
-                set: { if !$0 { selectedDangerousAction = nil } }
-            ),
-            titleVisibility: .visible
-        ) {
-            if let action = selectedDangerousAction {
-                Button(action.confirmTitle, role: .destructive) {
-                    pendingDangerousAction = action
-                    selectedDangerousAction = nil
-                }
+        .alert(item: $dangerousConfirmation) { confirmation in
+            switch confirmation {
+            case .initial(let action):
+                return Alert(
+                    title: Text(action.initialTitle),
+                    message: Text(action.initialMessage),
+                    primaryButton: .destructive(Text(action.confirmTitle)) {
+                        dangerousConfirmation = .final(action)
+                    },
+                    secondaryButton: .cancel(Text("Avbryt"))
+                )
+            case .final(let action):
+                return Alert(
+                    title: Text(action.finalTitle),
+                    message: Text(action.finalMessage),
+                    primaryButton: .destructive(Text(action.confirmTitle)) {
+                        switch action {
+                        case .wipeDemo:
+                            onConfirmDemoWipe()
+                        case .deleteAccount:
+                            onConfirmDeleteAccount()
+                        case .deleteLocalData:
+                            onConfirmDeleteAll()
+                        }
+                    },
+                    secondaryButton: .cancel(Text("Avbryt"))
+                )
             }
-            Button("Avbryt", role: .cancel) {
-                selectedDangerousAction = nil
-            }
-        } message: {
-            if let action = selectedDangerousAction {
-                Text(action.message)
-            }
-        }
-        .alert(item: $pendingDangerousAction) { action in
-            Alert(
-                title: Text(action.title),
-                message: Text(action.message),
-                primaryButton: .destructive(Text(action.confirmTitle)) {
-                    switch action {
-                    case .wipeDemo:
-                        onConfirmDemoWipe()
-                    case .deleteAccount:
-                        onConfirmDeleteAccount()
-                    case .deleteLocalData:
-                        onConfirmDeleteAll()
-                    }
-                },
-                secondaryButton: .cancel(Text("Avbryt"))
-            )
         }
         .safeAreaInset(edge: .bottom) {
             Color.clear
