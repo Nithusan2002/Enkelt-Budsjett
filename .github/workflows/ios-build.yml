@@ -19,7 +19,7 @@ jobs:
           xcodebuild build \
             -project "SporOkonomi.xcodeproj" \
             -scheme "SporOkonomi" \
-            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS' \
             -configuration Debug \
             -derivedDataPath "$RUNNER_TEMP/DerivedData" \
             CODE_SIGNING_ALLOWED=NO
