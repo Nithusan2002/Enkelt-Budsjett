@@ -86,13 +86,13 @@ struct AppRootView: View {
                                 .tabItem { Label("Oversikt", systemImage: "chart.pie.fill") }
                                 .tag(AppTab.overview)
 
-                            NavigationStack { InvestmentsView() }
-                                .tabItem { Label("Investeringer", systemImage: "chart.line.uptrend.xyaxis") }
-                                .tag(AppTab.investments)
-
                             NavigationStack { BudgetView() }
                                 .tabItem { Label("Budsjett", systemImage: "list.bullet.rectangle") }
                                 .tag(AppTab.budget)
+
+                            NavigationStack { InvestmentsView() }
+                                .tabItem { Label("Investeringer", systemImage: "chart.line.uptrend.xyaxis") }
+                                .tag(AppTab.investments)
 
                             if showTipsTab {
                                 NavigationStack { TipsTriksView() }
