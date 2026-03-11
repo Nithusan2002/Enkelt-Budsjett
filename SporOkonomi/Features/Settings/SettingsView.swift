@@ -376,6 +376,13 @@ struct SettingsView: View {
                 settingsRow(title: "Om appen", value: appVersionText(), showsChevron: true)
             }
             .buttonStyle(.plain)
+
+            NavigationLink {
+                FAQSettingsView()
+            } label: {
+                settingsRow(title: "Vanlige spørsmål", value: "", showsChevron: true)
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -1786,6 +1793,100 @@ private struct TermsInfoView: View {
             }
         }
         .navigationTitle("Vilkår")
+    }
+}
+
+private struct FAQSettingsView: View {
+    private struct FAQItem: Identifiable {
+        let id: String
+        let question: String
+        let answer: String
+    }
+
+    private let items: [FAQItem] = [
+        FAQItem(
+            id: "bank",
+            question: "Må jeg koble til banken min?",
+            answer: "Nei. Spor økonomi fungerer uten bankkobling. Du legger inn inntekter, utgifter og verdier selv."
+        ),
+        FAQItem(
+            id: "storage",
+            question: "Er tallene mine lagret bare på denne enheten?",
+            answer: "Som standard lagres data lokalt. Hvis iCloud-synk er aktiv, kan data også synkes mellom enhetene dine."
+        ),
+        FAQItem(
+            id: "available",
+            question: "Hva betyr \"Tilgjengelig denne måneden\"?",
+            answer: "Det er beløpet du har igjen å bruke denne måneden basert på det du har lagt inn så langt."
+        ),
+        FAQItem(
+            id: "limits",
+            question: "Må jeg sette budsjettgrenser for å bruke appen?",
+            answer: "Nei. Du kan føre transaksjoner uten grenser. Grenser gir bare mer oversikt i budsjettet."
+        ),
+        FAQItem(
+            id: "investments",
+            question: "Hvordan fungerer investeringer i appen?",
+            answer: "Du legger inn samlet verdi når du vil oppdatere utviklingen. Appen følger verdiene over tid, men henter ikke live-data."
+        ),
+        FAQItem(
+            id: "account",
+            question: "Kan jeg bruke appen uten å opprette konto?",
+            answer: "Ja. Du kan bruke appen lokalt uten konto, og logge inn senere hvis du vil synkronisere eller gjenopprette data."
+        )
+    ]
+
+    @State private var expandedQuestionID: String?
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                Text("Her finner du korte svar på det nye brukere ofte lurer på.")
+                    .appSecondaryStyle()
+
+                VStack(spacing: 0) {
+                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                        DisclosureGroup(
+                            isExpanded: Binding(
+                                get: { expandedQuestionID == item.id },
+                                set: { isExpanded in
+                                    expandedQuestionID = isExpanded ? item.id : nil
+                                }
+                            )
+                        ) {
+                            Text(item.answer)
+                                .appSecondaryStyle()
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.top, 6)
+                                .padding(.bottom, 14)
+                        } label: {
+                            Text(item.question)
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(AppTheme.textPrimary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.vertical, 16)
+                        }
+                        .tint(AppTheme.primary)
+
+                        if index < items.count - 1 {
+                            Divider()
+                                .padding(.leading, 2)
+                        }
+                    }
+                }
+                .padding(.horizontal, 18)
+                .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 22))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 22)
+                        .stroke(AppTheme.divider, lineWidth: 1)
+                )
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 20)
+        }
+        .background(AppTheme.background)
+        .navigationTitle("Vanlige spørsmål")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
