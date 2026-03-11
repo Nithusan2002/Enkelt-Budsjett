@@ -5,6 +5,7 @@ import Testing
 @testable import SporOkonomi
 
 private typealias Category = SporOkonomi.Category
+private typealias Transaction = SporOkonomi.Transaction
 
 struct AuthSessionTests {
 
@@ -246,6 +247,93 @@ struct AuthSessionTests {
 
     @Test
     @MainActor
+    func deleteAccountRemovesRemoteSessionAndLocalData() async throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+        let preference = UserPreference(
+            authSessionModeRaw: AuthSessionMode.authenticated.rawValue,
+            authProviderRaw: AuthProvider.email.rawValue,
+            authUserID: "user-42",
+            authEmail: "hei@example.com"
+        )
+        context.insert(preference)
+        context.insert(Transaction(date: .now, amount: 499, kind: .expense, categoryID: "cat_food"))
+        try context.save()
+
+        let authClient = MockAuthClient(
+            restoredSession: AuthClientSession(
+                userID: "user-42",
+                email: "hei@example.com",
+                displayName: nil,
+                accessToken: "access-token",
+                refreshToken: "refresh-token"
+            ),
+            storedAccessToken: "access-token"
+        )
+        let sessionStore = SessionStore(authClient: authClient)
+
+        await sessionStore.restore(from: preference, context: context)
+        await sessionStore.deleteAccount(preference: preference, context: context)
+
+        let transactions = try context.fetch(FetchDescriptor<Transaction>())
+        let preferences = try context.fetch(FetchDescriptor<UserPreference>())
+
+        #expect(authClient.deleteAccountCallCount == 1)
+        #expect(authClient.clearedStoredSession)
+        #expect(sessionStore.sessionMode == .local)
+        #expect(sessionStore.currentSession == nil)
+        #expect(sessionStore.authErrorMessage == nil)
+        #expect(transactions.isEmpty)
+        #expect(preferences.count == 1)
+        #expect(preferences.first?.authSessionModeRaw == AuthSessionMode.local.rawValue)
+        #expect(preferences.first?.authUserID == nil)
+    }
+
+    @Test
+    @MainActor
+    func deleteAccountKeepsLocalDataWhenRemoteDeletionFails() async throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+        let preference = UserPreference(
+            authSessionModeRaw: AuthSessionMode.authenticated.rawValue,
+            authProviderRaw: AuthProvider.email.rawValue,
+            authUserID: "user-42",
+            authEmail: "hei@example.com"
+        )
+        context.insert(preference)
+        context.insert(Transaction(date: .now, amount: 499, kind: .expense, categoryID: "cat_food"))
+        try context.save()
+
+        let authClient = MockAuthClient(
+            restoredSession: AuthClientSession(
+                userID: "user-42",
+                email: "hei@example.com",
+                displayName: nil,
+                accessToken: "access-token",
+                refreshToken: "refresh-token"
+            ),
+            storedAccessToken: "access-token",
+            deleteAccountError: AuthServiceError.requestFailed("Kunne ikke slette kontoen nå.")
+        )
+        let sessionStore = SessionStore(authClient: authClient)
+
+        await sessionStore.restore(from: preference, context: context)
+        await sessionStore.deleteAccount(preference: preference, context: context)
+
+        let transactions = try context.fetch(FetchDescriptor<Transaction>())
+
+        #expect(authClient.deleteAccountCallCount == 1)
+        #expect(!authClient.clearedStoredSession)
+        #expect(sessionStore.sessionMode == .authenticated)
+        #expect(sessionStore.currentSession?.userID == "user-42")
+        #expect(sessionStore.authErrorMessage == "Kunne ikke slette kontoen nå.")
+        #expect(transactions.count == 1)
+        #expect(preference.authSessionModeRaw == AuthSessionMode.authenticated.rawValue)
+        #expect(preference.authUserID == "user-42")
+    }
+
+    @Test
+    @MainActor
     func signUpWithoutSessionPromptsForEmailConfirmation() async throws {
         let container = try TestModelContainerFactory.makeInMemoryContainer()
         let context = container.mainContext
@@ -441,6 +529,10 @@ private final class MockAuthClient: AuthClientProtocol {
     var signInError: Error?
     var googleResult: AuthClientSession?
     var restoredSession: AuthClientSession?
+    var storedAccessTokenValue: String?
+    var deleteAccountError: Error?
+    var deleteAccountCallCount = 0
+    var clearedStoredSession = false
     var lastSignInEmail: String?
 
     init(
@@ -448,13 +540,17 @@ private final class MockAuthClient: AuthClientProtocol {
         signInResult: AuthClientSession? = nil,
         signInError: Error? = nil,
         googleResult: AuthClientSession? = nil,
-        restoredSession: AuthClientSession? = nil
+        restoredSession: AuthClientSession? = nil,
+        storedAccessToken: String? = nil,
+        deleteAccountError: Error? = nil
     ) {
         self.signUpResult = signUpResult
         self.signInResult = signInResult
         self.signInError = signInError
         self.googleResult = googleResult
         self.restoredSession = restoredSession
+        self.storedAccessTokenValue = storedAccessToken
+        self.deleteAccountError = deleteAccountError
     }
 
     func signUp(email: String, password: String, displayName: String?) async throws -> AuthClientSession? {
@@ -485,9 +581,19 @@ private final class MockAuthClient: AuthClientProtocol {
 
     func signOut(accessToken: String?) async {}
 
-    func storedAccessToken() -> String? { nil }
+    func deleteAccount() async throws {
+        deleteAccountCallCount += 1
+        if let deleteAccountError {
+            throw deleteAccountError
+        }
+    }
 
-    func clearStoredSession() {}
+    func storedAccessToken() -> String? { storedAccessTokenValue }
+
+    func clearStoredSession() {
+        clearedStoredSession = true
+        storedAccessTokenValue = nil
+    }
 }
 
 private final class MockOAuthCoordinator: OAuthWebAuthenticationCoordinating {

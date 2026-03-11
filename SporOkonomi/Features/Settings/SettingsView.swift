@@ -25,6 +25,8 @@ struct SettingsView: View {
     @State private var showDeleteAllConfirm = false
     @State private var showDeleteAllError = false
     @State private var showDeleteAllSuccess = false
+    @State private var showDeleteAccountConfirm = false
+    @State private var showDeleteAccountSuccess = false
     @State private var showDemoLoadError = false
     @State private var showDemoLoadSuccess = false
     @State private var showDemoWipeConfirm = false
@@ -213,6 +215,23 @@ struct SettingsView: View {
             Button("OK", role: .cancel) { }
             } message: {
             Text("Prøv igjen litt senere.")
+            }
+            .alert("Slett konto?", isPresented: $showDeleteAccountConfirm) {
+            Button("Avbryt", role: .cancel) { }
+            Button("Slett konto", role: .destructive) {
+                Task {
+                    if await sessionStore.deleteAccount(preference: pref, context: modelContext) {
+                        showDeleteAccountSuccess = true
+                    }
+                }
+            }
+            } message: {
+            Text("Dette sletter kontoen din og rydder lokale data på denne enheten. iCloud-data fjernes når slettingen er synkronisert.")
+            }
+            .alert("Konto slettet", isPresented: $showDeleteAccountSuccess) {
+            Button("OK", role: .cancel) { }
+            } message: {
+            Text("Kontoen din er slettet, og appen er nullstilt lokalt.")
             }
             .alert(
                 "Kunne ikke lagre innstilling",
@@ -484,6 +503,15 @@ struct SettingsView: View {
 
     private var dangerousActionsSection: some View {
         Section {
+            if sessionStore.isAuthenticated {
+                Button(role: .destructive) {
+                    showDeleteAccountConfirm = true
+                } label: {
+                    destructiveSettingsRow(title: "Slett konto")
+                }
+                .buttonStyle(.plain)
+            }
+
             Button(role: .destructive) {
                 showDeleteAllConfirm = true
             } label: {

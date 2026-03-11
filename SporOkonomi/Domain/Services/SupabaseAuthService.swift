@@ -55,6 +55,7 @@ protocol AuthClientProtocol {
     func signIn(email: String, password: String) async throws -> AuthClientSession
     func signInWithGoogle() async throws -> AuthClientSession
     func restoreSession() async throws -> AuthClientSession?
+    func deleteAccount() async throws
     func signOut(accessToken: String?) async
     func storedAccessToken() -> String?
     func clearStoredSession()
@@ -274,6 +275,27 @@ final class SupabaseAuthClient: AuthClientProtocol {
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
 
         _ = try? await session.data(for: request)
+    }
+
+    func deleteAccount() async throws {
+        guard let accessToken = storedAccessToken(), !accessToken.isEmpty else {
+            throw AuthServiceError.requestFailed("Du må være logget inn for å slette kontoen.")
+        }
+
+        var request = URLRequest(url: endpointURL(for: "functions/v1/delete-account"))
+        request.httpMethod = "POST"
+        request.setValue(configuration.publishableKey, forHTTPHeaderField: "apikey")
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = Data("{}".utf8)
+
+        let (data, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode) else {
+            throw mapError(from: data, statusCode: (response as? HTTPURLResponse)?.statusCode ?? 500)
+        }
+
+        clearStoredSession()
     }
 
     func storedAccessToken() -> String? {
