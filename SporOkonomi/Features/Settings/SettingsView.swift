@@ -85,6 +85,11 @@ struct SettingsView: View {
     private var configuredForm: some View {
         formWithAlerts
             .safeAreaInset(edge: .bottom) {
+                Color.clear
+                    .frame(height: 86)
+                    .allowsHitTesting(false)
+            }
+            .safeAreaInset(edge: .bottom) {
                 if let demoToastMessage {
                     Text(demoToastMessage)
                         .font(.footnote.weight(.semibold))
@@ -1227,6 +1232,11 @@ private struct AccountSettingsHomeView: View {
         .scrollContentBackground(.hidden)
         .background(AppTheme.background)
         .navigationTitle("Konto og synk")
+        .safeAreaInset(edge: .bottom) {
+            Color.clear
+                .frame(height: 86)
+                .allowsHitTesting(false)
+        }
     }
 }
 
@@ -1286,6 +1296,11 @@ private struct AppSettingsHomeView: View {
         .scrollContentBackground(.hidden)
         .background(AppTheme.background)
         .navigationTitle("Appinnstillinger")
+        .safeAreaInset(edge: .bottom) {
+            Color.clear
+                .frame(height: 86)
+                .allowsHitTesting(false)
+        }
         .sheet(isPresented: $showReminderSheet) {
             ReminderSettingsSheet(
                 enabled: pref.checkInReminderEnabled,
@@ -1392,6 +1407,11 @@ private struct EconomySettingsHomeView: View {
         .scrollContentBackground(.hidden)
         .background(AppTheme.background)
         .navigationTitle("Økonomi")
+        .safeAreaInset(edge: .bottom) {
+            Color.clear
+                .frame(height: 86)
+                .allowsHitTesting(false)
+        }
         .disabled(isReadOnlyMode)
         .sheet(isPresented: $showGoalSheet) {
             GoalEditorView(goal: nil)
@@ -1559,6 +1579,11 @@ private struct DataPrivacySettingsHomeView: View {
         .scrollContentBackground(.hidden)
         .background(AppTheme.background)
         .navigationTitle("Data og personvern")
+        .safeAreaInset(edge: .bottom) {
+            Color.clear
+                .frame(height: 86)
+                .allowsHitTesting(false)
+        }
     }
 
     private func settingsRow(title: String, value: String, showsChevron: Bool) -> some View {
@@ -1621,6 +1646,11 @@ private struct AppearanceSettingsView: View {
             }
         }
         .navigationTitle("Visning")
+        .safeAreaInset(edge: .bottom) {
+            Color.clear
+                .frame(height: 86)
+                .allowsHitTesting(false)
+        }
     }
 }
 
