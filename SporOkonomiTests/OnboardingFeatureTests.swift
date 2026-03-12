@@ -53,10 +53,11 @@ struct OnboardingFeatureTests {
         viewModel.currentStep = .intro
 
         #expect(viewModel.showsProgressHeader == false)
-        #expect(viewModel.primaryButtonTitle == "Kom i gang")
-        #expect(viewModel.introTitle == "Få roligere oversikt over økonomien")
-        #expect(viewModel.introBodyText == "Se hva du har igjen denne måneden uten komplisert oppsett.")
-        #expect(viewModel.introPreviewLabel == "Tilgjengelig denne måneden")
+        #expect(viewModel.primaryButtonTitle == "Kom i gang på 30 sek")
+        #expect(viewModel.introTitle == "Få kontroll på økonomien din")
+        #expect(viewModel.introBodyText == "Se hvor mye du faktisk har igjen hver måned.")
+        #expect(viewModel.introSupportText == "Se hva du har igjen, uten komplisert oppsett.")
+        #expect(viewModel.introPreviewLabel == "Eksempel på oversikt")
         #expect(viewModel.introPreviewAmount == "5 560 kr")
     }
 
