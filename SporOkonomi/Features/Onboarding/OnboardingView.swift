@@ -131,8 +131,8 @@ struct OnboardingView: View {
                         .frame(width: 36, height: 36)
                 } else {
                     Text("Spor økonomi")
-                        .font(.caption.weight(.semibold))
-                        .tracking(0.6)
+                        .font(.footnote.weight(.semibold))
+                        .tracking(0.4)
                         .foregroundStyle(AppTheme.textSecondary)
                         .frame(maxWidth: .infinity)
                 }
@@ -146,7 +146,7 @@ struct OnboardingView: View {
             }
         }
         .padding(.horizontal)
-        .padding(.top, viewModel.showsProgressHeader ? 0 : 34)
+        .padding(.top, viewModel.showsProgressHeader ? 0 : 40)
     }
 
     @ViewBuilder
@@ -183,7 +183,7 @@ struct OnboardingView: View {
                 .frame(maxWidth: 360)
         }
         .frame(maxWidth: .infinity, alignment: .center)
-        .padding(.top, 48)
+        .padding(.top, 56)
     }
 
     private var incomeStep: some View {
