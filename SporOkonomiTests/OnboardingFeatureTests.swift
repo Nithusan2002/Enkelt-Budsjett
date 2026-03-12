@@ -32,45 +32,47 @@ struct OnboardingFeatureTests {
 
     @Test
     @MainActor
-    func onboardingFlowHasExactlyThreeSteps() {
+    func onboardingFlowHasExactlyFiveSteps() {
         let preference = UserPreference(onboardingCompleted: false, onboardingFocus: .budget)
         let viewModel = OnboardingViewModel(preference: preference)
 
         let order = viewModel.orderedSteps
-        #expect(order.count == 4)
+        #expect(order.count == 5)
         #expect(order.first == .intro)
-        #expect(order[1] == .income)
-        #expect(order[2] == .goal)
+        #expect(order[1] == .goals)
+        #expect(order[2] == .income)
+        #expect(order[3] == .fixedCosts)
         #expect(order.last == .summary)
     }
 
     @Test
     @MainActor
-    func onboardingIntroUsesWelcomeScreenHierarchy() {
+    func onboardingIntroUsesNewHeroCopy() {
         let preference = UserPreference(onboardingCompleted: false)
         let viewModel = OnboardingViewModel(preference: preference)
 
         viewModel.currentStep = .intro
 
         #expect(viewModel.showsProgressHeader == false)
-        #expect(viewModel.primaryButtonTitle == "Kom i gang på 30 sek")
+        #expect(viewModel.primaryButtonTitle == "Kom i gang")
+        #expect(viewModel.secondaryButtonTitle == "Hopp over")
         #expect(viewModel.introTitle == "Få kontroll på økonomien din")
-        #expect(viewModel.introBodyText == "Se hvor mye du faktisk har igjen hver måned.")
-        #expect(viewModel.introSupportText == "Se hva du har igjen, uten komplisert oppsett.")
-        #expect(viewModel.introPreviewLabel == "Eksempel på oversikt")
-        #expect(viewModel.introPreviewAmount == "5 560 kr")
+        #expect(viewModel.introBodyText == "Se hvor mye du har igjen hver måned.")
     }
 
     @Test
     @MainActor
-    func onboardingSkipIsAvailableOnAllSteps() {
+    func onboardingSkipTitlesMatchRequestedFlow() {
         let preference = UserPreference(onboardingCompleted: false)
         let viewModel = OnboardingViewModel(preference: preference)
 
-        for step in viewModel.orderedSteps {
-            viewModel.currentStep = step
-            #expect(viewModel.secondaryButtonTitle == "Hopp over")
-        }
+        viewModel.currentStep = .fixedCosts
+        #expect(viewModel.primaryButtonTitle == "Se resultat")
+        #expect(viewModel.secondaryButtonTitle == "Ikke nå")
+
+        viewModel.currentStep = .summary
+        #expect(viewModel.primaryButtonTitle == "Start appen")
+        #expect(viewModel.secondaryButtonTitle == nil)
     }
 
     @Test
@@ -86,7 +88,7 @@ struct OnboardingFeatureTests {
 
         #expect(viewModel.canGoBack == false)
 
-        viewModel.currentStep = .goal
+        viewModel.currentStep = .fixedCosts
         #expect(viewModel.canGoBack == true)
 
         viewModel.goBack(preference: preference, context: context)
@@ -94,22 +96,22 @@ struct OnboardingFeatureTests {
         #expect(preference.onboardingCurrentStep == OnboardingStep.income.rawValue)
 
         viewModel.goBack(preference: preference, context: context)
-        #expect(viewModel.currentStep == .intro)
-        #expect(preference.onboardingCurrentStep == OnboardingStep.intro.rawValue)
-
-        viewModel.goBack(preference: preference, context: context)
-        #expect(viewModel.currentStep == .intro)
+        #expect(viewModel.currentStep == .goals)
+        #expect(preference.onboardingCurrentStep == OnboardingStep.goals.rawValue)
     }
 
     @Test
     @MainActor
-    func onboardingIncomeStepAllowsEmptyValueButRejectsInvalidInput() {
+    func onboardingIncomeStepRequiresAValidAmount() {
         let preference = UserPreference(onboardingCompleted: false)
         let viewModel = OnboardingViewModel(preference: preference)
 
         viewModel.currentStep = .income
         viewModel.monthlyIncomeText = ""
-        #expect(viewModel.isPrimaryDisabled == false)
+        #expect(viewModel.isPrimaryDisabled == true)
+
+        viewModel.monthlyIncomeText = "abc"
+        #expect(viewModel.isPrimaryDisabled == true)
 
         viewModel.monthlyIncomeText = "32 000"
         #expect(viewModel.isPrimaryDisabled == false)
@@ -117,73 +119,40 @@ struct OnboardingFeatureTests {
 
     @Test
     @MainActor
-    func onboardingGoalStepRequiresValidAmountOnlyWhenGoalIsEnabled() {
+    func onboardingGoalStepAllowsMultipleSelectionsAndMapsFocus() {
         let preference = UserPreference(onboardingCompleted: false)
         let viewModel = OnboardingViewModel(preference: preference)
 
-        viewModel.currentStep = .goal
-        viewModel.wantsGoal = false
-        viewModel.goalAmountText = ""
-        #expect(viewModel.isPrimaryDisabled == false)
+        viewModel.toggleGoal(.followInvestments)
+        #expect(viewModel.selectedGoals == [.followInvestments])
+        #expect(viewModel.focus == .investments)
 
-        viewModel.wantsGoal = true
-        viewModel.goalAmountText = ""
-        #expect(viewModel.isPrimaryDisabled == true)
+        viewModel.toggleGoal(.saveMore)
+        #expect(viewModel.selectedGoals == [.saveMore, .followInvestments])
+        #expect(viewModel.focus == .both)
 
-        viewModel.goalAmountText = "250 000"
-        #expect(viewModel.isPrimaryDisabled == false)
-        #expect(viewModel.goalMonthlyPreviewText?.contains("kr per måned") == true)
+        viewModel.toggleGoal(.followInvestments)
+        #expect(viewModel.selectedGoals == [.saveMore])
+        #expect(viewModel.focus == .budget)
     }
 
     @Test
     @MainActor
-    func onboardingCompleteIncludesCustomBucketInFirstSnapshot() throws {
-        let container = try TestModelContainerFactory.makeInMemoryContainer()
-        let context = container.mainContext
+    func onboardingResultSubtractsSelectedFixedExpenseEstimates() {
         let preference = UserPreference(onboardingCompleted: false)
-        context.insert(preference)
-        try context.save()
+        let viewModel = OnboardingViewModel(preference: preference)
 
-        try OnboardingService.complete(
-            context: context,
-            preference: preference,
-            firstName: "Nora",
-            focus: .investments,
-            tone: .calm,
-            firstWealthTotal: nil,
-            goalAmount: nil,
-            goalDate: nil,
-            snapshotValues: [
-                "Fond": 150_000,
-                "Eiendom": 500_000
-            ],
-            snapshotInputProvided: true,
-            budgetCategories: [],
-            monthlyBudget: nil,
-            monthlyIncome: nil,
-            incomeDayOfMonth: 25,
-            budgetTrackOnly: true,
-            reminderEnabled: false,
-            reminderDay: 5,
-            reminderHour: 18,
-            reminderMinute: 0,
-            faceIDEnabled: false,
-            selectedBuckets: ["Fond"],
-            customBucketName: "Eiendom"
-        )
+        viewModel.monthlyIncomeText = "12 000"
+        viewModel.selectedFixedCosts = [.rent, .food, .subscriptions]
 
-        let buckets = try context.fetch(FetchDescriptor<InvestmentBucket>())
-        let snapshots = try context.fetch(FetchDescriptor<InvestmentSnapshot>())
-
-        #expect(buckets.contains(where: { $0.name == "Eiendom" }))
-        #expect(snapshots.count == 1)
-        #expect(snapshots[0].bucketValues.contains(where: { $0.bucketID == "bucket_eiendom" && $0.amount == 500_000 }))
-        #expect(snapshots[0].bucketValues.contains(where: { $0.bucketID == "bucket_fond" && $0.amount == 150_000 }))
+        #expect(viewModel.resultAmount == 6_200)
+        #expect(viewModel.resultAmountText == "6 200 kr")
+        #expect(viewModel.summaryResultText == "Du har ca. 6 200 kr igjen denne måneden")
     }
 
     @Test
     @MainActor
-    func onboardingDefaultBucketsExcludeCrypto() throws {
+    func onboardingCompleteIncludesChosenFixedCostsAsBudgetCategories() throws {
         let container = try TestModelContainerFactory.makeInMemoryContainer()
         let context = container.mainContext
         let preference = UserPreference(onboardingCompleted: false)
@@ -192,12 +161,14 @@ struct OnboardingFeatureTests {
 
         let viewModel = OnboardingViewModel(preference: preference)
         viewModel.monthlyIncomeText = "45 000"
+        viewModel.selectedFixedCosts = [.rent, .transport]
         viewModel.finish(preference: preference, context: context)
 
-        let buckets = try context.fetch(FetchDescriptor<InvestmentBucket>())
-        let bucketNames = Set(buckets.map(\.name))
+        let categories = try context.fetch(FetchDescriptor<SporOkonomi.Category>())
+        let categoryNames = Set(categories.map(\.name))
 
-        #expect(bucketNames == ["Fond", "Aksjer", "Krypto", "Kontanter"])
+        #expect(categoryNames.contains("Husleie"))
+        #expect(categoryNames.contains("Transport"))
     }
 
     @Test
@@ -231,40 +202,17 @@ struct OnboardingFeatureTests {
 
     @Test
     @MainActor
-    func onboardingSummaryCopyConnectsToMonthlyOverview() {
+    func onboardingSummaryCopyUsesConcreteResult() {
         let preference = UserPreference(onboardingCompleted: false)
         let viewModel = OnboardingViewModel(preference: preference)
 
-        viewModel.monthlyIncomeText = "32 000"
+        viewModel.monthlyIncomeText = "12 000"
+        viewModel.selectedFixedCosts = [.rent, .food, .subscriptions]
+
         #expect(viewModel.summaryTitle == "Du er klar")
-        #expect(viewModel.summaryBodyText.contains("Du kan bruke ca."))
+        #expect(viewModel.summaryBadgeText == "Klar til bruk")
+        #expect(viewModel.summaryConfirmationText == "Økonomien din er satt opp")
+        #expect(viewModel.summaryResultText == "Du har ca. 6 200 kr igjen denne måneden")
         #expect(viewModel.summaryHelpText == "Basert på det du har lagt inn så langt.")
-
-        viewModel.monthlyIncomeText = ""
-        #expect(viewModel.summaryBodyText.contains("oversikt"))
-        #expect(viewModel.summaryHelpText == "Basert på det du har lagt inn så langt.")
-    }
-
-    @Test
-    @MainActor
-    func onboardingFinishCreatesGoalWhenOptionalGoalIsProvided() throws {
-        let container = try TestModelContainerFactory.makeInMemoryContainer()
-        let context = container.mainContext
-        let preference = UserPreference(onboardingCompleted: false)
-        context.insert(preference)
-        try context.save()
-
-        let goalDate = Calendar.current.date(from: DateComponents(year: 2028, month: 12, day: 1)) ?? .now
-        let viewModel = OnboardingViewModel(preference: preference)
-        viewModel.monthlyIncomeText = "32 000"
-        viewModel.wantsGoal = true
-        viewModel.goalAmountText = "250 000"
-        viewModel.goalDate = goalDate
-
-        viewModel.finish(preference: preference, context: context)
-
-        let goals = try context.fetch(FetchDescriptor<Goal>())
-        #expect(goals.count == 1)
-        #expect(goals[0].targetAmount == 250_000)
     }
 }

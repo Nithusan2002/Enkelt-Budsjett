@@ -6,10 +6,10 @@ struct OnboardingView: View {
     let preference: UserPreference
     @StateObject private var viewModel: OnboardingViewModel
     @FocusState private var focusedField: OnboardingInputField?
+    @State private var animatedResultAmount = 0
 
     private enum OnboardingInputField {
         case income
-        case goalAmount
     }
 
     init(preference: UserPreference) {
@@ -25,14 +25,24 @@ struct OnboardingView: View {
                 VStack(spacing: 12) {
                     topBar
 
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 14) {
-                            stepContent
+                    ScrollView(showsIndicators: false) {
+                        VStack(alignment: .leading, spacing: 18) {
+                            ZStack {
+                                stepContent
+                                    .id(viewModel.currentStep)
+                                    .transition(
+                                        .asymmetric(
+                                            insertion: .opacity.combined(with: .move(edge: .trailing)),
+                                            removal: .opacity.combined(with: .move(edge: .leading))
+                                        )
+                                    )
+                            }
+                            .frame(maxWidth: .infinity, alignment: .center)
+
                             footerButtons
-                                .padding(.top, viewModel.currentStep == .intro ? 2 : 6)
                         }
                         .padding(.horizontal)
-                        .padding(.bottom, 16)
+                        .padding(.bottom, 18)
                         .frame(maxWidth: 560, alignment: .center)
                         .frame(maxWidth: .infinity, alignment: .center)
                     }
@@ -43,24 +53,32 @@ struct OnboardingView: View {
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
-                    Button {
+                    Button("Ferdig") {
                         focusedField = nil
-                    } label: {
-                        Text("Ferdig")
-                            .font(.subheadline.weight(.semibold))
                     }
+                    .font(.subheadline.weight(.semibold))
                 }
             }
+            .animation(.easeInOut(duration: 0.24), value: viewModel.currentStep)
             .onAppear {
                 viewModel.markCurrentStepSeen()
                 updateFocus(for: viewModel.currentStep)
+                updateAnimatedResult(for: viewModel.currentStep)
             }
             .onChange(of: viewModel.currentStep) { _, newStep in
                 viewModel.markCurrentStepSeen()
                 updateFocus(for: newStep)
+                updateAnimatedResult(for: newStep)
             }
-            .onChange(of: viewModel.wantsGoal) { _, _ in
-                updateFocus(for: viewModel.currentStep)
+            .onChange(of: viewModel.monthlyIncomeText) { _, _ in
+                if viewModel.currentStep == .summary {
+                    updateAnimatedResult(for: .summary)
+                }
+            }
+            .onChange(of: viewModel.selectedFixedCosts) { _, _ in
+                if viewModel.currentStep == .summary {
+                    updateAnimatedResult(for: .summary)
+                }
             }
             .alert(
                 "Kunne ikke lagre",
@@ -83,25 +101,23 @@ struct OnboardingView: View {
             AppTheme.background
                 .ignoresSafeArea()
 
-            if viewModel.currentStep == .intro {
-                LinearGradient(
-                    colors: [
-                        AppTheme.primary.opacity(0.22),
-                        AppTheme.primary.opacity(0.08),
-                        AppTheme.background
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .frame(maxHeight: 380, alignment: .top)
-                .ignoresSafeArea(edges: .top)
-                .allowsHitTesting(false)
-            }
+            LinearGradient(
+                colors: [
+                    AppTheme.primary.opacity(viewModel.currentStep == .intro ? 0.20 : 0.10),
+                    AppTheme.primary.opacity(0.05),
+                    AppTheme.background
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(maxHeight: 360, alignment: .top)
+            .ignoresSafeArea(edges: .top)
+            .allowsHitTesting(false)
         }
     }
 
     private var topBar: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
                 if viewModel.canGoBack {
                     Button {
@@ -118,17 +134,14 @@ struct OnboardingView: View {
                     .buttonStyle(.plain)
                     .accessibilityLabel("Gå tilbake")
                 } else {
-                    Color.clear
-                        .frame(width: 36, height: 36)
+                    Color.clear.frame(width: 36, height: 36)
                 }
 
                 if viewModel.showsProgressHeader {
                     Text(viewModel.progressText)
                         .appSecondaryStyle()
                         .frame(maxWidth: .infinity, alignment: .center)
-
-                    Color.clear
-                        .frame(width: 36, height: 36)
+                    Color.clear.frame(width: 36, height: 36)
                 } else {
                     Text("Spor økonomi")
                         .font(.footnote.weight(.semibold))
@@ -139,10 +152,19 @@ struct OnboardingView: View {
             }
 
             if viewModel.showsProgressHeader {
-                ProgressView(value: viewModel.progressFraction)
-                    .tint(AppTheme.primary)
-                    .frame(maxWidth: 220)
-                    .frame(maxWidth: .infinity, alignment: .center)
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(AppTheme.surfaceElevated)
+                        Capsule()
+                            .fill(AppTheme.primary)
+                            .frame(width: max(28, geometry.size.width * viewModel.progressFraction))
+                    }
+                }
+                .frame(height: 8)
+                .frame(maxWidth: 220)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .animation(.easeInOut(duration: 0.25), value: viewModel.progressFraction)
             }
         }
         .padding(.horizontal)
@@ -154,10 +176,12 @@ struct OnboardingView: View {
         switch viewModel.currentStep {
         case .intro:
             introStep
+        case .goals:
+            goalsStep
         case .income:
             incomeStep
-        case .goal:
-            goalStep
+        case .fixedCosts:
+            fixedCostsStep
         case .summary:
             summaryStep
         }
@@ -172,153 +196,166 @@ struct OnboardingView: View {
                     .font(.system(size: 36, weight: .bold, design: .rounded))
                     .foregroundStyle(AppTheme.textPrimary)
                     .multilineTextAlignment(.center)
+
                 Text(viewModel.introBodyText)
                     .appBodyStyle()
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 320)
             }
-            .multilineTextAlignment(.center)
-
-            Text(viewModel.introSupportText)
-                .appSecondaryStyle()
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 360)
         }
         .frame(maxWidth: .infinity, alignment: .center)
-        .padding(.top, 56)
+        .padding(.top, 54)
     }
 
-    private var incomeStep: some View {
-        VStack(spacing: 18) {
-            VStack(spacing: 8) {
-                Text("Hva får du inn i måneden?")
-                    .appCardTitleStyle()
-                Text("Et grovt beløp er nok. Du kan endre det senere.")
-                    .appBodyStyle()
-            }
-            .multilineTextAlignment(.center)
+    private var goalsStep: some View {
+        VStack(spacing: 20) {
+            headerBlock(
+                title: "Hva vil du oppnå?",
+                body: "Velg det som passer best for deg."
+            )
 
-            VStack(alignment: .leading, spacing: 12) {
-                currencyField(
-                    label: "Månedlig inntekt",
-                    placeholder: "f.eks. 32 000",
-                    text: $viewModel.monthlyIncomeText,
-                    field: .income
-                )
-                .padding(12)
-                .background(AppTheme.surface)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.divider, lineWidth: 1))
-
-                if let preview = viewModel.incomePreviewText {
-                    Text(preview)
-                        .appSecondaryStyle()
-                        .frame(maxWidth: .infinity, alignment: .leading)
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                ForEach(OnboardingGoalOption.allCases) { option in
+                    selectionCard(
+                        title: option.title,
+                        subtitle: nil,
+                        isSelected: viewModel.selectedGoals.contains(option)
+                    ) {
+                        withAnimation(.easeInOut(duration: 0.18)) {
+                            viewModel.toggleGoal(option)
+                        }
+                    }
                 }
             }
-            .frame(maxWidth: 460, alignment: .leading)
+
+            if let summary = viewModel.selectedGoalsSummary {
+                Text(summary)
+                    .appSecondaryStyle()
+                    .multilineTextAlignment(.center)
+            }
         }
-        .frame(maxWidth: .infinity, alignment: .center)
+        .frame(maxWidth: 460, alignment: .center)
         .padding(.top, 24)
     }
 
-    private var goalStep: some View {
-        VStack(spacing: 18) {
-            VStack(spacing: 8) {
-                Text("Vil du spare mot et mål?")
-                    .appCardTitleStyle()
-                Text("Du kan legge det til nå eller vente til senere.")
-                    .appBodyStyle()
+    private var incomeStep: some View {
+        VStack(spacing: 20) {
+            headerBlock(
+                title: "Hva tjener du per måned?",
+                body: "Et grovt tall holder."
+            )
+
+            VStack(spacing: 12) {
+                currencyField(
+                    label: "Månedlig inntekt",
+                    placeholder: "f.eks. 12 000",
+                    text: $viewModel.monthlyIncomeText,
+                    field: .income
+                )
+
+                Text("Dette brukes til å vise hva du har igjen.")
+                    .appSecondaryStyle()
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .multilineTextAlignment(.center)
-
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(spacing: 10) {
-                    goalOptionButton(title: "Ja", isSelected: viewModel.wantsGoal) {
-                        viewModel.wantsGoal = true
-                    }
-
-                    goalOptionButton(title: "Ikke nå", isSelected: !viewModel.wantsGoal) {
-                        viewModel.wantsGoal = false
-                    }
-                }
-
-                if viewModel.wantsGoal {
-                    currencyField(
-                        label: "Målbeløp",
-                        placeholder: "f.eks. 250 000",
-                        text: $viewModel.goalAmountText,
-                        field: .goalAmount
-                    )
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Måldato")
-                            .appBodyStyle()
-                        DatePicker(
-                            "Måldato",
-                            selection: $viewModel.goalDate,
-                            displayedComponents: .date
-                        )
-                        .labelsHidden()
-                        .datePickerStyle(.compact)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .appInputShellStyle()
-                    }
-
-                    if let preview = viewModel.goalMonthlyPreviewText {
-                        Text(preview)
-                            .appSecondaryStyle()
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                }
-            }
-            .padding(12)
+            .padding(16)
             .background(AppTheme.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.divider, lineWidth: 1))
-            .frame(maxWidth: 460, alignment: .leading)
+            .clipShape(RoundedRectangle(cornerRadius: 18))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18)
+                    .stroke(AppTheme.divider, lineWidth: 1)
+            )
         }
-        .frame(maxWidth: .infinity, alignment: .center)
+        .frame(maxWidth: 460, alignment: .center)
+        .padding(.top, 24)
+    }
+
+    private var fixedCostsStep: some View {
+        VStack(spacing: 20) {
+            headerBlock(
+                title: "Har du faste utgifter?",
+                body: "Velg det som gjelder for deg."
+            )
+
+            VStack(spacing: 12) {
+                ForEach(OnboardingFixedCostOption.allCases) { option in
+                    selectionCard(
+                        title: option.title,
+                        subtitle: "Lett estimat",
+                        isSelected: viewModel.selectedFixedCosts.contains(option)
+                    ) {
+                        withAnimation(.easeInOut(duration: 0.18)) {
+                            viewModel.toggleFixedCost(option)
+                        }
+                    }
+                }
+            }
+
+            if let help = viewModel.fixedCostHelpText {
+                Text(help)
+                    .appSecondaryStyle()
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .frame(maxWidth: 460, alignment: .center)
         .padding(.top, 24)
     }
 
     private var summaryStep: some View {
-        VStack(spacing: 18) {
-            heroIcon(systemName: "checkmark.circle")
+        VStack(spacing: 20) {
+            ZStack {
+                Circle()
+                    .fill(AppTheme.surface)
+                    .frame(width: 88, height: 88)
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 34, weight: .semibold))
+                    .foregroundStyle(AppTheme.primary)
+            }
 
             VStack(spacing: 8) {
                 Text(viewModel.summaryTitle)
                     .appCardTitleStyle()
-                Text(viewModel.summaryBodyText)
+                    .multilineTextAlignment(.center)
+
+                Text(viewModel.summaryBadgeText)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(AppTheme.primary)
+
+                Text(viewModel.summaryConfirmationText)
                     .appBodyStyle()
+                    .multilineTextAlignment(.center)
             }
-            .multilineTextAlignment(.center)
 
-            VStack(alignment: .leading, spacing: 10) {
-                if let amountLabel = viewModel.summaryPreviewAmountLabel {
-                    Text(amountLabel)
-                        .font(.system(size: 28, weight: .semibold, design: .default))
-                        .foregroundStyle(AppTheme.textPrimary)
-                        .monospacedDigit()
-                }
+            VStack(spacing: 14) {
+                Text("Du har ca.")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(AppTheme.textSecondary)
 
-                if let goalContext = viewModel.summaryGoalContextText {
-                    summaryRow("Sparing", value: goalContext)
-                }
+                Text("\(formattedAnimatedResult) igjen denne måneden")
+                    .font(.system(size: 32, weight: .bold, design: .rounded))
+                    .foregroundStyle(AppTheme.textPrimary)
+                    .multilineTextAlignment(.center)
+                    .monospacedDigit()
+                    .contentTransition(.numericText())
 
                 Text(viewModel.summaryHelpText)
                     .appSecondaryStyle()
+                    .multilineTextAlignment(.center)
             }
-            .padding(12)
+            .padding(20)
             .background(AppTheme.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.divider, lineWidth: 1))
-            .frame(maxWidth: 460, alignment: .leading)
+            .clipShape(RoundedRectangle(cornerRadius: 22))
+            .overlay(
+                RoundedRectangle(cornerRadius: 22)
+                    .stroke(AppTheme.divider, lineWidth: 1)
+            )
+            .frame(maxWidth: 460)
         }
         .frame(maxWidth: .infinity, alignment: .center)
         .padding(.top, 24)
     }
 
     private var footerButtons: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 10) {
             Button(viewModel.primaryButtonTitle) {
                 viewModel.primaryAction(preference: preference, context: modelContext)
             }
@@ -332,106 +369,130 @@ struct OnboardingView: View {
                     viewModel.secondaryAction(preference: preference, context: modelContext)
                 }
                 .appSecondaryStyle()
-                .accessibilityLabel(secondary)
                 .frame(maxWidth: .infinity, alignment: .center)
+                .accessibilityLabel(secondary)
             }
         }
         .frame(maxWidth: 420, alignment: .center)
         .frame(maxWidth: .infinity, alignment: .center)
     }
 
-    private func heroIcon(systemName: String) -> some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 22)
-                .fill(AppTheme.surface)
-                .frame(width: 112, height: 112)
-            Image(systemName: systemName)
-                .font(.system(size: 36, weight: .semibold))
-                .foregroundStyle(AppTheme.primary)
-        }
-    }
-
     private var introPreviewCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(viewModel.introPreviewLabel)
+            Text("Slik kan det se ut")
                 .font(.caption.weight(.semibold))
                 .tracking(0.3)
                 .foregroundStyle(AppTheme.textSecondary)
 
-            Text(viewModel.introPreviewAmount)
-                .font(.system(size: 40, weight: .bold, design: .rounded))
+            Text("6 200 kr")
+                .font(.system(size: 42, weight: .bold, design: .rounded))
                 .foregroundStyle(AppTheme.textPrimary)
                 .monospacedDigit()
 
-            Text(viewModel.introPreviewSummary)
+            Text("igjen denne måneden")
                 .font(.title3.weight(.semibold))
                 .foregroundStyle(AppTheme.textPrimary)
-                .monospacedDigit()
 
-            ProgressView(value: 0.77)
-                .tint(AppTheme.positive)
-                .frame(maxWidth: .infinity)
-                .scaleEffect(x: 1, y: 1.15, anchor: .center)
+            VStack(spacing: 10) {
+                previewRow(label: "Inntekt", value: "12 000 kr")
+                previewRow(label: "Faste utgifter", value: "5 800 kr")
+            }
 
-            Text(viewModel.introPreviewStatus)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(AppTheme.positive)
+            Capsule()
+                .fill(AppTheme.primary.opacity(0.18))
+                .frame(height: 10)
+                .overlay(alignment: .leading) {
+                    Capsule()
+                        .fill(AppTheme.primary)
+                        .frame(width: 180)
+                }
         }
         .frame(maxWidth: 460, alignment: .leading)
         .padding(20)
-        .background(AppTheme.surface.opacity(0.88))
+        .background(AppTheme.surface.opacity(0.90))
         .clipShape(RoundedRectangle(cornerRadius: 24))
         .overlay(
             RoundedRectangle(cornerRadius: 24)
                 .stroke(AppTheme.divider, lineWidth: 1)
         )
-        .shadow(color: Color.black.opacity(0.12), radius: 18, y: 10)
+        .shadow(color: Color.black.opacity(0.10), radius: 18, y: 10)
     }
 
-    private func summaryRow(_ label: String, value: String) -> some View {
-        HStack(alignment: .firstTextBaseline) {
+    private func headerBlock(title: String, body: String) -> some View {
+        VStack(spacing: 8) {
+            Text(title)
+                .appCardTitleStyle()
+            Text(body)
+                .appBodyStyle()
+        }
+        .multilineTextAlignment(.center)
+    }
+
+    private func selectionCard(title: String, subtitle: String?, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .top) {
+                    Text(title)
+                        .font(.headline.weight(.semibold))
+                        .foregroundStyle(AppTheme.textPrimary)
+                    Spacer(minLength: 8)
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(isSelected ? AppTheme.primary : AppTheme.textSecondary)
+                }
+
+                if let subtitle {
+                    Text(subtitle)
+                        .appSecondaryStyle()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, minHeight: 88, alignment: .leading)
+            .background(isSelected ? AppTheme.primary.opacity(0.08) : AppTheme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 18))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18)
+                    .stroke(isSelected ? AppTheme.primary : AppTheme.divider, lineWidth: isSelected ? 2 : 1)
+            )
+            .scaleEffect(isSelected ? 0.98 : 1.0)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func previewRow(label: String, value: String) -> some View {
+        HStack {
             Text(label)
                 .appSecondaryStyle()
             Spacer(minLength: 8)
             Text(value)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(AppTheme.textPrimary)
-                .multilineTextAlignment(.trailing)
+                .monospacedDigit()
         }
     }
 
     private func currencyField(label: String, placeholder: String, text: Binding<String>, field: OnboardingInputField) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             Text(label)
                 .appBodyStyle()
-            HStack {
+
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Text("kr")
-                    .appSecondaryStyle()
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(AppTheme.textSecondary)
+
                 TextField(placeholder, text: monetaryBinding(text))
                     .keyboardType(.numberPad)
+                    .textContentType(.none)
+                    .font(.system(size: 32, weight: .bold, design: .rounded))
+                    .foregroundStyle(AppTheme.textPrimary)
                     .multilineTextAlignment(.trailing)
                     .monospacedDigit()
                     .focused($focusedField, equals: field)
             }
             .appInputShellStyle()
         }
-    }
-
-    private func goalOptionButton(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(isSelected ? AppTheme.onPrimary : AppTheme.textPrimary)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(isSelected ? AppTheme.primary : AppTheme.surfaceElevated)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(isSelected ? AppTheme.primary : AppTheme.divider, lineWidth: 1)
-                )
-        }
-        .buttonStyle(.plain)
     }
 
     private func monetaryBinding(_ source: Binding<String>) -> Binding<String> {
@@ -466,11 +527,21 @@ struct OnboardingView: View {
         switch step {
         case .income:
             focusedField = .income
-        case .goal:
-            focusedField = viewModel.wantsGoal ? .goalAmount : nil
         default:
             focusedField = nil
         }
+    }
+
+    private func updateAnimatedResult(for step: OnboardingStep) {
+        guard step == .summary else { return }
+        animatedResultAmount = 0
+        withAnimation(.easeOut(duration: 0.8)) {
+            animatedResultAmount = Int(viewModel.resultAmount.rounded())
+        }
+    }
+
+    private var formattedAnimatedResult: String {
+        "\(animatedResultAmount.formatted(.number.grouping(.automatic))) kr"
     }
 }
 

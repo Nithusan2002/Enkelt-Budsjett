@@ -41,8 +41,9 @@ final class SporOkonomiUITests: XCTestCase {
         onboardingApp.launchArguments = ["UITEST_IN_MEMORY_STORE", "UITEST_DISABLE_FACEID"]
         onboardingApp.launch()
 
-        XCTAssertTrue(onboardingApp.navigationBars["Kom i gang"].waitForExistence(timeout: 5))
+        XCTAssertTrue(onboardingApp.staticTexts["Få kontroll på økonomien din"].waitForExistence(timeout: 5))
         XCTAssertTrue(onboardingApp.buttons["Kom i gang"].exists)
+        XCTAssertTrue(onboardingApp.buttons["Hopp over"].exists)
     }
 
     @MainActor
