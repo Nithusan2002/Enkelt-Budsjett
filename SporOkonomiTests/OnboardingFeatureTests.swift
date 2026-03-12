@@ -37,9 +37,10 @@ struct OnboardingFeatureTests {
         let viewModel = OnboardingViewModel(preference: preference)
 
         let order = viewModel.orderedSteps
-        #expect(order.count == 3)
+        #expect(order.count == 4)
         #expect(order.first == .intro)
         #expect(order[1] == .income)
+        #expect(order[2] == .goal)
         #expect(order.last == .summary)
     }
 
@@ -67,6 +68,26 @@ struct OnboardingFeatureTests {
 
         viewModel.monthlyIncomeText = "32 000"
         #expect(viewModel.isPrimaryDisabled == false)
+    }
+
+    @Test
+    @MainActor
+    func onboardingGoalStepRequiresValidAmountOnlyWhenGoalIsEnabled() {
+        let preference = UserPreference(onboardingCompleted: false)
+        let viewModel = OnboardingViewModel(preference: preference)
+
+        viewModel.currentStep = .goal
+        viewModel.wantsGoal = false
+        viewModel.goalAmountText = ""
+        #expect(viewModel.isPrimaryDisabled == false)
+
+        viewModel.wantsGoal = true
+        viewModel.goalAmountText = ""
+        #expect(viewModel.isPrimaryDisabled == true)
+
+        viewModel.goalAmountText = "250 000"
+        #expect(viewModel.isPrimaryDisabled == false)
+        #expect(viewModel.goalMonthlyPreviewText?.contains("kr per måned") == true)
     }
 
     @Test
@@ -170,11 +191,35 @@ struct OnboardingFeatureTests {
         let viewModel = OnboardingViewModel(preference: preference)
 
         viewModel.monthlyIncomeText = "32 000"
-        #expect(viewModel.summaryBodyText.contains("denne måneden"))
-        #expect(viewModel.summaryHelpText.contains("månedsoversikten"))
+        #expect(viewModel.summaryTitle == "Du er klar")
+        #expect(viewModel.summaryBodyText.contains("Du kan bruke ca."))
+        #expect(viewModel.summaryHelpText == "Basert på det du har lagt inn så langt.")
 
         viewModel.monthlyIncomeText = ""
-        #expect(viewModel.summaryBodyText.contains("oversikt over denne måneden"))
-        #expect(viewModel.summaryHelpText.contains("månedsoversikten"))
+        #expect(viewModel.summaryBodyText.contains("oversikt"))
+        #expect(viewModel.summaryHelpText == "Basert på det du har lagt inn så langt.")
+    }
+
+    @Test
+    @MainActor
+    func onboardingFinishCreatesGoalWhenOptionalGoalIsProvided() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+        let preference = UserPreference(onboardingCompleted: false)
+        context.insert(preference)
+        try context.save()
+
+        let goalDate = Calendar.current.date(from: DateComponents(year: 2028, month: 12, day: 1)) ?? .now
+        let viewModel = OnboardingViewModel(preference: preference)
+        viewModel.monthlyIncomeText = "32 000"
+        viewModel.wantsGoal = true
+        viewModel.goalAmountText = "250 000"
+        viewModel.goalDate = goalDate
+
+        viewModel.finish(preference: preference, context: context)
+
+        let goals = try context.fetch(FetchDescriptor<Goal>())
+        #expect(goals.count == 1)
+        #expect(goals[0].targetAmount == 250_000)
     }
 }

@@ -5,6 +5,12 @@ struct OnboardingView: View {
     @Environment(\.modelContext) private var modelContext
     let preference: UserPreference
     @StateObject private var viewModel: OnboardingViewModel
+    @FocusState private var focusedField: OnboardingInputField?
+
+    private enum OnboardingInputField {
+        case income
+        case goalAmount
+    }
 
     init(preference: UserPreference) {
         self.preference = preference
@@ -34,9 +40,14 @@ struct OnboardingView: View {
             .appKeyboardDismissToolbar()
             .onAppear {
                 viewModel.markCurrentStepSeen()
+                updateFocus(for: viewModel.currentStep)
             }
-            .onChange(of: viewModel.currentStep) { _, _ in
+            .onChange(of: viewModel.currentStep) { _, newStep in
                 viewModel.markCurrentStepSeen()
+                updateFocus(for: newStep)
+            }
+            .onChange(of: viewModel.wantsGoal) { _, _ in
+                updateFocus(for: viewModel.currentStep)
             }
             .alert(
                 "Kunne ikke lagre",
@@ -75,6 +86,8 @@ struct OnboardingView: View {
             introStep
         case .income:
             incomeStep
+        case .goal:
+            goalStep
         case .summary:
             summaryStep
         }
@@ -110,13 +123,80 @@ struct OnboardingView: View {
                 currencyField(
                     label: "Månedlig inntekt",
                     placeholder: "f.eks. 32 000",
-                    text: $viewModel.monthlyIncomeText
+                    text: $viewModel.monthlyIncomeText,
+                    field: .income
                 )
                 .padding(12)
                 .background(AppTheme.surface)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.divider, lineWidth: 1))
+
+                if let preview = viewModel.incomePreviewText {
+                    Text(preview)
+                        .appSecondaryStyle()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
+            .frame(maxWidth: 460, alignment: .leading)
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+        .padding(.top, 24)
+    }
+
+    private var goalStep: some View {
+        VStack(spacing: 18) {
+            VStack(spacing: 8) {
+                Text("Vil du spare mot et mål?")
+                    .appCardTitleStyle()
+                Text("Du kan legge det til nå eller vente til senere.")
+                    .appBodyStyle()
+            }
+            .multilineTextAlignment(.center)
+
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 10) {
+                    goalOptionButton(title: "Ja", isSelected: viewModel.wantsGoal) {
+                        viewModel.wantsGoal = true
+                    }
+
+                    goalOptionButton(title: "Ikke nå", isSelected: !viewModel.wantsGoal) {
+                        viewModel.wantsGoal = false
+                    }
+                }
+
+                if viewModel.wantsGoal {
+                    currencyField(
+                        label: "Målbeløp",
+                        placeholder: "f.eks. 250 000",
+                        text: $viewModel.goalAmountText,
+                        field: .goalAmount
+                    )
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Måldato")
+                            .appBodyStyle()
+                        DatePicker(
+                            "Måldato",
+                            selection: $viewModel.goalDate,
+                            displayedComponents: .date
+                        )
+                        .labelsHidden()
+                        .datePickerStyle(.compact)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .appInputShellStyle()
+                    }
+
+                    if let preview = viewModel.goalMonthlyPreviewText {
+                        Text(preview)
+                            .appSecondaryStyle()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+            }
+            .padding(12)
+            .background(AppTheme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.divider, lineWidth: 1))
             .frame(maxWidth: 460, alignment: .leading)
         }
         .frame(maxWidth: .infinity, alignment: .center)
@@ -136,8 +216,15 @@ struct OnboardingView: View {
             .multilineTextAlignment(.center)
 
             VStack(alignment: .leading, spacing: 10) {
-                if let amountLabel = viewModel.summaryAmountLabel {
-                    summaryRow("Månedlig inntekt", value: amountLabel)
+                if let amountLabel = viewModel.summaryPreviewAmountLabel {
+                    Text(amountLabel)
+                        .font(.system(size: 28, weight: .semibold, design: .default))
+                        .foregroundStyle(AppTheme.textPrimary)
+                        .monospacedDigit()
+                }
+
+                if let goalContext = viewModel.summaryGoalContextText {
+                    summaryRow("Sparing", value: goalContext)
                 }
 
                 Text(viewModel.summaryHelpText)
@@ -199,7 +286,7 @@ struct OnboardingView: View {
         }
     }
 
-    private func currencyField(label: String, placeholder: String, text: Binding<String>) -> some View {
+    private func currencyField(label: String, placeholder: String, text: Binding<String>, field: OnboardingInputField) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(label)
                 .appBodyStyle()
@@ -210,9 +297,27 @@ struct OnboardingView: View {
                     .keyboardType(.numberPad)
                     .multilineTextAlignment(.trailing)
                     .monospacedDigit()
+                    .focused($focusedField, equals: field)
             }
             .appInputShellStyle()
         }
+    }
+
+    private func goalOptionButton(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(isSelected ? AppTheme.onPrimary : AppTheme.textPrimary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(isSelected ? AppTheme.primary : AppTheme.surfaceElevated)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(isSelected ? AppTheme.primary : AppTheme.divider, lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
     }
 
     private func monetaryBinding(_ source: Binding<String>) -> Binding<String> {
@@ -241,6 +346,17 @@ struct OnboardingView: View {
             result.append(char)
         }
         return String(result.reversed())
+    }
+
+    private func updateFocus(for step: OnboardingStep) {
+        switch step {
+        case .income:
+            focusedField = .income
+        case .goal:
+            focusedField = viewModel.wantsGoal ? .goalAmount : nil
+        default:
+            focusedField = nil
+        }
     }
 }
 

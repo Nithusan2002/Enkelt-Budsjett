@@ -5,6 +5,7 @@ import SwiftData
 enum OnboardingStep: Int, CaseIterable {
     case intro
     case income
+    case goal
     case summary
 
     static func fromStoredValue(_ rawValue: Int) -> OnboardingStep {
@@ -13,6 +14,8 @@ enum OnboardingStep: Int, CaseIterable {
             return .intro
         case income.rawValue:
             return .income
+        case goal.rawValue:
+            return .goal
         default:
             return .summary
         }
@@ -26,6 +29,9 @@ final class OnboardingViewModel: ObservableObject {
     @Published var tone: AppToneStyle
 
     @Published var monthlyIncomeText = ""
+    @Published var wantsGoal = false
+    @Published var goalAmountText = ""
+    @Published var goalDate: Date
 
     @Published var errorMessage: String?
 
@@ -36,6 +42,7 @@ final class OnboardingViewModel: ObservableObject {
         self.focus = preference.onboardingFocus
         self.tone = preference.toneStyle
         self.currentStep = OnboardingStep.fromStoredValue(preference.onboardingCurrentStep)
+        self.goalDate = Calendar.current.date(byAdding: .year, value: 2, to: .now) ?? .now
     }
 
     var orderedSteps: [OnboardingStep] {
@@ -65,6 +72,8 @@ final class OnboardingViewModel: ObservableObject {
             return "Kom i gang"
         case .income:
             return "Fortsett"
+        case .goal:
+            return "Fortsett"
         case .summary:
             return "Gå til oversikt"
         }
@@ -79,30 +88,47 @@ final class OnboardingViewModel: ObservableObject {
         case .income:
             let trimmed = monthlyIncomeText.trimmingCharacters(in: .whitespacesAndNewlines)
             return !trimmed.isEmpty && parseDouble(trimmed) == nil
+        case .goal:
+            guard wantsGoal else { return false }
+            guard let goalAmount else { return true }
+            return goalAmount <= 0
         default:
             return false
         }
     }
 
     var summaryTitle: String {
-        "Slik starter oversikten din"
+        "Du er klar"
     }
 
     var summaryBodyText: String {
         hasMonthlyIncome
-            ? "Med inntekten din som utgangspunkt kan du følge hva du har igjen denne måneden."
-            : "Du kan fortsatt få oversikt over denne måneden uten oppsett."
+            ? "Du kan bruke ca. \(formattedPreviewAmount) denne måneden"
+            : "Du kan fortsatt komme i gang med oversikt uten oppsett."
     }
 
     var summaryHelpText: String {
-        hasMonthlyIncome
-            ? "Legg til utgifter underveis, så blir månedsoversikten mer presis."
-            : "Legg til inntekt eller utgifter når du vil, så bygger månedsoversikten seg opp."
+        "Basert på det du har lagt inn så langt."
     }
 
-    var summaryAmountLabel: String? {
-        guard hasMonthlyIncome, let monthlyIncome else { return nil }
-        return formatNOK(monthlyIncome)
+    var summaryPreviewAmountLabel: String? {
+        guard hasMonthlyIncome else { return nil }
+        return "\(formattedPreviewAmount) denne måneden"
+    }
+
+    var incomePreviewText: String? {
+        guard hasMonthlyIncome else { return nil }
+        return "Dette blir utgangspunktet ditt hver måned."
+    }
+
+    var goalMonthlyPreviewText: String? {
+        guard wantsGoal, let monthlyGoalContribution else { return nil }
+        return "Du bør spare ca. \(formatWholeKroner(monthlyGoalContribution)) per måned."
+    }
+
+    var summaryGoalContextText: String? {
+        guard wantsGoal, let monthlyGoalContribution else { return nil }
+        return "\(formatWholeKroner(monthlyGoalContribution)) per måned mot målet ditt"
     }
 
     var hasMonthlyIncome: Bool {
@@ -111,6 +137,34 @@ final class OnboardingViewModel: ObservableObject {
 
     private var monthlyIncome: Double? {
         parseDouble(monthlyIncomeText)
+    }
+
+    private var goalAmount: Double? {
+        parseDouble(goalAmountText)
+    }
+
+    private var monthlyGoalContribution: Double? {
+        guard let goalAmount, goalAmount > 0 else { return nil }
+        let months = monthsUntilGoal
+        guard months > 0 else { return goalAmount }
+        return goalAmount / Double(months)
+    }
+
+    private var monthsUntilGoal: Int {
+        let calendar = Calendar.current
+        let start = calendar.date(from: calendar.dateComponents([.year, .month], from: .now)) ?? .now
+        let end = calendar.date(from: calendar.dateComponents([.year, .month], from: goalDate)) ?? goalDate
+        let delta = calendar.dateComponents([.month], from: start, to: end).month ?? 0
+        return max(delta, 1)
+    }
+
+    private var summaryPreviewAmount: Double? {
+        guard let monthlyIncome else { return nil }
+        return max(monthlyIncome - (monthlyGoalContribution ?? 0), 0)
+    }
+
+    private var formattedPreviewAmount: String {
+        formatWholeKroner(summaryPreviewAmount ?? 0)
     }
 
     func markCurrentStepSeen() {
@@ -167,8 +221,8 @@ final class OnboardingViewModel: ObservableObject {
                 focus: .both,
                 tone: tone,
                 firstWealthTotal: nil,
-                goalAmount: nil,
-                goalDate: nil,
+                goalAmount: wantsGoal ? goalAmount : nil,
+                goalDate: wantsGoal ? goalDate : nil,
                 snapshotValues: [:],
                 snapshotInputProvided: false,
                 budgetCategories: [],
@@ -208,6 +262,7 @@ final class OnboardingViewModel: ObservableObject {
         switch step {
         case .intro: return "intro"
         case .income: return "income"
+        case .goal: return "goal"
         case .summary: return "summary"
         }
     }
@@ -228,5 +283,10 @@ final class OnboardingViewModel: ObservableObject {
     private func setError(_ message: String) {
         errorMessage = message
         logEvent("onboarding_error")
+    }
+
+    private func formatWholeKroner(_ value: Double) -> String {
+        let rounded = Int(value.rounded())
+        return "\(rounded.formatted(.number.grouping(.automatic))) kr"
     }
 }
