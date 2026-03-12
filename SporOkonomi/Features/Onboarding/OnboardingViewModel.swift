@@ -144,12 +144,16 @@ final class OnboardingViewModel: ObservableObject {
 
     var secondaryButtonTitle: String? {
         switch currentStep {
+        case .intro:
+            return "Hopp over introen"
+        case .goals:
+            return "Ikke nå"
+        case .income:
+            return "Legg inn senere"
         case .summary:
             return nil
         case .fixedCosts:
             return "Ikke nå"
-        default:
-            return "Hopp over"
         }
     }
 
@@ -173,6 +177,18 @@ final class OnboardingViewModel: ObservableObject {
 
     var introBodyText: String {
         "Se hvor mye du har igjen hver måned."
+    }
+
+    var introPreviewEyebrow: String {
+        "Eksempel"
+    }
+
+    var introPreviewTitle: String {
+        "Slik kan oversikten se ut"
+    }
+
+    var introPreviewFootnote: String {
+        "Tallene her er bare et eksempel."
     }
 
     var summaryTitle: String {
@@ -214,7 +230,15 @@ final class OnboardingViewModel: ObservableObject {
 
     var fixedCostHelpText: String? {
         guard !selectedFixedCosts.isEmpty else { return nil }
-        return "Vi bruker dette til et raskt estimat nå."
+        return "Bare for et raskt anslag akkurat nå."
+    }
+
+    var fixedCostsBodyText: String {
+        "Kryss av det du vil ha med nå."
+    }
+
+    var fixedCostsSupportText: String {
+        "Du kan fylle inn resten senere."
     }
 
     var monthlyIncome: Double? {
@@ -280,11 +304,21 @@ final class OnboardingViewModel: ObservableObject {
     }
 
     func secondaryAction(preference: UserPreference, context: ModelContext) {
-        if currentStep == .fixedCosts {
+        switch currentStep {
+        case .goals:
+            selectedGoals.removeAll()
+            focus = .both
+            next(preference: preference, context: context)
+        case .income:
+            monthlyIncomeText = ""
+            next(preference: preference, context: context)
+        case .fixedCosts:
             selectedFixedCosts.removeAll()
             next(preference: preference, context: context)
-        } else {
-            skipAll(preference: preference, context: context)
+        case .intro:
+            next(preference: preference, context: context)
+        case .summary:
+            break
         }
     }
 
