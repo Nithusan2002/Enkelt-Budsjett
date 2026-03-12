@@ -19,36 +19,39 @@ struct OnboardingView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                backgroundLayer
+            GeometryReader { geometry in
+                ZStack {
+                    backgroundLayer
 
-                VStack(spacing: 12) {
-                    topBar
+                    VStack(spacing: 12) {
+                        topBar
 
-                    ScrollView(showsIndicators: false) {
-                        VStack(alignment: .leading, spacing: 18) {
-                            ZStack {
-                                stepContent
-                                    .id(viewModel.currentStep)
-                                    .transition(
-                                        .asymmetric(
-                                            insertion: .opacity.combined(with: .move(edge: .trailing)),
-                                            removal: .opacity.combined(with: .move(edge: .leading))
+                        ScrollView(showsIndicators: false) {
+                            VStack(alignment: .leading, spacing: 18) {
+                                ZStack {
+                                    stepContent
+                                        .id(viewModel.currentStep)
+                                        .transition(
+                                            .asymmetric(
+                                                insertion: .opacity.combined(with: .move(edge: .trailing)),
+                                                removal: .opacity.combined(with: .move(edge: .leading))
+                                            )
                                         )
-                                    )
-                            }
-                            .frame(maxWidth: .infinity, alignment: .center)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .center)
 
-                            footerButtons
+                                footerButtons
+                            }
+                            .frame(minHeight: geometry.size.height - 120, alignment: .top)
+                            .padding(.horizontal)
+                            .padding(.top, 6)
+                            .padding(.bottom, max(18, geometry.safeAreaInsets.bottom + 8))
+                            .frame(maxWidth: 560, alignment: .center)
+                            .frame(maxWidth: .infinity, alignment: .center)
                         }
-                        .padding(.horizontal)
-                        .padding(.bottom, 18)
-                        .frame(maxWidth: 560, alignment: .center)
-                        .frame(maxWidth: .infinity, alignment: .center)
                     }
                 }
             }
-            .padding(.vertical)
             .navigationTitle(viewModel.showsProgressHeader ? "Kom i gang" : "")
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
@@ -204,7 +207,7 @@ struct OnboardingView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .center)
-        .padding(.top, 54)
+        .padding(.top, 24)
     }
 
     private var goalsStep: some View {
