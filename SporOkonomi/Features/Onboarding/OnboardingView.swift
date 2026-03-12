@@ -37,7 +37,6 @@ struct OnboardingView: View {
             .padding(.vertical)
             .background(AppTheme.background)
             .navigationTitle("Kom i gang")
-            .appKeyboardDismissToolbar()
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
