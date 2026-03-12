@@ -46,6 +46,23 @@ struct OnboardingFeatureTests {
 
     @Test
     @MainActor
+    func onboardingIntroUsesWelcomeScreenHierarchy() {
+        let preference = UserPreference(onboardingCompleted: false)
+        let viewModel = OnboardingViewModel(preference: preference)
+
+        viewModel.currentStep = .intro
+
+        #expect(viewModel.showsProgressHeader == false)
+        #expect(viewModel.showsLoginAction == true)
+        #expect(viewModel.primaryButtonTitle == "Kom i gang")
+        #expect(viewModel.introTitle == "Få roligere oversikt over økonomien")
+        #expect(viewModel.introBodyText == "Se hva du har igjen denne måneden uten komplisert oppsett.")
+        #expect(viewModel.introPreviewLabel == "Tilgjengelig denne måneden")
+        #expect(viewModel.introPreviewAmount == "5 560 kr")
+    }
+
+    @Test
+    @MainActor
     func onboardingSkipIsAvailableOnAllSteps() {
         let preference = UserPreference(onboardingCompleted: false)
         let viewModel = OnboardingViewModel(preference: preference)

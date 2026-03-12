@@ -66,6 +66,14 @@ final class OnboardingViewModel: ObservableObject {
         "Steg \(currentStepIndex) av \(totalSteps)"
     }
 
+    var showsProgressHeader: Bool {
+        currentStep != .intro
+    }
+
+    var showsLoginAction: Bool {
+        currentStep == .intro
+    }
+
     var primaryButtonTitle: String {
         switch currentStep {
         case .intro:
@@ -133,6 +141,30 @@ final class OnboardingViewModel: ObservableObject {
     var summaryGoalContextText: String? {
         guard wantsGoal, let monthlyGoalContribution else { return nil }
         return "\(formatWholeKroner(monthlyGoalContribution)) per måned mot målet ditt"
+    }
+
+    var introTitle: String {
+        "Få roligere oversikt over økonomien"
+    }
+
+    var introBodyText: String {
+        "Se hva du har igjen denne måneden uten komplisert oppsett."
+    }
+
+    var introPreviewLabel: String {
+        "Tilgjengelig denne måneden"
+    }
+
+    var introPreviewAmount: String {
+        "5 560 kr"
+    }
+
+    var introPreviewSummary: String {
+        "18 940 kr / 24 500 kr"
+    }
+
+    var introPreviewStatus: String {
+        "Innenfor budsjettet"
     }
 
     var hasMonthlyIncome: Bool {

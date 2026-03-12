@@ -3,9 +3,12 @@ import SwiftData
 
 struct OnboardingView: View {
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var sessionStore: SessionStore
     let preference: UserPreference
     @StateObject private var viewModel: OnboardingViewModel
     @FocusState private var focusedField: OnboardingInputField?
+    @State private var emailFlow: EmailAuthMode?
+    @State private var showLoginOptions = false
 
     private enum OnboardingInputField {
         case income
@@ -59,6 +62,38 @@ struct OnboardingView: View {
             .onChange(of: viewModel.wantsGoal) { _, _ in
                 updateFocus(for: viewModel.currentStep)
             }
+            .confirmationDialog("Logg inn", isPresented: $showLoginOptions, titleVisibility: .visible) {
+                Button("Logg inn med Google") {
+                    Task {
+                        await sessionStore.signInWithGoogle(preference: preference, context: modelContext)
+                    }
+                }
+                Button("Logg inn med e-post") {
+                    emailFlow = .signIn
+                }
+                Button("Avbryt", role: .cancel) {}
+            }
+            .sheet(item: $emailFlow) { mode in
+                EmailAuthSheetView(mode: mode) { email, password, displayName in
+                    switch mode {
+                    case .signUp:
+                        await sessionStore.createAccountWithEmail(
+                            email: email,
+                            password: password,
+                            displayName: displayName,
+                            preference: preference,
+                            context: modelContext
+                        )
+                    case .signIn:
+                        await sessionStore.signInWithEmail(
+                            email: email,
+                            password: password,
+                            preference: preference,
+                            context: modelContext
+                        )
+                    }
+                }
+            }
             .alert(
                 "Kunne ikke lagre",
                 isPresented: Binding(
@@ -71,6 +106,19 @@ struct OnboardingView: View {
                 }
             } message: {
                 Text(viewModel.errorMessage ?? "")
+            }
+            .alert(
+                "Konto",
+                isPresented: Binding(
+                    get: { sessionStore.authErrorMessage != nil },
+                    set: { if !$0 { sessionStore.clearError() } }
+                )
+            ) {
+                Button("OK", role: .cancel) {
+                    sessionStore.clearError()
+                }
+            } message: {
+                Text(sessionStore.authErrorMessage ?? "")
             }
         }
     }
@@ -97,18 +145,31 @@ struct OnboardingView: View {
                         .frame(width: 36, height: 36)
                 }
 
-                Text(viewModel.progressText)
-                    .appSecondaryStyle()
-                    .frame(maxWidth: .infinity, alignment: .center)
+                if viewModel.showsProgressHeader {
+                    Text(viewModel.progressText)
+                        .appSecondaryStyle()
+                        .frame(maxWidth: .infinity, alignment: .center)
 
-                Color.clear
-                    .frame(width: 36, height: 36)
+                    Color.clear
+                        .frame(width: 36, height: 36)
+                } else {
+                    Spacer()
+
+                    Button("Logg inn") {
+                        showLoginOptions = true
+                    }
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(AppTheme.textSecondary)
+                    .buttonStyle(.plain)
+                }
             }
 
-            ProgressView(value: viewModel.progressFraction)
-                .tint(AppTheme.primary)
-                .frame(maxWidth: 220)
-                .frame(maxWidth: .infinity, alignment: .center)
+            if viewModel.showsProgressHeader {
+                ProgressView(value: viewModel.progressFraction)
+                    .tint(AppTheme.primary)
+                    .frame(maxWidth: 220)
+                    .frame(maxWidth: .infinity, alignment: .center)
+            }
         }
         .padding(.horizontal)
     }
@@ -128,19 +189,19 @@ struct OnboardingView: View {
     }
 
     private var introStep: some View {
-        VStack(spacing: 18) {
-            heroIcon(systemName: "eye")
+        VStack(spacing: 26) {
+            introPreviewCard
 
             VStack(spacing: 8) {
-                Text("Få roligere oversikt")
+                Text(viewModel.introTitle)
                     .appCardTitleStyle()
-                Text("Spor økonomi hjelper deg å se hva du har igjen denne måneden, uten komplisert oppsett.")
+                Text(viewModel.introBodyText)
                     .appBodyStyle()
             }
             .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, alignment: .center)
-        .padding(.top, 36)
+        .padding(.top, 56)
     }
 
     private var incomeStep: some View {
@@ -308,6 +369,41 @@ struct OnboardingView: View {
         }
     }
 
+    private var introPreviewCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(viewModel.introPreviewLabel)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(AppTheme.textSecondary)
+
+            Text(viewModel.introPreviewAmount)
+                .font(.system(size: 40, weight: .bold, design: .rounded))
+                .foregroundStyle(AppTheme.textPrimary)
+                .monospacedDigit()
+
+            Text(viewModel.introPreviewSummary)
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(AppTheme.textPrimary)
+                .monospacedDigit()
+
+            ProgressView(value: 0.77)
+                .tint(AppTheme.positive)
+                .frame(maxWidth: .infinity)
+                .scaleEffect(x: 1, y: 1.15, anchor: .center)
+
+            Text(viewModel.introPreviewStatus)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(AppTheme.positive)
+        }
+        .frame(maxWidth: 460, alignment: .leading)
+        .padding(20)
+        .background(AppTheme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 24))
+        .overlay(
+            RoundedRectangle(cornerRadius: 24)
+                .stroke(AppTheme.divider, lineWidth: 1)
+        )
+    }
+
     private func summaryRow(_ label: String, value: String) -> some View {
         HStack(alignment: .firstTextBaseline) {
             Text(label)
@@ -397,6 +493,7 @@ struct OnboardingView: View {
 #Preview {
     OnboardingView(preference: OnboardingPreviewData.preference)
         .modelContainer(OnboardingPreviewData.container)
+        .environmentObject(SessionStore())
 }
 
 private enum OnboardingPreviewData {
