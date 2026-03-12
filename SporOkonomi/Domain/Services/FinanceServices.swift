@@ -727,16 +727,61 @@ enum BootstrapService {
     @discardableResult
     private static func ensureDefaultInvestmentBuckets(context: ModelContext) -> Bool {
         let existing = (try? context.fetch(FetchDescriptor<InvestmentBucket>())) ?? []
-        let existingIDs = Set(existing.map(\.id))
         let defaults: [(String, String, Int)] = [
             ("bucket_fond", "Fond", 1),
             ("bucket_aksjer", "Aksjer", 2),
             ("bucket_krypto", "Krypto", 3),
             ("bucket_kontanter", "Kontanter", 4)
         ]
+        let legacyIDMap: [String: String] = [
+            "funds": "bucket_fond",
+            "stocks": "bucket_aksjer",
+            "bsu": "bucket_kontanter",
+            "buffer": "bucket_kontanter"
+        ]
 
-        var didInsert = false
-        for item in defaults where !existingIDs.contains(item.0) {
+        func normalizedBucketName(_ name: String) -> String {
+            name
+                .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "nb_NO"))
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        var bucketsByCanonicalID: [String: InvestmentBucket] = [:]
+        var bucketsByNormalizedName: [String: InvestmentBucket] = [:]
+        var duplicatesToDelete: [InvestmentBucket] = []
+        var didChange = false
+
+        for bucket in existing {
+            let canonicalID = legacyIDMap[bucket.id] ?? bucket.id
+            let canonicalName = defaults.first(where: { $0.0 == canonicalID })?.1 ?? bucket.name
+            let normalizedName = normalizedBucketName(canonicalName)
+
+            if let survivor = bucketsByCanonicalID[canonicalID] ?? bucketsByNormalizedName[normalizedName] {
+                if survivor !== bucket {
+                    duplicatesToDelete.append(bucket)
+                    didChange = true
+                }
+                continue
+            }
+
+            if bucket.id != canonicalID {
+                bucket.id = canonicalID
+                didChange = true
+            }
+            if bucket.name != canonicalName {
+                bucket.name = canonicalName
+                didChange = true
+            }
+
+            bucketsByCanonicalID[canonicalID] = bucket
+            bucketsByNormalizedName[normalizedName] = bucket
+        }
+
+        for bucket in duplicatesToDelete {
+            context.delete(bucket)
+        }
+
+        for item in defaults where bucketsByCanonicalID[item.0] == nil {
             context.insert(
                 InvestmentBucket(
                     id: item.0,
@@ -746,9 +791,9 @@ enum BootstrapService {
                     sortOrder: item.2
                 )
             )
-            didInsert = true
+            didChange = true
         }
-        return didInsert
+        return didChange
     }
 
     @discardableResult

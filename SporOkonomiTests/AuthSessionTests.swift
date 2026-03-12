@@ -83,6 +83,36 @@ struct AuthSessionTests {
 
     @Test
     @MainActor
+    func bootstrapMigratesLegacyInvestmentBucketsWithoutDuplicates() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+
+        context.insert(InvestmentBucket(id: "funds", name: "Fond", isDefault: true, sortOrder: 9))
+        context.insert(InvestmentBucket(id: "stocks", name: "Aksjer", isDefault: true, sortOrder: 8))
+        context.insert(InvestmentBucket(id: "bsu", name: "Kontanter", isDefault: true, sortOrder: 7))
+        context.insert(InvestmentBucket(id: "buffer", name: "Kontanter", isDefault: true, sortOrder: 6))
+        try context.save()
+
+        try BootstrapService.ensurePreference(context: context)
+
+        let buckets = try context.fetch(FetchDescriptor<InvestmentBucket>())
+        let names = buckets.map(\.name)
+        let ids = Set(buckets.map(\.id))
+
+        #expect(names.filter { $0 == "Fond" }.count == 1)
+        #expect(names.filter { $0 == "Aksjer" }.count == 1)
+        #expect(names.filter { $0 == "Kontanter" }.count == 1)
+        #expect(ids.contains("bucket_fond"))
+        #expect(ids.contains("bucket_aksjer"))
+        #expect(ids.contains("bucket_kontanter"))
+        #expect(!ids.contains("funds"))
+        #expect(!ids.contains("stocks"))
+        #expect(!ids.contains("bsu"))
+        #expect(!ids.contains("buffer"))
+    }
+
+    @Test
+    @MainActor
     func bootstrapKeepsExistingLegacyCategoriesUntouched() throws {
         let container = try TestModelContainerFactory.makeInMemoryContainer()
         let context = container.mainContext
