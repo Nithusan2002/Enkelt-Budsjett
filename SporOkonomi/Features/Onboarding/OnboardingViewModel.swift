@@ -73,7 +73,7 @@ final class OnboardingViewModel: ObservableObject {
     var primaryButtonTitle: String {
         switch currentStep {
         case .intro:
-            return "Kom i gang"
+            return "Kom i gang på 30 sek"
         case .income:
             return "Fortsett"
         case .goal:
@@ -140,15 +140,19 @@ final class OnboardingViewModel: ObservableObject {
     }
 
     var introTitle: String {
-        "Få roligere oversikt over økonomien"
+        "Få kontroll på økonomien din"
     }
 
     var introBodyText: String {
-        "Se hva du har igjen denne måneden uten komplisert oppsett."
+        "Se hvor mye du faktisk har igjen hver måned."
+    }
+
+    var introSupportText: String {
+        "Se hva du har igjen, uten komplisert oppsett."
     }
 
     var introPreviewLabel: String {
-        "Tilgjengelig denne måneden"
+        "Eksempel på oversikt"
     }
 
     var introPreviewAmount: String {

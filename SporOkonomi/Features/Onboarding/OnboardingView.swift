@@ -19,23 +19,26 @@ struct OnboardingView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 12) {
-                topBar
+            ZStack {
+                backgroundLayer
 
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 14) {
-                        stepContent
-                        footerButtons
-                            .padding(.top, 6)
+                VStack(spacing: 12) {
+                    topBar
+
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 14) {
+                            stepContent
+                            footerButtons
+                                .padding(.top, viewModel.currentStep == .intro ? 2 : 6)
+                        }
+                        .padding(.horizontal)
+                        .padding(.bottom, 16)
+                        .frame(maxWidth: 560, alignment: .center)
+                        .frame(maxWidth: .infinity, alignment: .center)
                     }
-                    .padding(.horizontal)
-                    .padding(.bottom, 16)
-                    .frame(maxWidth: 560, alignment: .center)
-                    .frame(maxWidth: .infinity, alignment: .center)
                 }
             }
             .padding(.vertical)
-            .background(AppTheme.background)
             .navigationTitle(viewModel.showsProgressHeader ? "Kom i gang" : "")
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
@@ -75,6 +78,28 @@ struct OnboardingView: View {
         }
     }
 
+    private var backgroundLayer: some View {
+        ZStack(alignment: .top) {
+            AppTheme.background
+                .ignoresSafeArea()
+
+            if viewModel.currentStep == .intro {
+                LinearGradient(
+                    colors: [
+                        AppTheme.primary.opacity(0.22),
+                        AppTheme.primary.opacity(0.08),
+                        AppTheme.background
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(maxHeight: 380, alignment: .top)
+                .ignoresSafeArea(edges: .top)
+                .allowsHitTesting(false)
+            }
+        }
+    }
+
     private var topBar: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -106,8 +131,8 @@ struct OnboardingView: View {
                         .frame(width: 36, height: 36)
                 } else {
                     Text("Spor økonomi")
-                        .font(.subheadline.weight(.semibold))
-                        .tracking(0.2)
+                        .font(.caption.weight(.semibold))
+                        .tracking(0.6)
                         .foregroundStyle(AppTheme.textSecondary)
                         .frame(maxWidth: .infinity)
                 }
@@ -121,7 +146,7 @@ struct OnboardingView: View {
             }
         }
         .padding(.horizontal)
-        .padding(.top, viewModel.showsProgressHeader ? 0 : 28)
+        .padding(.top, viewModel.showsProgressHeader ? 0 : 34)
     }
 
     @ViewBuilder
@@ -139,19 +164,26 @@ struct OnboardingView: View {
     }
 
     private var introStep: some View {
-        VStack(spacing: 26) {
+        VStack(spacing: 28) {
             introPreviewCard
 
-            VStack(spacing: 8) {
+            VStack(spacing: 10) {
                 Text(viewModel.introTitle)
-                    .appCardTitleStyle()
+                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                    .foregroundStyle(AppTheme.textPrimary)
+                    .multilineTextAlignment(.center)
                 Text(viewModel.introBodyText)
                     .appBodyStyle()
             }
             .multilineTextAlignment(.center)
+
+            Text(viewModel.introSupportText)
+                .appSecondaryStyle()
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 360)
         }
         .frame(maxWidth: .infinity, alignment: .center)
-        .padding(.top, 56)
+        .padding(.top, 48)
     }
 
     private var incomeStep: some View {
@@ -322,7 +354,8 @@ struct OnboardingView: View {
     private var introPreviewCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(viewModel.introPreviewLabel)
-                .font(.subheadline.weight(.medium))
+                .font(.caption.weight(.semibold))
+                .tracking(0.3)
                 .foregroundStyle(AppTheme.textSecondary)
 
             Text(viewModel.introPreviewAmount)
@@ -346,12 +379,13 @@ struct OnboardingView: View {
         }
         .frame(maxWidth: 460, alignment: .leading)
         .padding(20)
-        .background(AppTheme.surface)
+        .background(AppTheme.surface.opacity(0.88))
         .clipShape(RoundedRectangle(cornerRadius: 24))
         .overlay(
             RoundedRectangle(cornerRadius: 24)
                 .stroke(AppTheme.divider, lineWidth: 1)
         )
+        .shadow(color: AppTheme.shadow.opacity(0.12), radius: 18, y: 10)
     }
 
     private func summaryRow(_ label: String, value: String) -> some View {
