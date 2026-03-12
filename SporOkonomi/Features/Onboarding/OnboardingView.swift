@@ -67,9 +67,33 @@ struct OnboardingView: View {
 
     private var topBar: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(viewModel.progressText)
-                .appSecondaryStyle()
-                .frame(maxWidth: .infinity, alignment: .center)
+            HStack {
+                if viewModel.canGoBack {
+                    Button {
+                        viewModel.goBack(preference: preference, context: modelContext)
+                    } label: {
+                        Label("Tilbake", systemImage: "chevron.left")
+                            .labelStyle(.iconOnly)
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(AppTheme.textPrimary)
+                            .frame(width: 36, height: 36)
+                            .background(AppTheme.surface)
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Gå tilbake")
+                } else {
+                    Color.clear
+                        .frame(width: 36, height: 36)
+                }
+
+                Text(viewModel.progressText)
+                    .appSecondaryStyle()
+                    .frame(maxWidth: .infinity, alignment: .center)
+
+                Color.clear
+                    .frame(width: 36, height: 36)
+            }
 
             ProgressView(value: viewModel.progressFraction)
                 .tint(AppTheme.primary)

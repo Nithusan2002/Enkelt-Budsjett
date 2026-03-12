@@ -83,6 +83,10 @@ final class OnboardingViewModel: ObservableObject {
         "Hopp over"
     }
 
+    var canGoBack: Bool {
+        orderedSteps.firstIndex(of: currentStep).map { $0 > 0 } ?? false
+    }
+
     var isPrimaryDisabled: Bool {
         switch currentStep {
         case .income:
@@ -204,6 +208,21 @@ final class OnboardingViewModel: ObservableObject {
 
     func secondaryAction(preference: UserPreference, context: ModelContext) {
         skipAll(preference: preference, context: context)
+    }
+
+    func goBack(preference: UserPreference, context: ModelContext) {
+        guard let idx = orderedSteps.firstIndex(of: currentStep), idx > 0 else { return }
+
+        do {
+            try saveStepState(preference: preference, context: context)
+            let previousStep = orderedSteps[idx - 1]
+            preference.onboardingCurrentStep = previousStep.rawValue
+            try context.guardedSave(feature: "Onboarding", operation: "save_step_back_transition")
+            currentStep = previousStep
+        } catch {
+            let message = (error as? LocalizedError)?.errorDescription ?? "Kunne ikke gå tilbake. Prøv igjen."
+            setError(message)
+        }
     }
 
     func skipAll(preference: UserPreference, context: ModelContext) {

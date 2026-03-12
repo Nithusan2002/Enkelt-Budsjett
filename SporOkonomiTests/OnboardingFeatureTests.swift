@@ -58,6 +58,34 @@ struct OnboardingFeatureTests {
 
     @Test
     @MainActor
+    func onboardingCanGoBackOneStepAtATime() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+        let preference = UserPreference(onboardingCompleted: false)
+        context.insert(preference)
+        try context.save()
+
+        let viewModel = OnboardingViewModel(preference: preference)
+
+        #expect(viewModel.canGoBack == false)
+
+        viewModel.currentStep = .goal
+        #expect(viewModel.canGoBack == true)
+
+        viewModel.goBack(preference: preference, context: context)
+        #expect(viewModel.currentStep == .income)
+        #expect(preference.onboardingCurrentStep == OnboardingStep.income.rawValue)
+
+        viewModel.goBack(preference: preference, context: context)
+        #expect(viewModel.currentStep == .intro)
+        #expect(preference.onboardingCurrentStep == OnboardingStep.intro.rawValue)
+
+        viewModel.goBack(preference: preference, context: context)
+        #expect(viewModel.currentStep == .intro)
+    }
+
+    @Test
+    @MainActor
     func onboardingIncomeStepAllowsEmptyValueButRejectsInvalidInput() {
         let preference = UserPreference(onboardingCompleted: false)
         let viewModel = OnboardingViewModel(preference: preference)
