@@ -155,8 +155,9 @@ struct OnboardingView: View {
                 } else {
                     ZStack {
                         Text("Spor økonomi")
-                            .font(.title3.weight(.semibold))
-                            .foregroundStyle(AppTheme.textPrimary)
+                            .font(.subheadline.weight(.semibold))
+                            .tracking(0.2)
+                            .foregroundStyle(AppTheme.textSecondary)
 
                         HStack {
                             Spacer()
@@ -181,7 +182,7 @@ struct OnboardingView: View {
             }
         }
         .padding(.horizontal)
-        .padding(.top, viewModel.showsProgressHeader ? 0 : 20)
+        .padding(.top, viewModel.showsProgressHeader ? 0 : 28)
     }
 
     @ViewBuilder
