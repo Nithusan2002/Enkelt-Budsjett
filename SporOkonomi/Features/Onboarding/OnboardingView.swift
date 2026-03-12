@@ -3,12 +3,9 @@ import SwiftData
 
 struct OnboardingView: View {
     @Environment(\.modelContext) private var modelContext
-    @EnvironmentObject private var sessionStore: SessionStore
     let preference: UserPreference
     @StateObject private var viewModel: OnboardingViewModel
     @FocusState private var focusedField: OnboardingInputField?
-    @State private var emailFlow: EmailAuthMode?
-    @State private var showLoginOptions = false
 
     private enum OnboardingInputField {
         case income
@@ -62,38 +59,6 @@ struct OnboardingView: View {
             .onChange(of: viewModel.wantsGoal) { _, _ in
                 updateFocus(for: viewModel.currentStep)
             }
-            .confirmationDialog("Logg inn", isPresented: $showLoginOptions, titleVisibility: .visible) {
-                Button("Logg inn med Google") {
-                    Task {
-                        await sessionStore.signInWithGoogle(preference: preference, context: modelContext)
-                    }
-                }
-                Button("Logg inn med e-post") {
-                    emailFlow = .signIn
-                }
-                Button("Avbryt", role: .cancel) {}
-            }
-            .sheet(item: $emailFlow) { mode in
-                EmailAuthSheetView(mode: mode) { email, password, displayName in
-                    switch mode {
-                    case .signUp:
-                        await sessionStore.createAccountWithEmail(
-                            email: email,
-                            password: password,
-                            displayName: displayName,
-                            preference: preference,
-                            context: modelContext
-                        )
-                    case .signIn:
-                        await sessionStore.signInWithEmail(
-                            email: email,
-                            password: password,
-                            preference: preference,
-                            context: modelContext
-                        )
-                    }
-                }
-            }
             .alert(
                 "Kunne ikke lagre",
                 isPresented: Binding(
@@ -106,19 +71,6 @@ struct OnboardingView: View {
                 }
             } message: {
                 Text(viewModel.errorMessage ?? "")
-            }
-            .alert(
-                "Konto",
-                isPresented: Binding(
-                    get: { sessionStore.authErrorMessage != nil },
-                    set: { if !$0 { sessionStore.clearError() } }
-                )
-            ) {
-                Button("OK", role: .cancel) {
-                    sessionStore.clearError()
-                }
-            } message: {
-                Text(sessionStore.authErrorMessage ?? "")
             }
         }
     }
@@ -153,24 +105,11 @@ struct OnboardingView: View {
                     Color.clear
                         .frame(width: 36, height: 36)
                 } else {
-                    ZStack {
-                        Text("Spor økonomi")
-                            .font(.subheadline.weight(.semibold))
-                            .tracking(0.2)
-                            .foregroundStyle(AppTheme.textSecondary)
-
-                        HStack {
-                            Spacer()
-
-                            Button("Logg inn") {
-                                showLoginOptions = true
-                            }
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(AppTheme.textSecondary)
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
+                    Text("Spor økonomi")
+                        .font(.subheadline.weight(.semibold))
+                        .tracking(0.2)
+                        .foregroundStyle(AppTheme.textSecondary)
+                        .frame(maxWidth: .infinity)
                 }
             }
 

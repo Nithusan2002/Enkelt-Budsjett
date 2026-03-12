@@ -53,7 +53,6 @@ struct OnboardingFeatureTests {
         viewModel.currentStep = .intro
 
         #expect(viewModel.showsProgressHeader == false)
-        #expect(viewModel.showsLoginAction == true)
         #expect(viewModel.primaryButtonTitle == "Kom i gang")
         #expect(viewModel.introTitle == "Få roligere oversikt over økonomien")
         #expect(viewModel.introBodyText == "Se hva du har igjen denne måneden uten komplisert oppsett.")

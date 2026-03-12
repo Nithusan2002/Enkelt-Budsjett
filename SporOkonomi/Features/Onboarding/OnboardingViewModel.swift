@@ -70,10 +70,6 @@ final class OnboardingViewModel: ObservableObject {
         currentStep != .intro
     }
 
-    var showsLoginAction: Bool {
-        currentStep == .intro
-    }
-
     var primaryButtonTitle: String {
         switch currentStep {
         case .intro:
