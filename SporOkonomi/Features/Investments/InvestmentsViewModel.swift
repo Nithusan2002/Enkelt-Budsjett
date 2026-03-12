@@ -115,7 +115,7 @@ final class InvestmentsViewModel: ObservableObject {
         let hour = max(0, min(23, preference?.checkInReminderHour ?? 19))
         let minute = max(0, min(59, preference?.checkInReminderMinute ?? 0))
         let reminderEnabled = preference?.checkInReminderEnabled ?? true
-        let lastText = latest.map { "Sist oppdatert \(formattedMonthDay($0.capturedAt))" } ?? "Sist oppdatert Ikke satt"
+        let lastText = latest.map { "Sist oppdatert \(formattedMonthDay($0.capturedAt))" } ?? "Sist oppdatert: Ikke satt"
         let nextText = reminderEnabled
             ? "Neste: \(daysUntilNextCheckIn(day: day, hour: hour, minute: minute, now: now))"
             : "Neste: Ikke satt"
