@@ -385,7 +385,7 @@ struct OnboardingView: View {
             RoundedRectangle(cornerRadius: 24)
                 .stroke(AppTheme.divider, lineWidth: 1)
         )
-        .shadow(color: AppTheme.shadow.opacity(0.12), radius: 18, y: 10)
+        .shadow(color: Color.black.opacity(0.12), radius: 18, y: 10)
     }
 
     private func summaryRow(_ label: String, value: String) -> some View {
