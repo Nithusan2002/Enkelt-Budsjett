@@ -39,7 +39,7 @@ struct OnboardingView: View {
             }
             .padding(.vertical)
             .background(AppTheme.background)
-            .navigationTitle("Kom i gang")
+            .navigationTitle(viewModel.showsProgressHeader ? "Kom i gang" : "")
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
@@ -153,14 +153,23 @@ struct OnboardingView: View {
                     Color.clear
                         .frame(width: 36, height: 36)
                 } else {
-                    Spacer()
+                    ZStack {
+                        Text("Spor økonomi")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(AppTheme.textPrimary)
 
-                    Button("Logg inn") {
-                        showLoginOptions = true
+                        HStack {
+                            Spacer()
+
+                            Button("Logg inn") {
+                                showLoginOptions = true
+                            }
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(AppTheme.textSecondary)
+                            .buttonStyle(.plain)
+                        }
                     }
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(AppTheme.textSecondary)
-                    .buttonStyle(.plain)
+                    .frame(maxWidth: .infinity)
                 }
             }
 
