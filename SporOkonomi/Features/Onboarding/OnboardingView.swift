@@ -46,7 +46,7 @@ struct OnboardingView: View {
                     Button {
                         focusedField = nil
                     } label: {
-                        Label("Ferdig", systemImage: "checkmark")
+                        Text("Ferdig")
                             .font(.subheadline.weight(.semibold))
                     }
                 }
