@@ -38,6 +38,17 @@ struct OnboardingView: View {
             .background(AppTheme.background)
             .navigationTitle("Kom i gang")
             .appKeyboardDismissToolbar()
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button {
+                        focusedField = nil
+                    } label: {
+                        Label("Ferdig", systemImage: "checkmark")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                }
+            }
             .onAppear {
                 viewModel.markCurrentStepSeen()
                 updateFocus(for: viewModel.currentStep)
