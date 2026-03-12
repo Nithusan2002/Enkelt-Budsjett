@@ -37,8 +37,12 @@ final class SessionStore: ObservableObject {
     @Published var isWorking = false
 
     private let authClient: AuthClientProtocol
+    private let localAccountCleanup: @MainActor (_ preference: UserPreference, _ context: ModelContext) throws -> Void
 
-    init(authClient: AuthClientProtocol? = nil) {
+    init(
+        authClient: AuthClientProtocol? = nil,
+        localAccountCleanup: (@MainActor (_ preference: UserPreference, _ context: ModelContext) throws -> Void)? = nil
+    ) {
         if let authClient {
             self.authClient = authClient
         } else {
@@ -49,6 +53,19 @@ final class SessionStore: ObservableObject {
             } catch {
                 self.authClient = UnconfiguredAuthClient()
             }
+        }
+
+        self.localAccountCleanup = localAccountCleanup ?? { preference, context in
+            try DemoDataSeeder.wipeAllData(context: context)
+            try BootstrapService.ensurePreference(context: context)
+            try BootstrapService.ensureCurrentBudgetMonthAndRecurring(context: context)
+
+            let refreshedPreference = try context.fetch(FetchDescriptor<UserPreference>()).first ?? preference
+            preference.authSessionModeRaw = refreshedPreference.authSessionModeRaw
+            preference.authProviderRaw = refreshedPreference.authProviderRaw
+            preference.authUserID = refreshedPreference.authUserID
+            preference.authEmail = refreshedPreference.authEmail
+            preference.authDisplayName = refreshedPreference.authDisplayName
         }
     }
 
@@ -238,17 +255,21 @@ final class SessionStore: ObservableObject {
 
         do {
             try await authClient.deleteAccount()
-            try DemoDataSeeder.wipeAllData(context: context)
-            try BootstrapService.ensurePreference(context: context)
-            try BootstrapService.ensureCurrentBudgetMonthAndRecurring(context: context)
-
-            let refreshedPreference = try context.fetch(FetchDescriptor<UserPreference>()).first ?? preference
-            updatePreference(
-                refreshedPreference,
-                mode: .local,
-                session: nil,
-                context: context
-            )
+            do {
+                try localAccountCleanup(preference, context)
+                let refreshedPreference = try context.fetch(FetchDescriptor<UserPreference>()).first ?? preference
+                updatePreference(
+                    refreshedPreference,
+                    mode: .local,
+                    session: nil,
+                    context: context
+                )
+            } catch {
+                authClient.clearStoredSession()
+                forceLocalSession(preference)
+                authErrorMessage = "Kontoen er slettet, men lokal opprydding feilet. Start appen på nytt."
+                return false
+            }
             return true
         } catch {
             authErrorMessage = (error as? LocalizedError)?.errorDescription ?? "Kunne ikke slette kontoen nå."
@@ -292,6 +313,16 @@ final class SessionStore: ObservableObject {
         } catch {
             authErrorMessage = (error as? LocalizedError)?.errorDescription ?? "Kunne ikke lagre kontovalget nå."
         }
+    }
+
+    private func forceLocalSession(_ preference: UserPreference) {
+        preference.authSessionModeRaw = AuthSessionMode.local.rawValue
+        preference.authProviderRaw = nil
+        preference.authUserID = nil
+        preference.authEmail = nil
+        preference.authDisplayName = nil
+        sessionMode = .local
+        currentSession = nil
     }
 
     private func normalized(_ value: String?) -> String? {

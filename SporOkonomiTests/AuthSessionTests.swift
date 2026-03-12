@@ -348,6 +348,54 @@ struct AuthSessionTests {
 
     @Test
     @MainActor
+    func deleteAccountForcesLocalSignOutWhenRemoteDeletionSucceedsButLocalCleanupFails() async throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+        let preference = UserPreference(
+            authSessionModeRaw: AuthSessionMode.authenticated.rawValue,
+            authProviderRaw: AuthProvider.google.rawValue,
+            authUserID: "user-42",
+            authEmail: "hei@example.com"
+        )
+        context.insert(preference)
+        context.insert(Transaction(date: .now, amount: 499, kind: .expense, categoryID: "cat_food"))
+        try context.save()
+
+        let authClient = MockAuthClient(
+            restoredSession: AuthClientSession(
+                userID: "user-42",
+                email: "hei@example.com",
+                displayName: nil,
+                accessToken: "access-token",
+                refreshToken: "refresh-token"
+            ),
+            storedAccessToken: "access-token"
+        )
+        let sessionStore = SessionStore(
+            authClient: authClient,
+            localAccountCleanup: { _, _ in
+                throw AuthServiceError.requestFailed("Lokal cleanup feilet.")
+            }
+        )
+
+        await sessionStore.restore(from: preference, context: context)
+        let result = await sessionStore.deleteAccount(preference: preference, context: context)
+
+        let transactions = try context.fetch(FetchDescriptor<Transaction>())
+
+        #expect(result == false)
+        #expect(authClient.deleteAccountCallCount == 1)
+        #expect(authClient.clearedStoredSession)
+        #expect(sessionStore.sessionMode == .local)
+        #expect(sessionStore.currentSession == nil)
+        #expect(sessionStore.authErrorMessage == "Kontoen er slettet, men lokal opprydding feilet. Start appen på nytt.")
+        #expect(transactions.count == 1)
+        #expect(preference.authSessionModeRaw == AuthSessionMode.local.rawValue)
+        #expect(preference.authUserID == nil)
+    }
+
+    @Test
+    @MainActor
     func signUpWithoutSessionPromptsForEmailConfirmation() async throws {
         let container = try TestModelContainerFactory.makeInMemoryContainer()
         let context = container.mainContext
