@@ -186,34 +186,6 @@ final class OnboardingViewModel: ObservableObject {
         "Tallene her er bare et eksempel."
     }
 
-    var summaryTitle: String {
-        "Du er klar"
-    }
-
-    var summaryBadgeText: String {
-        "Klar til bruk"
-    }
-
-    var summaryConfirmationText: String {
-        "Økonomien din er satt opp"
-    }
-
-    var summaryHelpText: String {
-        "Basert på det du har lagt inn så langt."
-    }
-
-    var summaryResultText: String {
-        "Du har ca. \(resultAmountText) igjen denne måneden"
-    }
-
-    var resultAmount: Double {
-        max((monthlyIncome ?? 0) - totalEstimatedFixedCosts, 0)
-    }
-
-    var resultAmountText: String {
-        formatWholeKroner(resultAmount)
-    }
-
     var selectedGoalsSummary: String? {
         guard !selectedGoals.isEmpty else { return nil }
         let titles = selectedGoals
@@ -432,13 +404,4 @@ final class OnboardingViewModel: ObservableObject {
         logEvent("onboarding_error")
     }
 
-    private func formatWholeKroner(_ value: Double) -> String {
-        let rounded = Int(value.rounded())
-        let formatted = rounded.formatted(
-            .number
-                .locale(Locale(identifier: "nb_NO"))
-                .grouping(.automatic)
-        )
-        return "\(formatted.replacingOccurrences(of: "\u{00A0}", with: " ")) kr"
-    }
 }

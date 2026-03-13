@@ -67,6 +67,9 @@ struct OnboardingFeatureTests {
         let preference = UserPreference(onboardingCompleted: false)
         let viewModel = OnboardingViewModel(preference: preference)
 
+        viewModel.currentStep = .income
+        #expect(viewModel.secondaryButtonTitle == nil)
+
         viewModel.currentStep = .fixedCosts
         #expect(viewModel.primaryButtonTitle == "Ferdig")
         #expect(viewModel.secondaryButtonTitle == "Ikke nå")
@@ -135,21 +138,7 @@ struct OnboardingFeatureTests {
 
     @Test
     @MainActor
-    func onboardingResultSubtractsSelectedFixedExpenseEstimates() {
-        let preference = UserPreference(onboardingCompleted: false)
-        let viewModel = OnboardingViewModel(preference: preference)
-
-        viewModel.monthlyIncomeText = "12 000"
-        viewModel.selectedFixedCosts = [.rent, .electricity, .subscriptions, .transport]
-
-        #expect(viewModel.resultAmount == 6_200)
-        #expect(viewModel.resultAmountText == "6 200 kr")
-        #expect(viewModel.summaryResultText == "Du har ca. 6 200 kr igjen denne måneden")
-    }
-
-    @Test
-    @MainActor
-    func onboardingCompleteIncludesChosenFixedCostsAsBudgetCategories() throws {
+    func onboardingCompleteMapsRentToExistingHousingCategoryID() throws {
         let container = try TestModelContainerFactory.makeInMemoryContainer()
         let context = container.mainContext
         let preference = UserPreference(onboardingCompleted: false)
@@ -162,10 +151,11 @@ struct OnboardingFeatureTests {
         viewModel.finish(preference: preference, context: context)
 
         let categories = try context.fetch(FetchDescriptor<SporOkonomi.Category>())
-        let categoryNames = Set(categories.map(\.name))
+        let categoryIDs = Set(categories.map(\.id))
 
-        #expect(categoryNames.contains("Husleie"))
-        #expect(categoryNames.contains("Transport"))
+        #expect(categoryIDs.contains("cat_housing"))
+        #expect(categoryIDs.contains("cat_transport"))
+        #expect(categoryIDs.contains("cat_husleie") == false)
     }
 
     @Test
@@ -195,22 +185,6 @@ struct OnboardingFeatureTests {
         #expect(preference.onboardingCompleted)
         #expect(fixedItems.isEmpty)
         #expect(transactions.isEmpty)
-    }
-
-    @Test
-    @MainActor
-    func onboardingSummaryCalculationsStillUseConcreteResult() {
-        let preference = UserPreference(onboardingCompleted: false)
-        let viewModel = OnboardingViewModel(preference: preference)
-
-        viewModel.monthlyIncomeText = "12 000"
-        viewModel.selectedFixedCosts = [.rent, .electricity, .subscriptions, .transport]
-
-        #expect(viewModel.summaryTitle == "Du er klar")
-        #expect(viewModel.summaryBadgeText == "Klar til bruk")
-        #expect(viewModel.summaryConfirmationText == "Økonomien din er satt opp")
-        #expect(viewModel.summaryResultText == "Du har ca. 6 200 kr igjen denne måneden")
-        #expect(viewModel.summaryHelpText == "Basert på det du har lagt inn så langt.")
     }
 
     @Test

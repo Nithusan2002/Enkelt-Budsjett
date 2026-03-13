@@ -226,6 +226,7 @@ struct OnboardingView: View {
         }
         .frame(maxWidth: 460, alignment: .center)
         .padding(.top, 4)
+        .accessibilityIdentifier("onboarding.step.intro")
     }
 
     private var goalsStep: some View {
@@ -257,6 +258,7 @@ struct OnboardingView: View {
         }
         .frame(maxWidth: 460, alignment: .center)
         .padding(.top, 12)
+        .accessibilityIdentifier("onboarding.step.goals")
     }
 
     private var incomeStep: some View {
@@ -292,6 +294,7 @@ struct OnboardingView: View {
         }
         .frame(maxWidth: 460, alignment: .center)
         .padding(.top, 12)
+        .accessibilityIdentifier("onboarding.step.income")
     }
 
     private var fixedCostsStep: some View {
@@ -326,6 +329,7 @@ struct OnboardingView: View {
         }
         .frame(maxWidth: 460, alignment: .center)
         .padding(.top, 12)
+        .accessibilityIdentifier("onboarding.step.fixed_costs")
     }
 
     private var footerButtons: some View {
@@ -352,6 +356,7 @@ struct OnboardingView: View {
             .disabled(viewModel.isPrimaryDisabled)
             .opacity(viewModel.isPrimaryDisabled ? 0.45 : 1)
             .accessibilityLabel(viewModel.primaryButtonTitle)
+            .accessibilityIdentifier("onboarding.primary_cta")
 
             if let secondary = viewModel.secondaryButtonTitle {
                 Button(secondary) {
@@ -360,6 +365,7 @@ struct OnboardingView: View {
                 .appSecondaryStyle()
                 .frame(maxWidth: .infinity, alignment: .center)
                 .accessibilityLabel(secondary)
+                .accessibilityIdentifier("onboarding.secondary_cta")
             }
         }
         .frame(maxWidth: 420, alignment: .center)
@@ -652,6 +658,7 @@ struct OnboardingView: View {
             .scaleEffect(isSelected ? 0.98 : 1.0)
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("onboarding.option.\(normalizedIdentifier(title))")
     }
 
     private func selectionChip(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
@@ -679,6 +686,7 @@ struct OnboardingView: View {
             .scaleEffect(isSelected ? 0.98 : 1)
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("onboarding.option.\(normalizedIdentifier(title))")
     }
 
     private func currencyField(label: String, placeholder: String, text: Binding<String>, field: OnboardingInputField) -> some View {
@@ -691,17 +699,18 @@ struct OnboardingView: View {
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(AppTheme.textSecondary)
 
-                TextField(placeholder, text: monetaryBinding(text))
-                    .keyboardType(.numberPad)
-                    .textContentType(.none)
+            TextField(placeholder, text: monetaryBinding(text))
+                .keyboardType(.numberPad)
+                .textContentType(.none)
                     .font(.system(size: 32, weight: .bold, design: .rounded))
                     .foregroundStyle(AppTheme.textPrimary)
-                    .multilineTextAlignment(.trailing)
-                    .monospacedDigit()
-                    .focused($focusedField, equals: field)
-            }
-            .appInputShellStyle()
+                .multilineTextAlignment(.trailing)
+                .monospacedDigit()
+                .focused($focusedField, equals: field)
+                .accessibilityIdentifier(field == .income ? "onboarding.income_input" : "onboarding.input")
         }
+        .appInputShellStyle()
+    }
     }
 
     private func monetaryBinding(_ source: Binding<String>) -> Binding<String> {
@@ -730,6 +739,14 @@ struct OnboardingView: View {
             result.append(char)
         }
         return String(result.reversed())
+    }
+
+    private func normalizedIdentifier(_ title: String) -> String {
+        title.lowercased()
+            .replacingOccurrences(of: "å", with: "a")
+            .replacingOccurrences(of: "ø", with: "o")
+            .replacingOccurrences(of: "æ", with: "ae")
+            .replacingOccurrences(of: " ", with: "_")
     }
 
     private func updateFocus(for step: OnboardingStep) {

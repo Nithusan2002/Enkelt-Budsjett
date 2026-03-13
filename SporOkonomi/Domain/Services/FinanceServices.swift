@@ -1108,6 +1108,7 @@ enum OnboardingService {
     private static func categoryID(for name: String) -> String {
         let lower = name.lowercased()
         if lower.contains("mat") { return "cat_food" }
+        if lower.contains("husleie") { return "cat_housing" }
         if lower.contains("bolig") { return "cat_housing" }
         if lower.contains("transport") { return "cat_transport" }
         if lower.contains("fritid") { return "cat_leisure" }
