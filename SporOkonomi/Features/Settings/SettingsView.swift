@@ -2182,16 +2182,21 @@ private struct FAQSettingsView: View {
 
 private struct AboutAppView: View {
     @Environment(\.openURL) private var openURL
+    @Environment(\.colorScheme) private var colorScheme
 
     private var versionText: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+    }
+
+    private var heroAssetName: String {
+        colorScheme == .dark ? "Spor-økonomi-applogo-Dark" : "About-AppIcon-Light"
     }
 
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
                 VStack(spacing: 14) {
-                    Image("Spor-økonomi-applogo")
+                    Image(heroAssetName)
                         .resizable()
                         .scaledToFit()
                         .frame(width: 152)
