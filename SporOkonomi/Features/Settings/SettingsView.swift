@@ -2118,7 +2118,7 @@ private struct FAQSettingsView: View {
                             .font(.footnote.weight(.semibold))
                             .foregroundStyle(AppTheme.textPrimary.opacity(0.78))
                             .padding(.horizontal, 4)
-                            .padding(.top, index == 0 ? 0 : 12)
+                            .padding(.top, index == 0 ? 8 : 12)
 
                         VStack(spacing: 0) {
                             ForEach(Array(section.items.enumerated()), id: \.element.id) { index, item in
