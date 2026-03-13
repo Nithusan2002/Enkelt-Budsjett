@@ -2112,9 +2112,6 @@ private struct FAQSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                Text("Korte svar på vanlige spørsmål.")
-                    .appSecondaryStyle()
-
                 ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
                     VStack(alignment: .leading, spacing: 10) {
                         Text(section.title)

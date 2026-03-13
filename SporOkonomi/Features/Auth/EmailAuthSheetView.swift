@@ -27,9 +27,9 @@ enum EmailAuthMode: String, Identifiable {
     var subtitle: String {
         switch self {
         case .signUp:
-            return "Lag konto for å synkronisere og gjenopprette data senere."
+            return "Lag konto hvis du vil kunne logge inn igjen senere og beholde tilgang til dataene dine."
         case .signIn:
-            return "Logg inn for å få tilgang til lagrede data og synkronisering."
+            return "Logg inn for å få tilgang til lagrede data og eventuell synk mellom dine egne enheter."
         }
     }
 }

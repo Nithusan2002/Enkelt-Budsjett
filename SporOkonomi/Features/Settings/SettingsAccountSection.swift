@@ -68,9 +68,9 @@ struct SettingsAccountSection: View {
                 .padding(.top, 6)
         } footer: {
             if sessionStore.isAuthenticated {
-                Text("Du kan fortsatt bruke appen lokalt etter utlogging.")
+                Text("Utlogging stopper ikke lokal bruk. Data på denne enheten blir liggende til du selv sletter dem.")
             } else {
-                Text("Konto brukes senere til synkronisering og gjenoppretting.")
+                Text("Konto er valgfritt. Uten konto brukes appen bare lokalt på denne enheten.")
             }
         }
     }
@@ -83,7 +83,7 @@ struct SettingsAccountSection: View {
     }
 
     private func accountHeaderSubtitle() -> String {
-        sessionStore.isAuthenticated ? "Klar for synkronisering" : "Ikke synkronisert"
+        sessionStore.isAuthenticated ? "Konto aktiv for innlogging og gjenoppretting" : "Lokal bruk uten konto"
     }
 
     private func accountStatusText() -> String {

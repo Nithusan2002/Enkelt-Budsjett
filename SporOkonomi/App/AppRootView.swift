@@ -282,7 +282,7 @@ struct AppRootView: View {
                     .foregroundStyle(AppTheme.primary)
                 Text("Face ID-lås")
                     .font(.title3.weight(.semibold))
-                Text("Lås opp for å fortsette")
+                Text("Bruk Face ID eller kode for å åpne appen på denne enheten.")
                     .appSecondaryStyle()
                 if viewModel.isAuthenticating {
                     ProgressView()
@@ -334,7 +334,7 @@ struct AppRootView: View {
         case .primary:
             return ""
         case .primaryWithoutCloud:
-            return "Data lagres lokalt på denne enheten. iCloud-synk er ikke aktiv."
+            return "Data lagres lokalt på denne enheten. iCloud-synk via Apple er ikke aktiv akkurat nå."
         case .recovery:
             return "Primær lagring kunne ikke åpnes. Appen bruker en separat recovery-lagring på denne enheten."
         case .memoryOnly:
@@ -353,7 +353,7 @@ private struct LoginPromptSheet: View {
                 .font(.system(.title3, design: .rounded).weight(.semibold))
                 .foregroundStyle(AppTheme.textPrimary)
 
-            Text("Logg inn for å synkronisere og sikre dataene dine. Du kan fortsatt bruke appen lokalt uten konto.")
+            Text("Du kan fortsette uten konto. Hvis du logger inn, kan du hente tilbake data senere og bruke synk når den er tilgjengelig.")
                 .appSecondaryStyle()
 
             VStack(spacing: 10) {
