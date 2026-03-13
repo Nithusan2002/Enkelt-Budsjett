@@ -2099,7 +2099,7 @@ private struct AboutAppView: View {
                     Image(appLogoAssetName)
                         .resizable()
                         .scaledToFit()
-                        .frame(height: 140)
+                        .frame(maxWidth: 340)
                         .accessibilityHidden(true)
 
                     VStack(spacing: 4) {
