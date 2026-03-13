@@ -127,6 +127,14 @@ Eksisterende demo-data dekker blant annet:
 - launch-siden bruker fortsatt manuell GitHub Pages-publisering
 - full release-klargjøring av App Store-materiale pågår fortsatt
 
+## Lisens
+
+Dette repoet er offentlig for portfolio-, lærings- og evalueringsformål.
+
+Koden, designressurser og produktmateriell er ikke lisensiert for gjenbruk, distribusjon eller kommersiell bruk uten skriftlig tillatelse.
+
+Se `LICENSE` for detaljer.
+
 ## Relaterte filer
 
 - `AGENTS.md` arbeidskontrakt og prosjektregler for agenter
