@@ -32,27 +32,72 @@ struct OnboardingFeatureTests {
 
     @Test
     @MainActor
-    func onboardingFlowHasExactlyThreeSteps() {
+    func onboardingFlowHasExactlyFourSteps() {
         let preference = UserPreference(onboardingCompleted: false, onboardingFocus: .budget)
         let viewModel = OnboardingViewModel(preference: preference)
 
         let order = viewModel.orderedSteps
-        #expect(order.count == 3)
+        #expect(order.count == 4)
         #expect(order.first == .intro)
-        #expect(order[1] == .income)
-        #expect(order.last == .summary)
+        #expect(order[1] == .goals)
+        #expect(order[2] == .income)
+        #expect(order.last == .fixedCosts)
     }
 
     @Test
     @MainActor
-    func onboardingSkipIsAvailableOnAllSteps() {
+    func onboardingIntroUsesNewHeroCopy() {
         let preference = UserPreference(onboardingCompleted: false)
         let viewModel = OnboardingViewModel(preference: preference)
 
-        for step in viewModel.orderedSteps {
-            viewModel.currentStep = step
-            #expect(viewModel.secondaryButtonTitle == "Hopp over")
-        }
+        viewModel.currentStep = .intro
+
+        #expect(viewModel.showsProgressHeader == false)
+        #expect(viewModel.primaryButtonTitle == "Kom i gang")
+        #expect(viewModel.secondaryButtonTitle == "Hopp over intro")
+        #expect(viewModel.introTitle == "Se hvor mye du faktisk har igjen hver måned")
+        #expect(viewModel.introBodyText == "Få roligere oversikt uten komplisert oppsett.")
+        #expect(viewModel.introPreviewEyebrow == "Eksempel")
+        #expect(viewModel.introPreviewTitle == "6 200 kr igjen denne måneden")
+    }
+
+    @Test
+    @MainActor
+    func onboardingSkipTitlesMatchRequestedFlow() {
+        let preference = UserPreference(onboardingCompleted: false)
+        let viewModel = OnboardingViewModel(preference: preference)
+
+        viewModel.currentStep = .income
+        #expect(viewModel.secondaryButtonTitle == "Ikke nå")
+
+        viewModel.currentStep = .fixedCosts
+        #expect(viewModel.primaryButtonTitle == "Ferdig")
+        #expect(viewModel.secondaryButtonTitle == "Ikke nå")
+    }
+
+    @Test
+    @MainActor
+    func onboardingCanGoBackOneStepAtATime() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+        let preference = UserPreference(onboardingCompleted: false)
+        context.insert(preference)
+        try context.save()
+
+        let viewModel = OnboardingViewModel(preference: preference)
+
+        #expect(viewModel.canGoBack == false)
+
+        viewModel.currentStep = .fixedCosts
+        #expect(viewModel.canGoBack == true)
+
+        viewModel.goBack(preference: preference, context: context)
+        #expect(viewModel.currentStep == .income)
+        #expect(preference.onboardingCurrentStep == OnboardingStep.income.rawValue)
+
+        viewModel.goBack(preference: preference, context: context)
+        #expect(viewModel.currentStep == .goals)
+        #expect(preference.onboardingCurrentStep == OnboardingStep.goals.rawValue)
     }
 
     @Test
@@ -65,59 +110,77 @@ struct OnboardingFeatureTests {
         viewModel.monthlyIncomeText = ""
         #expect(viewModel.isPrimaryDisabled == false)
 
+        viewModel.monthlyIncomeText = "abc"
+        #expect(viewModel.isPrimaryDisabled == true)
+
         viewModel.monthlyIncomeText = "32 000"
         #expect(viewModel.isPrimaryDisabled == false)
     }
 
     @Test
     @MainActor
-    func onboardingCompleteIncludesCustomBucketInFirstSnapshot() throws {
+    func onboardingSecondaryActionFromIncomeAdvancesWithoutIncome() throws {
         let container = try TestModelContainerFactory.makeInMemoryContainer()
         let context = container.mainContext
         let preference = UserPreference(onboardingCompleted: false)
         context.insert(preference)
         try context.save()
 
-        try OnboardingService.complete(
-            context: context,
-            preference: preference,
-            firstName: "Nora",
-            focus: .investments,
-            tone: .calm,
-            firstWealthTotal: nil,
-            goalAmount: nil,
-            goalDate: nil,
-            snapshotValues: [
-                "Fond": 150_000,
-                "Eiendom": 500_000
-            ],
-            snapshotInputProvided: true,
-            budgetCategories: [],
-            monthlyBudget: nil,
-            monthlyIncome: nil,
-            incomeDayOfMonth: 25,
-            budgetTrackOnly: true,
-            reminderEnabled: false,
-            reminderDay: 5,
-            reminderHour: 18,
-            reminderMinute: 0,
-            faceIDEnabled: false,
-            selectedBuckets: ["Fond"],
-            customBucketName: "Eiendom"
-        )
+        let viewModel = OnboardingViewModel(preference: preference)
+        viewModel.currentStep = .income
+        viewModel.monthlyIncomeText = ""
 
-        let buckets = try context.fetch(FetchDescriptor<InvestmentBucket>())
-        let snapshots = try context.fetch(FetchDescriptor<InvestmentSnapshot>())
+        viewModel.secondaryAction(preference: preference, context: context)
 
-        #expect(buckets.contains(where: { $0.name == "Eiendom" }))
-        #expect(snapshots.count == 1)
-        #expect(snapshots[0].bucketValues.contains(where: { $0.bucketID == "bucket_eiendom" && $0.amount == 500_000 }))
-        #expect(snapshots[0].bucketValues.contains(where: { $0.bucketID == "bucket_fond" && $0.amount == 150_000 }))
+        #expect(viewModel.currentStep == .fixedCosts)
+        #expect(preference.onboardingCurrentStep == OnboardingStep.fixedCosts.rawValue)
     }
 
     @Test
     @MainActor
-    func onboardingDefaultBucketsExcludeCrypto() throws {
+    func onboardingCanFinishWhenIncomeIsEmpty() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+        let preference = UserPreference(onboardingCompleted: false)
+        context.insert(preference)
+        try context.save()
+
+        let viewModel = OnboardingViewModel(preference: preference)
+        viewModel.currentStep = .fixedCosts
+        viewModel.monthlyIncomeText = ""
+
+        viewModel.primaryAction(preference: preference, context: context)
+
+        let fixedItems = try context.fetch(FetchDescriptor<FixedItem>())
+        let transactions = try context.fetch(FetchDescriptor<Transaction>())
+
+        #expect(preference.onboardingCompleted)
+        #expect(fixedItems.isEmpty)
+        #expect(transactions.isEmpty)
+    }
+
+    @Test
+    @MainActor
+    func onboardingGoalStepAllowsMultipleSelectionsAndMapsFocus() {
+        let preference = UserPreference(onboardingCompleted: false)
+        let viewModel = OnboardingViewModel(preference: preference)
+
+        viewModel.toggleGoal(.followInvestments)
+        #expect(viewModel.selectedGoals == [.followInvestments])
+        #expect(viewModel.focus == .investments)
+
+        viewModel.toggleGoal(.saveMore)
+        #expect(viewModel.selectedGoals == [.saveMore, .followInvestments])
+        #expect(viewModel.focus == .both)
+
+        viewModel.toggleGoal(.followInvestments)
+        #expect(viewModel.selectedGoals == [.saveMore])
+        #expect(viewModel.focus == .budget)
+    }
+
+    @Test
+    @MainActor
+    func onboardingCompleteMapsRentToExistingHousingCategoryID() throws {
         let container = try TestModelContainerFactory.makeInMemoryContainer()
         let context = container.mainContext
         let preference = UserPreference(onboardingCompleted: false)
@@ -126,12 +189,15 @@ struct OnboardingFeatureTests {
 
         let viewModel = OnboardingViewModel(preference: preference)
         viewModel.monthlyIncomeText = "45 000"
+        viewModel.selectedFixedCosts = [.rent, .transport]
         viewModel.finish(preference: preference, context: context)
 
-        let buckets = try context.fetch(FetchDescriptor<InvestmentBucket>())
-        let bucketNames = Set(buckets.map(\.name))
+        let categories = try context.fetch(FetchDescriptor<SporOkonomi.Category>())
+        let categoryIDs = Set(categories.map(\.id))
 
-        #expect(bucketNames == ["Fond", "Aksjer", "Krypto", "Kontanter"])
+        #expect(categoryIDs.contains("cat_housing"))
+        #expect(categoryIDs.contains("cat_transport"))
+        #expect(categoryIDs.contains("cat_husleie") == false)
     }
 
     @Test
@@ -140,7 +206,7 @@ struct OnboardingFeatureTests {
         let preference = UserPreference(onboardingCompleted: false, onboardingCurrentStep: 4)
         let viewModel = OnboardingViewModel(preference: preference)
 
-        #expect(viewModel.currentStep == .summary)
+        #expect(viewModel.currentStep == .fixedCosts)
     }
 
     @Test
@@ -165,16 +231,20 @@ struct OnboardingFeatureTests {
 
     @Test
     @MainActor
-    func onboardingSummaryCopyConnectsToMonthlyOverview() {
+    func onboardingPrimaryActionFromFixedCostsFinishesFlow() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
         let preference = UserPreference(onboardingCompleted: false)
+        context.insert(preference)
+        try context.save()
+
         let viewModel = OnboardingViewModel(preference: preference)
+        viewModel.currentStep = .fixedCosts
+        viewModel.monthlyIncomeText = "40 000"
+        viewModel.selectedFixedCosts = [.rent]
 
-        viewModel.monthlyIncomeText = "32 000"
-        #expect(viewModel.summaryBodyText.contains("denne måneden"))
-        #expect(viewModel.summaryHelpText.contains("månedsoversikten"))
+        viewModel.primaryAction(preference: preference, context: context)
 
-        viewModel.monthlyIncomeText = ""
-        #expect(viewModel.summaryBodyText.contains("oversikt over denne måneden"))
-        #expect(viewModel.summaryHelpText.contains("månedsoversikten"))
+        #expect(preference.onboardingCompleted)
     }
 }

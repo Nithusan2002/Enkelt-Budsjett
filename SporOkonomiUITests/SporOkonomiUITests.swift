@@ -18,6 +18,13 @@ final class SporOkonomiUITests: XCTestCase {
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 5))
     }
 
+    private func continuePastAuthChoiceIfNeeded(_ targetApp: XCUIApplication) {
+        let continueButton = targetApp.buttons["Fortsett uten konto"]
+        if continueButton.waitForExistence(timeout: 3) {
+            continueButton.tap()
+        }
+    }
+
     private func openTab(_ title: String) {
         let tabButton = app.tabBars.buttons[title]
         XCTAssertTrue(tabButton.waitForExistence(timeout: 5))
@@ -40,9 +47,64 @@ final class SporOkonomiUITests: XCTestCase {
         let onboardingApp = XCUIApplication()
         onboardingApp.launchArguments = ["UITEST_IN_MEMORY_STORE", "UITEST_DISABLE_FACEID"]
         onboardingApp.launch()
+        continuePastAuthChoiceIfNeeded(onboardingApp)
 
-        XCTAssertTrue(onboardingApp.navigationBars["Kom i gang"].waitForExistence(timeout: 5))
-        XCTAssertTrue(onboardingApp.buttons["Kom i gang"].exists)
+        XCTAssertTrue(onboardingApp.otherElements["onboarding.step.intro"].waitForExistence(timeout: 5))
+        XCTAssertTrue(onboardingApp.buttons["onboarding.primary_cta"].exists)
+        XCTAssertTrue(onboardingApp.buttons["onboarding.secondary_cta"].exists)
+    }
+
+    @MainActor
+    func testOnboardingFlowCanCompleteUsingCurrentUI() throws {
+        let onboardingApp = XCUIApplication()
+        onboardingApp.launchArguments = ["UITEST_IN_MEMORY_STORE", "UITEST_DISABLE_FACEID"]
+        onboardingApp.launch()
+        continuePastAuthChoiceIfNeeded(onboardingApp)
+
+        XCTAssertTrue(onboardingApp.otherElements["onboarding.step.intro"].waitForExistence(timeout: 5))
+        onboardingApp.buttons["onboarding.primary_cta"].tap()
+
+        XCTAssertTrue(onboardingApp.otherElements["onboarding.step.goals"].waitForExistence(timeout: 5))
+        onboardingApp.buttons["onboarding.option.spare_mer"].tap()
+        onboardingApp.buttons["onboarding.primary_cta"].tap()
+
+        XCTAssertTrue(onboardingApp.otherElements["onboarding.step.income"].waitForExistence(timeout: 5))
+        let incomeField = onboardingApp.textFields["onboarding.income_input"]
+        XCTAssertTrue(incomeField.waitForExistence(timeout: 5))
+        incomeField.tap()
+        incomeField.typeText("12000")
+        onboardingApp.buttons["onboarding.primary_cta"].tap()
+
+        XCTAssertTrue(onboardingApp.otherElements["onboarding.step.fixed_costs"].waitForExistence(timeout: 5))
+        onboardingApp.buttons["onboarding.option.husleie"].tap()
+        onboardingApp.buttons["onboarding.primary_cta"].tap()
+
+        XCTAssertTrue(onboardingApp.tabBars.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(onboardingApp.tabBars.buttons["Oversikt"].exists)
+    }
+
+    @MainActor
+    func testOnboardingCanCompleteWithoutIncome() throws {
+        let onboardingApp = XCUIApplication()
+        onboardingApp.launchArguments = ["UITEST_IN_MEMORY_STORE", "UITEST_DISABLE_FACEID"]
+        onboardingApp.launch()
+        continuePastAuthChoiceIfNeeded(onboardingApp)
+
+        XCTAssertTrue(onboardingApp.otherElements["onboarding.step.intro"].waitForExistence(timeout: 5))
+        onboardingApp.buttons["onboarding.primary_cta"].tap()
+
+        XCTAssertTrue(onboardingApp.otherElements["onboarding.step.goals"].waitForExistence(timeout: 5))
+        onboardingApp.buttons["onboarding.secondary_cta"].tap()
+
+        XCTAssertTrue(onboardingApp.otherElements["onboarding.step.income"].waitForExistence(timeout: 5))
+        XCTAssertTrue(onboardingApp.buttons["onboarding.secondary_cta"].exists)
+        onboardingApp.buttons["onboarding.secondary_cta"].tap()
+
+        XCTAssertTrue(onboardingApp.otherElements["onboarding.step.fixed_costs"].waitForExistence(timeout: 5))
+        onboardingApp.buttons["onboarding.secondary_cta"].tap()
+
+        XCTAssertTrue(onboardingApp.tabBars.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(onboardingApp.tabBars.buttons["Oversikt"].exists)
     }
 
     @MainActor

@@ -4,17 +4,79 @@ import SwiftData
 
 enum OnboardingStep: Int, CaseIterable {
     case intro
+    case goals
     case income
-    case summary
+    case fixedCosts
 
     static func fromStoredValue(_ rawValue: Int) -> OnboardingStep {
         switch rawValue {
         case intro.rawValue:
             return .intro
+        case goals.rawValue:
+            return .goals
         case income.rawValue:
             return .income
+        case fixedCosts.rawValue:
+            return .fixedCosts
         default:
-            return .summary
+            return .fixedCosts
+        }
+    }
+}
+
+enum OnboardingGoalOption: String, CaseIterable, Identifiable {
+    case saveMore
+    case getOverview
+    case keepBudget
+    case followInvestments
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .saveMore:
+            return "Spare mer"
+        case .getOverview:
+            return "Få oversikt"
+        case .keepBudget:
+            return "Holde budsjett"
+        case .followInvestments:
+            return "Følge investeringer"
+        }
+    }
+}
+
+enum OnboardingFixedCostOption: String, CaseIterable, Identifiable {
+    case rent
+    case electricity
+    case subscriptions
+    case transport
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .rent:
+            return "Husleie"
+        case .electricity:
+            return "Strøm"
+        case .subscriptions:
+            return "Abonnement"
+        case .transport:
+            return "Transport"
+        }
+    }
+
+    var estimatedMonthlyCost: Double {
+        switch self {
+        case .rent:
+            return 3_500
+        case .electricity:
+            return 600
+        case .subscriptions:
+            return 800
+        case .transport:
+            return 900
         }
     }
 }
@@ -25,8 +87,9 @@ final class OnboardingViewModel: ObservableObject {
     @Published var focus: OnboardingFocus
     @Published var tone: AppToneStyle
 
+    @Published var selectedGoals: Set<OnboardingGoalOption> = []
     @Published var monthlyIncomeText = ""
-
+    @Published var selectedFixedCosts: Set<OnboardingFixedCostOption> = []
     @Published var errorMessage: String?
 
     private var hasLoggedStart = false
@@ -59,58 +122,117 @@ final class OnboardingViewModel: ObservableObject {
         "Steg \(currentStepIndex) av \(totalSteps)"
     }
 
+    var showsProgressHeader: Bool {
+        currentStep != .intro
+    }
+
     var primaryButtonTitle: String {
         switch currentStep {
         case .intro:
             return "Kom i gang"
+        case .goals:
+            return "Neste"
         case .income:
-            return "Fortsett"
-        case .summary:
-            return "Gå til oversikt"
+            return "Neste"
+        case .fixedCosts:
+            return "Ferdig"
         }
     }
 
     var secondaryButtonTitle: String? {
-        "Hopp over"
+        switch currentStep {
+        case .intro:
+            return "Hopp over intro"
+        case .goals:
+            return "Ikke nå"
+        case .income:
+            return "Ikke nå"
+        case .fixedCosts:
+            return "Ikke nå"
+        }
+    }
+
+    var canGoBack: Bool {
+        orderedSteps.firstIndex(of: currentStep).map { $0 > 0 } ?? false
     }
 
     var isPrimaryDisabled: Bool {
         switch currentStep {
         case .income:
             let trimmed = monthlyIncomeText.trimmingCharacters(in: .whitespacesAndNewlines)
-            return !trimmed.isEmpty && parseDouble(trimmed) == nil
+            guard !trimmed.isEmpty else { return false }
+            guard let monthlyIncome else { return true }
+            return monthlyIncome <= 0
         default:
             return false
         }
     }
 
-    var summaryTitle: String {
-        "Slik starter oversikten din"
+    var introTitle: String {
+        "Se hvor mye du faktisk har igjen hver måned"
     }
 
-    var summaryBodyText: String {
-        hasMonthlyIncome
-            ? "Med inntekten din som utgangspunkt kan du følge hva du har igjen denne måneden."
-            : "Du kan fortsatt få oversikt over denne måneden uten oppsett."
+    var introBodyText: String {
+        "Få roligere oversikt uten komplisert oppsett."
     }
 
-    var summaryHelpText: String {
-        hasMonthlyIncome
-            ? "Legg til utgifter underveis, så blir månedsoversikten mer presis."
-            : "Legg til inntekt eller utgifter når du vil, så bygger månedsoversikten seg opp."
+    var introPreviewEyebrow: String {
+        "Eksempel"
     }
 
-    var summaryAmountLabel: String? {
-        guard hasMonthlyIncome, let monthlyIncome else { return nil }
-        return formatNOK(monthlyIncome)
+    var introPreviewTitle: String {
+        "6 200 kr igjen denne måneden"
     }
 
-    var hasMonthlyIncome: Bool {
-        monthlyIncome != nil
+    var introPreviewFootnote: String {
+        "Tallene her er bare et eksempel."
     }
 
-    private var monthlyIncome: Double? {
+    var selectedGoalsSummary: String? {
+        guard !selectedGoals.isEmpty else { return nil }
+        let titles = selectedGoals
+            .sorted { $0.title < $1.title }
+            .map(\.title)
+            .joined(separator: " · ")
+        return titles
+    }
+
+    var fixedCostHelpText: String? {
+        guard !selectedFixedCosts.isEmpty else { return nil }
+        return "Brukes bare for et raskt anslag."
+    }
+
+    var fixedCostsBodyText: String {
+        "Velg det som passer."
+    }
+
+    var fixedCostsSupportText: String {
+        "Du kan justere dette senere."
+    }
+
+    var monthlyIncome: Double? {
         parseDouble(monthlyIncomeText)
+    }
+
+    private var totalEstimatedFixedCosts: Double {
+        selectedFixedCosts.reduce(0) { $0 + $1.estimatedMonthlyCost }
+    }
+
+    func toggleGoal(_ option: OnboardingGoalOption) {
+        if selectedGoals.contains(option) {
+            selectedGoals.remove(option)
+        } else {
+            selectedGoals.insert(option)
+        }
+        focus = resolvedFocus(from: selectedGoals)
+    }
+
+    func toggleFixedCost(_ option: OnboardingFixedCostOption) {
+        if selectedFixedCosts.contains(option) {
+            selectedFixedCosts.remove(option)
+        } else {
+            selectedFixedCosts.insert(option)
+        }
     }
 
     func markCurrentStepSeen() {
@@ -122,7 +244,9 @@ final class OnboardingViewModel: ObservableObject {
         guard !viewedSteps.contains(currentStep) else { return }
         viewedSteps.insert(currentStep)
         logEvent("onboarding_step_viewed_\(eventName(for: currentStep))")
-        if currentStep == .summary { logEvent("onboarding_aha_seen") }
+        if currentStep == .fixedCosts {
+            logEvent("onboarding_aha_seen")
+        }
     }
 
     func next(preference: UserPreference, context: ModelContext) {
@@ -141,7 +265,7 @@ final class OnboardingViewModel: ObservableObject {
     }
 
     func primaryAction(preference: UserPreference, context: ModelContext) {
-        if currentStep == .summary {
+        if currentStep == .fixedCosts {
             finish(preference: preference, context: context)
         } else {
             next(preference: preference, context: context)
@@ -149,11 +273,42 @@ final class OnboardingViewModel: ObservableObject {
     }
 
     func secondaryAction(preference: UserPreference, context: ModelContext) {
-        skipAll(preference: preference, context: context)
+        switch currentStep {
+        case .goals:
+            selectedGoals.removeAll()
+            focus = .both
+            next(preference: preference, context: context)
+        case .income:
+            monthlyIncomeText = ""
+            next(preference: preference, context: context)
+        case .fixedCosts:
+            selectedFixedCosts.removeAll()
+            finish(preference: preference, context: context)
+        case .intro:
+            next(preference: preference, context: context)
+        }
+    }
+
+    func goBack(preference: UserPreference, context: ModelContext) {
+        guard let idx = orderedSteps.firstIndex(of: currentStep), idx > 0 else { return }
+
+        do {
+            try saveStepState(preference: preference, context: context)
+            let previousStep = orderedSteps[idx - 1]
+            preference.onboardingCurrentStep = previousStep.rawValue
+            try context.guardedSave(feature: "Onboarding", operation: "save_step_back_transition")
+            currentStep = previousStep
+        } catch {
+            let message = (error as? LocalizedError)?.errorDescription ?? "Kunne ikke gå tilbake. Prøv igjen."
+            setError(message)
+        }
     }
 
     func skipAll(preference: UserPreference, context: ModelContext) {
+        selectedGoals.removeAll()
+        selectedFixedCosts.removeAll()
         monthlyIncomeText = ""
+        focus = .both
         logEvent("onboarding_abandoned")
         finish(preference: preference, context: context)
     }
@@ -164,14 +319,14 @@ final class OnboardingViewModel: ObservableObject {
                 context: context,
                 preference: preference,
                 firstName: "",
-                focus: .both,
+                focus: focus,
                 tone: tone,
                 firstWealthTotal: nil,
                 goalAmount: nil,
                 goalDate: nil,
                 snapshotValues: [:],
                 snapshotInputProvided: false,
-                budgetCategories: [],
+                budgetCategories: selectedFixedCosts.sorted { $0.title < $1.title }.map(\.title),
                 monthlyBudget: nil,
                 monthlyIncome: monthlyIncome,
                 incomeDayOfMonth: 25,
@@ -204,11 +359,32 @@ final class OnboardingViewModel: ObservableObject {
         try context.guardedSave(feature: "Onboarding", operation: "save_step_state")
     }
 
+    private func resolvedFocus(from goals: Set<OnboardingGoalOption>) -> OnboardingFocus {
+        let includesInvestments = goals.contains(.followInvestments)
+        let includesBudget = goals.contains(.saveMore) || goals.contains(.getOverview) || goals.contains(.keepBudget)
+
+        switch (includesBudget, includesInvestments) {
+        case (true, true):
+            return .both
+        case (true, false):
+            return .budget
+        case (false, true):
+            return .investments
+        case (false, false):
+            return .both
+        }
+    }
+
     private func eventName(for step: OnboardingStep) -> String {
         switch step {
-        case .intro: return "intro"
-        case .income: return "income"
-        case .summary: return "summary"
+        case .intro:
+            return "intro"
+        case .goals:
+            return "goals"
+        case .income:
+            return "income"
+        case .fixedCosts:
+            return "fixed_costs"
         }
     }
 
@@ -229,4 +405,5 @@ final class OnboardingViewModel: ObservableObject {
         errorMessage = message
         logEvent("onboarding_error")
     }
+
 }
