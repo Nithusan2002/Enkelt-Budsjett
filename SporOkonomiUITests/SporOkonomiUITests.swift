@@ -84,6 +84,30 @@ final class SporOkonomiUITests: XCTestCase {
     }
 
     @MainActor
+    func testOnboardingCanCompleteWithoutIncome() throws {
+        let onboardingApp = XCUIApplication()
+        onboardingApp.launchArguments = ["UITEST_IN_MEMORY_STORE", "UITEST_DISABLE_FACEID"]
+        onboardingApp.launch()
+        continuePastAuthChoiceIfNeeded(onboardingApp)
+
+        XCTAssertTrue(onboardingApp.otherElements["onboarding.step.intro"].waitForExistence(timeout: 5))
+        onboardingApp.buttons["onboarding.primary_cta"].tap()
+
+        XCTAssertTrue(onboardingApp.otherElements["onboarding.step.goals"].waitForExistence(timeout: 5))
+        onboardingApp.buttons["onboarding.secondary_cta"].tap()
+
+        XCTAssertTrue(onboardingApp.otherElements["onboarding.step.income"].waitForExistence(timeout: 5))
+        XCTAssertTrue(onboardingApp.buttons["onboarding.secondary_cta"].exists)
+        onboardingApp.buttons["onboarding.secondary_cta"].tap()
+
+        XCTAssertTrue(onboardingApp.otherElements["onboarding.step.fixed_costs"].waitForExistence(timeout: 5))
+        onboardingApp.buttons["onboarding.secondary_cta"].tap()
+
+        XCTAssertTrue(onboardingApp.tabBars.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(onboardingApp.tabBars.buttons["Oversikt"].exists)
+    }
+
+    @MainActor
     func testSettingsShowsDataAndDeleteConfirmation() throws {
         launchApp()
 

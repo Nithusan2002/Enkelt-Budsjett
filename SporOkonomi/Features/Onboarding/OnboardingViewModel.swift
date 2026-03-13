@@ -146,7 +146,7 @@ final class OnboardingViewModel: ObservableObject {
         case .goals:
             return "Ikke nå"
         case .income:
-            return nil
+            return "Ikke nå"
         case .fixedCosts:
             return "Ikke nå"
         }
@@ -159,6 +159,8 @@ final class OnboardingViewModel: ObservableObject {
     var isPrimaryDisabled: Bool {
         switch currentStep {
         case .income:
+            let trimmed = monthlyIncomeText.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return false }
             guard let monthlyIncome else { return true }
             return monthlyIncome <= 0
         default:

@@ -68,7 +68,7 @@ struct OnboardingFeatureTests {
         let viewModel = OnboardingViewModel(preference: preference)
 
         viewModel.currentStep = .income
-        #expect(viewModel.secondaryButtonTitle == nil)
+        #expect(viewModel.secondaryButtonTitle == "Ikke nå")
 
         viewModel.currentStep = .fixedCosts
         #expect(viewModel.primaryButtonTitle == "Ferdig")
@@ -102,19 +102,61 @@ struct OnboardingFeatureTests {
 
     @Test
     @MainActor
-    func onboardingIncomeStepRequiresAValidAmount() {
+    func onboardingIncomeStepAllowsEmptyValueButRejectsInvalidInput() {
         let preference = UserPreference(onboardingCompleted: false)
         let viewModel = OnboardingViewModel(preference: preference)
 
         viewModel.currentStep = .income
         viewModel.monthlyIncomeText = ""
-        #expect(viewModel.isPrimaryDisabled == true)
+        #expect(viewModel.isPrimaryDisabled == false)
 
         viewModel.monthlyIncomeText = "abc"
         #expect(viewModel.isPrimaryDisabled == true)
 
         viewModel.monthlyIncomeText = "32 000"
         #expect(viewModel.isPrimaryDisabled == false)
+    }
+
+    @Test
+    @MainActor
+    func onboardingSecondaryActionFromIncomeAdvancesWithoutIncome() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+        let preference = UserPreference(onboardingCompleted: false)
+        context.insert(preference)
+        try context.save()
+
+        let viewModel = OnboardingViewModel(preference: preference)
+        viewModel.currentStep = .income
+        viewModel.monthlyIncomeText = ""
+
+        viewModel.secondaryAction(preference: preference, context: context)
+
+        #expect(viewModel.currentStep == .fixedCosts)
+        #expect(preference.onboardingCurrentStep == OnboardingStep.fixedCosts.rawValue)
+    }
+
+    @Test
+    @MainActor
+    func onboardingCanFinishWhenIncomeIsEmpty() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+        let preference = UserPreference(onboardingCompleted: false)
+        context.insert(preference)
+        try context.save()
+
+        let viewModel = OnboardingViewModel(preference: preference)
+        viewModel.currentStep = .fixedCosts
+        viewModel.monthlyIncomeText = ""
+
+        viewModel.primaryAction(preference: preference, context: context)
+
+        let fixedItems = try context.fetch(FetchDescriptor<FixedItem>())
+        let transactions = try context.fetch(FetchDescriptor<Transaction>())
+
+        #expect(preference.onboardingCompleted)
+        #expect(fixedItems.isEmpty)
+        #expect(transactions.isEmpty)
     }
 
     @Test
