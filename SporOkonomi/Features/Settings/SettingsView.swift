@@ -389,7 +389,7 @@ struct SettingsView: View {
                     investmentBuckets: investmentBuckets
                 )
             } label: {
-                settingsRow(title: "Økonomi", value: "", showsChevron: false)
+                settingsRow(title: "Oppsett", value: "", showsChevron: false)
             }
             .buttonStyle(.plain)
 
@@ -559,7 +559,7 @@ struct SettingsView: View {
             }
             .buttonStyle(.plain)
         } header: {
-            sectionHeader("Økonomi")
+            sectionHeader("Oppsett")
         }
         .disabled(isReadOnlyMode)
     }
@@ -1612,7 +1612,7 @@ private struct EconomySettingsHomeView: View {
         }
         .scrollContentBackground(.hidden)
         .background(AppTheme.background)
-        .navigationTitle("Økonomi")
+        .navigationTitle("Oppsett")
         .safeAreaInset(edge: .bottom) {
             Color.clear
                 .frame(height: 86)
