@@ -32,17 +32,16 @@ struct OnboardingFeatureTests {
 
     @Test
     @MainActor
-    func onboardingFlowHasExactlyFiveSteps() {
+    func onboardingFlowHasExactlyFourSteps() {
         let preference = UserPreference(onboardingCompleted: false, onboardingFocus: .budget)
         let viewModel = OnboardingViewModel(preference: preference)
 
         let order = viewModel.orderedSteps
-        #expect(order.count == 5)
+        #expect(order.count == 4)
         #expect(order.first == .intro)
         #expect(order[1] == .goals)
         #expect(order[2] == .income)
-        #expect(order[3] == .fixedCosts)
-        #expect(order.last == .summary)
+        #expect(order.last == .fixedCosts)
     }
 
     @Test
@@ -69,12 +68,8 @@ struct OnboardingFeatureTests {
         let viewModel = OnboardingViewModel(preference: preference)
 
         viewModel.currentStep = .fixedCosts
-        #expect(viewModel.primaryButtonTitle == "Se resultat")
+        #expect(viewModel.primaryButtonTitle == "Ferdig")
         #expect(viewModel.secondaryButtonTitle == "Ikke nå")
-
-        viewModel.currentStep = .summary
-        #expect(viewModel.primaryButtonTitle == "Start appen")
-        #expect(viewModel.secondaryButtonTitle == nil)
     }
 
     @Test
@@ -179,7 +174,7 @@ struct OnboardingFeatureTests {
         let preference = UserPreference(onboardingCompleted: false, onboardingCurrentStep: 4)
         let viewModel = OnboardingViewModel(preference: preference)
 
-        #expect(viewModel.currentStep == .summary)
+        #expect(viewModel.currentStep == .fixedCosts)
     }
 
     @Test
@@ -204,7 +199,7 @@ struct OnboardingFeatureTests {
 
     @Test
     @MainActor
-    func onboardingSummaryCopyUsesConcreteResult() {
+    func onboardingSummaryCalculationsStillUseConcreteResult() {
         let preference = UserPreference(onboardingCompleted: false)
         let viewModel = OnboardingViewModel(preference: preference)
 
@@ -216,5 +211,24 @@ struct OnboardingFeatureTests {
         #expect(viewModel.summaryConfirmationText == "Økonomien din er satt opp")
         #expect(viewModel.summaryResultText == "Du har ca. 6 200 kr igjen denne måneden")
         #expect(viewModel.summaryHelpText == "Basert på det du har lagt inn så langt.")
+    }
+
+    @Test
+    @MainActor
+    func onboardingPrimaryActionFromFixedCostsFinishesFlow() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+        let preference = UserPreference(onboardingCompleted: false)
+        context.insert(preference)
+        try context.save()
+
+        let viewModel = OnboardingViewModel(preference: preference)
+        viewModel.currentStep = .fixedCosts
+        viewModel.monthlyIncomeText = "40 000"
+        viewModel.selectedFixedCosts = [.rent]
+
+        viewModel.primaryAction(preference: preference, context: context)
+
+        #expect(preference.onboardingCompleted)
     }
 }

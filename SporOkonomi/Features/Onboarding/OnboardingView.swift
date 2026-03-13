@@ -7,9 +7,7 @@ struct OnboardingView: View {
     let preference: UserPreference
     @StateObject private var viewModel: OnboardingViewModel
     @FocusState private var focusedField: OnboardingInputField?
-    @State private var animatedResultAmount = 0
     @State private var introPage = 0
-    @State private var summaryMarkVisible = false
 
     private enum OnboardingInputField {
         case income
@@ -79,14 +77,8 @@ struct OnboardingView: View {
                 updateStepAnimations(for: newStep)
             }
             .onChange(of: viewModel.monthlyIncomeText) { _, _ in
-                if viewModel.currentStep == .summary {
-                    updateAnimatedResult(for: .summary)
-                }
             }
             .onChange(of: viewModel.selectedFixedCosts) { _, _ in
-                if viewModel.currentStep == .summary {
-                    updateAnimatedResult(for: .summary)
-                }
             }
             .alert(
                 "Kunne ikke lagre",
@@ -151,11 +143,15 @@ struct OnboardingView: View {
                         .frame(maxWidth: .infinity, alignment: .center)
                     Color.clear.frame(width: 36, height: 36)
                 } else {
+                    Spacer()
+                    Color.clear.frame(width: 36, height: 36)
+                }
+            }
+            .overlay {
+                if !viewModel.showsProgressHeader {
                     Text("Spor økonomi")
-                        .font(.footnote.weight(.semibold))
-                        .tracking(0.4)
-                        .foregroundStyle(AppTheme.textSecondary)
-                        .frame(maxWidth: .infinity)
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(AppTheme.textPrimary)
                 }
             }
 
@@ -190,8 +186,6 @@ struct OnboardingView: View {
             incomeStep
         case .fixedCosts:
             fixedCostsStep
-        case .summary:
-            summaryStep
         }
     }
 
@@ -199,30 +193,34 @@ struct OnboardingView: View {
         VStack(spacing: 24) {
             TabView(selection: $introPage) {
                 ForEach(Array(introSlides.enumerated()), id: \.offset) { index, slide in
-                    VStack(spacing: 22) {
+                    VStack(spacing: 30) {
                         introIllustration(for: slide.illustration)
 
-                        VStack(spacing: 10) {
+                        VStack(spacing: 12) {
                             Text(slide.title)
-                                .font(.system(size: 34, weight: .bold, design: .rounded))
+                                .font(.system(size: 37, weight: .bold, design: .rounded))
+                                .lineSpacing(2)
                                 .foregroundStyle(AppTheme.textPrimary)
                                 .multilineTextAlignment(.center)
                                 .frame(maxWidth: 330)
 
                             Text(slide.body)
                                 .appBodyStyle()
-                                .foregroundStyle(AppTheme.textSecondary)
+                                .foregroundStyle(AppTheme.textSecondary.opacity(0.82))
                                 .multilineTextAlignment(.center)
                                 .frame(maxWidth: 300)
                         }
                     }
                     .tag(index)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .padding(.top, 8)
                     .padding(.horizontal, 6)
+                    .clipped()
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .frame(height: 560)
+            .clipped()
 
             introPageIndicator
         }
@@ -330,76 +328,27 @@ struct OnboardingView: View {
         .padding(.top, 12)
     }
 
-    private var summaryStep: some View {
-        VStack(spacing: 18) {
-            ZStack {
-                Circle()
-                    .stroke(AppTheme.primary.opacity(0.18), lineWidth: 10)
-                    .frame(width: 92, height: 92)
-                    .scaleEffect(summaryMarkVisible ? 1 : 0.88)
-
-                Circle()
-                    .fill(AppTheme.surface)
-                    .frame(width: 74, height: 74)
-                    .scaleEffect(summaryMarkVisible ? 1 : 0.92)
-
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 30, weight: .semibold))
-                    .foregroundStyle(AppTheme.primary)
-                    .scaleEffect(summaryMarkVisible ? 1 : 0.82)
-            }
-            .animation(.spring(response: 0.45, dampingFraction: 0.82), value: summaryMarkVisible)
-
-            VStack(spacing: 8) {
-                Text(viewModel.summaryTitle)
-                    .appCardTitleStyle()
-                    .multilineTextAlignment(.center)
-
-                Text(viewModel.summaryBadgeText)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(AppTheme.primary)
-
-                Text(viewModel.summaryConfirmationText)
-                    .appBodyStyle()
-                    .multilineTextAlignment(.center)
-            }
-
-            VStack(spacing: 10) {
-                Text("Du har ca.")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(AppTheme.textSecondary)
-
-                Text("\(formattedAnimatedResult) igjen denne måneden")
-                    .font(.system(size: 32, weight: .bold, design: .rounded))
-                    .foregroundStyle(AppTheme.textPrimary)
-                    .multilineTextAlignment(.center)
-                    .monospacedDigit()
-                    .contentTransition(.numericText())
-
-                Text(viewModel.summaryHelpText)
-                    .appSecondaryStyle()
-                    .multilineTextAlignment(.center)
-            }
-            .padding(18)
-            .background(AppTheme.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 22))
-            .overlay(
-                RoundedRectangle(cornerRadius: 22)
-                    .stroke(AppTheme.divider, lineWidth: 1)
-            )
-            .frame(maxWidth: 460)
-        }
-        .frame(maxWidth: .infinity, alignment: .center)
-        .padding(.top, 10)
-    }
-
     private var footerButtons: some View {
         VStack(spacing: 8) {
             Button(viewModel.primaryButtonTitle) {
                 viewModel.primaryAction(preference: preference, context: modelContext)
             }
-            .frame(maxWidth: .infinity)
-            .appProminentCTAStyle()
+            .font(.headline.weight(.semibold))
+            .foregroundStyle(Color.white)
+            .frame(maxWidth: .infinity, minHeight: 56)
+            .background(
+                LinearGradient(
+                    colors: [
+                        Color(hex: "#1F6F5C"),
+                        Color(hex: "#2E8B73")
+                    ],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .shadow(color: Color.black.opacity(0.12), radius: 10, y: 4)
+            .buttonStyle(.plain)
             .disabled(viewModel.isPrimaryDisabled)
             .opacity(viewModel.isPrimaryDisabled ? 0.45 : 1)
             .accessibilityLabel(viewModel.primaryButtonTitle)
@@ -421,25 +370,75 @@ struct OnboardingView: View {
         HStack(spacing: 8) {
             ForEach(Array(introSlides.indices), id: \.self) { index in
                 Capsule()
-                    .fill(index == introPage ? AppTheme.primary.opacity(0.55) : AppTheme.divider)
-                    .frame(width: index == introPage ? 28 : 8, height: 8)
-                    .animation(.easeInOut(duration: 0.2), value: introPage)
+                    .fill(index == introPage ? AppTheme.primary.opacity(0.62) : AppTheme.textSecondary.opacity(0.32))
+                    .frame(width: index == introPage ? 30 : 9, height: 9)
+                    .overlay {
+                        Capsule()
+                            .stroke(index == introPage ? Color.white.opacity(0.35) : Color.clear, lineWidth: 0.5)
+                    }
+                    .scaleEffect(index == introPage ? 1 : 0.92)
+                .animation(.spring(response: 0.28, dampingFraction: 0.82), value: introPage)
             }
         }
+        .padding(.vertical, 4)
     }
 
     @ViewBuilder
     private func introIllustration(for style: IntroIllustrationStyle) -> some View {
         ZStack {
+            Ellipse()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(hex: "#2E8B73").opacity(0.22),
+                            Color(hex: "#1F6F5C").opacity(0.12)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 290, height: 248)
+                .blur(radius: 4)
+                .offset(x: -18, y: 12)
+
             Circle()
-                .fill(AppTheme.primary.opacity(0.10))
-                .frame(width: 260, height: 260)
-                .offset(x: -26, y: 8)
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            Color(hex: "#2E8B73").opacity(0.18),
+                            Color(hex: "#2E8B73").opacity(0.05)
+                        ],
+                        center: .center,
+                        startRadius: 30,
+                        endRadius: 140
+                    )
+                )
+                .frame(width: 270, height: 270)
+                .offset(x: -30, y: 2)
 
             RoundedRectangle(cornerRadius: 28)
-                .fill(AppTheme.primary.opacity(0.08))
-                .frame(width: 300, height: 210)
-                .offset(y: 34)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(hex: "#1F6F5C").opacity(0.16),
+                            Color(hex: "#2E8B73").opacity(0.07)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 304, height: 214)
+                .offset(y: 30)
+
+            RoundedRectangle(cornerRadius: 32, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 32, style: .continuous)
+                        .stroke(Color.white.opacity(0.32), lineWidth: 1)
+                )
+                .shadow(color: Color(hex: "#1F6F5C").opacity(0.10), radius: 22, y: 10)
+                .frame(width: 318, height: 226)
+                .offset(y: 24)
 
             switch style {
             case .lockscreen:
@@ -742,51 +741,27 @@ struct OnboardingView: View {
         }
     }
 
-    private func updateAnimatedResult(for step: OnboardingStep) {
-        guard step == .summary else { return }
-        animatedResultAmount = 0
-        withAnimation(.easeOut(duration: 0.8)) {
-            animatedResultAmount = Int(viewModel.resultAmount.rounded())
-        }
-    }
+    private func updateAnimatedResult(for step: OnboardingStep) {}
 
-    private func updateStepAnimations(for step: OnboardingStep) {
-        summaryMarkVisible = false
-
-        switch step {
-        case .intro:
-            break
-        case .summary:
-            withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
-                summaryMarkVisible = true
-            }
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
-        default:
-            break
-        }
-    }
-
-    private var formattedAnimatedResult: String {
-        "\(animatedResultAmount.formatted(.number.grouping(.automatic))) kr"
-    }
+    private func updateStepAnimations(for step: OnboardingStep) {}
 }
 
 private extension OnboardingView {
     var introSlides: [IntroSlide] {
         [
             IntroSlide(
-                title: "Se hva du faktisk har igjen hver måned",
-                body: "Få en rolig start med enkel oversikt før du går videre.",
+                title: "Fang oversikten på sekunder",
+                body: "Legg inn inntekt og faste utgifter – resten skjer automatisk.",
                 illustration: .lockscreen
             ),
             IntroSlide(
-                title: "Fang oversikten på noen sekunder",
-                body: "Legg inn inntekt og faste utgifter uten komplisert oppsett.",
+                title: "Følg fremgangen uten stress",
+                body: "Se tydelig hva du har igjen hver måned.",
                 illustration: .overview
             ),
             IntroSlide(
-                title: "Følg fremgangen din uten støy",
-                body: "Spor økonomi hjelper deg å se utviklingen uten å fylle skjermen med detaljer.",
+                title: "Full kontroll – helt enkelt",
+                body: "Spor økonomi gir deg ro og oversikt fra dag én.",
                 illustration: .progress
             )
         ]

@@ -7,7 +7,6 @@ enum OnboardingStep: Int, CaseIterable {
     case goals
     case income
     case fixedCosts
-    case summary
 
     static func fromStoredValue(_ rawValue: Int) -> OnboardingStep {
         switch rawValue {
@@ -20,7 +19,7 @@ enum OnboardingStep: Int, CaseIterable {
         case fixedCosts.rawValue:
             return .fixedCosts
         default:
-            return .summary
+            return .fixedCosts
         }
     }
 }
@@ -136,9 +135,7 @@ final class OnboardingViewModel: ObservableObject {
         case .income:
             return "Neste"
         case .fixedCosts:
-            return "Se resultat"
-        case .summary:
-            return "Start appen"
+            return "Ferdig"
         }
     }
 
@@ -149,8 +146,6 @@ final class OnboardingViewModel: ObservableObject {
         case .goals:
             return "Ikke nå"
         case .income:
-            return nil
-        case .summary:
             return nil
         case .fixedCosts:
             return "Ikke nå"
@@ -275,7 +270,7 @@ final class OnboardingViewModel: ObservableObject {
         guard !viewedSteps.contains(currentStep) else { return }
         viewedSteps.insert(currentStep)
         logEvent("onboarding_step_viewed_\(eventName(for: currentStep))")
-        if currentStep == .summary {
+        if currentStep == .fixedCosts {
             logEvent("onboarding_aha_seen")
         }
     }
@@ -296,7 +291,7 @@ final class OnboardingViewModel: ObservableObject {
     }
 
     func primaryAction(preference: UserPreference, context: ModelContext) {
-        if currentStep == .summary {
+        if currentStep == .fixedCosts {
             finish(preference: preference, context: context)
         } else {
             next(preference: preference, context: context)
@@ -314,11 +309,9 @@ final class OnboardingViewModel: ObservableObject {
             next(preference: preference, context: context)
         case .fixedCosts:
             selectedFixedCosts.removeAll()
-            next(preference: preference, context: context)
+            finish(preference: preference, context: context)
         case .intro:
             next(preference: preference, context: context)
-        case .summary:
-            break
         }
     }
 
@@ -418,8 +411,6 @@ final class OnboardingViewModel: ObservableObject {
             return "income"
         case .fixedCosts:
             return "fixed_costs"
-        case .summary:
-            return "summary"
         }
     }
 
