@@ -10,6 +10,13 @@ private typealias Transaction = SporOkonomi.Transaction
 struct AuthSessionTests {
 
     @Test
+    func authTokenStoreUsesWhenUnlockedThisDeviceOnlyAccessibility() {
+        let store = AuthTokenStore()
+
+        #expect((store.keychainAccessibility as String) == (kSecAttrAccessibleWhenUnlockedThisDeviceOnly as String))
+    }
+
+    @Test
     @MainActor
     func bootstrapMarksLegacyUsersAsLocalAuthMode() throws {
         let container = try TestModelContainerFactory.makeInMemoryContainer()

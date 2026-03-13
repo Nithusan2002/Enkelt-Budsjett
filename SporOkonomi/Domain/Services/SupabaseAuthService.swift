@@ -705,6 +705,7 @@ struct StoredAuthTokens: Codable, Equatable {
 class AuthTokenStore {
     private let service = "com.nithusan.SporOkonomi.auth"
     private let account = "supabase.session"
+    let keychainAccessibility: CFString = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
 
     func save(_ tokens: StoredAuthTokens) -> Bool {
         guard let data = try? JSONEncoder().encode(tokens) else { return false }
@@ -748,7 +749,7 @@ class AuthTokenStore {
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock
+            kSecAttrAccessible as String: keychainAccessibility
         ]
     }
 }

@@ -21,7 +21,10 @@ struct SettingsView: View {
     @State private var shareItem: ShareURL?
     @State private var sharedExportURL: URL?
     @State private var showExportError = false
+    @State private var showExportPasswordSheet = false
     @State private var exportMessage = ""
+    @State private var exportPassword = ""
+    @State private var exportPasswordConfirmation = ""
     @State private var showDeleteAllConfirm = false
     @State private var showDeleteAllError = false
     @State private var showDeleteAllSuccess = false
@@ -33,9 +36,11 @@ struct SettingsView: View {
     @State private var showImportModeDialog = false
     @State private var showImportPicker = false
     @State private var showImportError = false
+    @State private var showImportPasswordSheet = false
     @State private var showImportSuccess = false
     @State private var pendingImportMode: DataImportMode = .merge
     @State private var pendingImportURL: URL?
+    @State private var importPassword = ""
     @State private var importMessage = ""
     @State private var settingsErrorMessage: String?
     @State private var ensuredPreference: UserPreference?
@@ -135,6 +140,37 @@ struct SettingsView: View {
             }) { item in
             ShareSheet(activityItems: [item.url]) {
                 cleanupSharedExportFile()
+            }
+            }
+            .sheet(isPresented: $showExportPasswordSheet) {
+            NavigationStack {
+                SecureExportSheet(
+                    password: $exportPassword,
+                    confirmation: $exportPasswordConfirmation,
+                    onCancel: {
+                        resetExportPasswordState()
+                        showExportPasswordSheet = false
+                    },
+                    onConfirm: {
+                        performExport()
+                    }
+                )
+            }
+            }
+            .sheet(isPresented: $showImportPasswordSheet, onDismiss: {
+                resetImportPasswordState()
+            }) {
+            NavigationStack {
+                SecureImportSheet(
+                    password: $importPassword,
+                    onCancel: {
+                        pendingImportURL = nil
+                        showImportPasswordSheet = false
+                    },
+                    onConfirm: {
+                        performImport()
+                    }
+                )
             }
             }
             .sheet(item: $emailAuthMode) { mode in
@@ -327,7 +363,10 @@ struct SettingsView: View {
                     storeModeDetailText: storeModeDetailText(),
                     isAuthenticated: sessionStore.isAuthenticated,
                     shouldShowDemoTools: viewModel.shouldShowDemoTools(),
-                    onExport: performExport,
+                    onExport: {
+                        resetExportPasswordState()
+                        showExportPasswordSheet = true
+                    },
                     onImport: { showImportModeDialog = true },
                     onConfirmDeleteAccount: {
                         Task {
@@ -631,11 +670,28 @@ struct SettingsView: View {
     }
 
     private func performExport() {
+        let trimmedPassword = exportPassword.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedConfirmation = exportPasswordConfirmation.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedPassword.isEmpty else {
+            exportMessage = DataTransferError.passwordRequiredForEncryptedExport.localizedDescription
+            showExportPasswordSheet = false
+            showExportError = true
+            return
+        }
+        guard trimmedPassword == trimmedConfirmation else {
+            exportMessage = "Passordene må være like."
+            showExportPasswordSheet = false
+            showExportError = true
+            return
+        }
+
         do {
-            let url = try viewModel.exportData(context: modelContext)
+            let url = try viewModel.exportData(context: modelContext, password: trimmedPassword)
             shareItem = ShareURL(url)
             sharedExportURL = url
             exportMessage = ""
+            resetExportPasswordState()
+            showExportPasswordSheet = false
             DispatchQueue.main.asyncAfter(deadline: .now() + 600) {
                 if sharedExportURL == url {
                     cleanupSharedExportFile()
@@ -643,6 +699,7 @@ struct SettingsView: View {
             }
         } catch {
             exportMessage = error.localizedDescription
+            showExportPasswordSheet = false
             showExportError = true
         }
     }
@@ -696,7 +753,8 @@ struct SettingsView: View {
 
         guard let url = urls.first else { return }
         pendingImportURL = url
-        performImport()
+        importPassword = ""
+        showImportPasswordSheet = true
     }
 
     private func performImport() {
@@ -720,9 +778,11 @@ struct SettingsView: View {
                 from: url,
                 mode: pendingImportMode,
                 context: modelContext,
-                password: nil
+                password: normalizedImportPassword()
             )
             importMessage = importSuccessText(report)
+            resetImportPasswordState()
+            showImportPasswordSheet = false
             showImportSuccess = true
             Task { @MainActor in
                 do {
@@ -733,8 +793,23 @@ struct SettingsView: View {
             }
         } catch {
             importMessage = error.localizedDescription
+            showImportPasswordSheet = false
             showImportError = true
         }
+    }
+
+    private func resetExportPasswordState() {
+        exportPassword = ""
+        exportPasswordConfirmation = ""
+    }
+
+    private func resetImportPasswordState() {
+        importPassword = ""
+    }
+
+    private func normalizedImportPassword() -> String? {
+        let trimmed = importPassword.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     private func importSuccessText(_ report: DataImportReport) -> String {
@@ -923,6 +998,78 @@ private struct ShareSheet: UIViewControllerRepresentable {
     }
 
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+
+private struct SecureExportSheet: View {
+    @Binding var password: String
+    @Binding var confirmation: String
+    let onCancel: () -> Void
+    let onConfirm: () -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        Form {
+            Section {
+                SecureField("Passord", text: $password)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                SecureField("Bekreft passord", text: $confirmation)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+            } footer: {
+                Text("Eksportfilen lagres kryptert. Du trenger dette passordet for å importere filen senere.")
+            }
+        }
+        .navigationTitle("Kryptert eksport")
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Avbryt") {
+                    onCancel()
+                    dismiss()
+                }
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Eksporter") {
+                    onConfirm()
+                    dismiss()
+                }
+            }
+        }
+    }
+}
+
+private struct SecureImportSheet: View {
+    @Binding var password: String
+    let onCancel: () -> Void
+    let onConfirm: () -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        Form {
+            Section {
+                SecureField("Passord (valgfritt)", text: $password)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+            } footer: {
+                Text("Skriv inn passord hvis filen er kryptert. La feltet stå tomt for eldre ukrypterte eksportfiler.")
+            }
+        }
+        .navigationTitle("Importer data")
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Avbryt") {
+                    onCancel()
+                    dismiss()
+                }
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Importer") {
+                    onConfirm()
+                    dismiss()
+                }
+            }
+        }
+    }
 }
 
 private struct ReminderSettingsSheet: View {

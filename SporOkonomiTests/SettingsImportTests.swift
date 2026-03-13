@@ -9,6 +9,29 @@ struct SettingsImportTests {
 
     @Test
     @MainActor
+    func encryptedExportImportRoundTripRestoresPayload() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+        let settingsVM = SettingsViewModel()
+
+        context.insert(Category(id: "cat_secure", name: "Sikker", type: .expense, sortOrder: 1))
+        context.insert(UserPreference(singletonKey: "main", firstName: "Nora", onboardingCompleted: true))
+        try context.save()
+
+        let exportURL = try settingsVM.exportData(context: context, password: "hemmelig-passord")
+
+        try DemoDataSeeder.wipeAllData(context: context)
+        _ = try settingsVM.importData(from: exportURL, mode: .merge, context: context, password: "hemmelig-passord")
+
+        let categories = try context.fetch(FetchDescriptor<Category>())
+        let preferences = try context.fetch(FetchDescriptor<UserPreference>())
+
+        #expect(categories.contains { $0.id == "cat_secure" })
+        #expect(preferences.first?.firstName == "Nora")
+    }
+
+    @Test
+    @MainActor
     func settingsImportMergeIsIdempotentForBucketsGoalsAndPreference() throws {
         let container = try TestModelContainerFactory.makeInMemoryContainer()
         let context = container.mainContext
@@ -48,9 +71,9 @@ struct SettingsImportTests {
         )
         try context.save()
 
-        let exportURL = try settingsVM.exportData(context: context)
-        _ = try settingsVM.importData(from: exportURL, mode: .merge, context: context, password: nil)
-        _ = try settingsVM.importData(from: exportURL, mode: .merge, context: context, password: nil)
+        let exportURL = try settingsVM.exportData(context: context, password: "idempotent-passord")
+        _ = try settingsVM.importData(from: exportURL, mode: .merge, context: context, password: "idempotent-passord")
+        _ = try settingsVM.importData(from: exportURL, mode: .merge, context: context, password: "idempotent-passord")
 
         let buckets = try context.fetch(FetchDescriptor<InvestmentBucket>())
         let goals = try context.fetch(FetchDescriptor<Goal>())
@@ -75,22 +98,31 @@ struct SettingsImportTests {
 
     @Test
     @MainActor
-    func settingsImportReplaceRemovesPostExportDataAndReportsBackupFile() throws {
+    func settingsImportReplaceRemovesPostExportDataWithoutLeavingBackupFileOnDisk() throws {
         let container = try TestModelContainerFactory.makeInMemoryContainer()
         let context = container.mainContext
         let settingsVM = SettingsViewModel()
+        let fileManager = FileManager.default
+        let tempDirectory = fileManager.temporaryDirectory
+        let backupPrefix = "enkelt-budsjett-auto-backup-"
+        let existingBackupFiles = try fileManager.contentsOfDirectory(at: tempDirectory, includingPropertiesForKeys: nil)
+            .map(\.lastPathComponent)
+            .filter { $0.hasPrefix(backupPrefix) }
 
         context.insert(Category(id: "cat_exported", name: "Eksportert kategori", type: .expense, sortOrder: 1))
         context.insert(UserPreference(singletonKey: "main", firstName: "Ada", onboardingCompleted: true))
         try context.save()
 
-        let exportURL = try settingsVM.exportData(context: context)
+        let exportURL = try settingsVM.exportData(context: context, password: "sterkt-passord")
 
         context.insert(Category(id: "cat_extra", name: "Skal bort", type: .expense, sortOrder: 2))
         try context.save()
 
-        let report = try settingsVM.importData(from: exportURL, mode: .replace, context: context, password: nil)
+        let report = try settingsVM.importData(from: exportURL, mode: .replace, context: context, password: "sterkt-passord")
         let categories = try context.fetch(FetchDescriptor<Category>())
+        let currentBackupFiles = try fileManager.contentsOfDirectory(at: tempDirectory, includingPropertiesForKeys: nil)
+            .map(\.lastPathComponent)
+            .filter { $0.hasPrefix(backupPrefix) }
 
         let reportIsReplace: Bool
         switch report.mode {
@@ -101,9 +133,10 @@ struct SettingsImportTests {
         }
 
         #expect(reportIsReplace)
-        #expect(report.backupFileName?.hasPrefix("enkelt-budsjett-auto-backup-") == true)
+        #expect(report.backupFileName == nil)
         #expect(categories.contains(where: { $0.id == "cat_exported" }))
         #expect(categories.contains(where: { $0.id == "cat_extra" }) == false)
+        #expect(currentBackupFiles == existingBackupFiles)
     }
 
     @Test
@@ -157,6 +190,46 @@ struct SettingsImportTests {
         #expect(activeGoals.count == 1)
         #expect(activeGoals.first?.targetAmount == 350_000)
         #expect(activeGoals.first?.targetDate == calendar.date(from: DateComponents(year: 2027, month: 6, day: 30)))
+    }
+
+    @Test
+    @MainActor
+    func encryptedImportFailsWithWrongPassword() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+        let settingsVM = SettingsViewModel()
+
+        context.insert(Category(id: "cat_secure", name: "Sikker", type: .expense, sortOrder: 1))
+        try context.save()
+
+        let exportURL = try settingsVM.exportData(context: context, password: "riktig-passord")
+
+        #expect(throws: DataTransferError.encryptedPayloadWrongPassword) {
+            try settingsVM.importData(from: exportURL, mode: .merge, context: context, password: "feil-passord")
+        }
+    }
+
+    @Test
+    @MainActor
+    func demoSeedStillWorksWithEncryptedExportImportFlow() throws {
+        let sourceContainer = try TestModelContainerFactory.makeInMemoryContainer()
+        let sourceContext = sourceContainer.mainContext
+        let targetContainer = try TestModelContainerFactory.makeInMemoryContainer()
+        let targetContext = targetContainer.mainContext
+        let settingsVM = SettingsViewModel()
+
+        _ = try settingsVM.seedDemoRealisticYear(context: sourceContext, year: 2026)
+        let exportURL = try settingsVM.exportData(context: sourceContext, password: "demo-passord")
+
+        _ = try settingsVM.importData(from: exportURL, mode: .replace, context: targetContext, password: "demo-passord")
+
+        let fixedItems = try targetContext.fetch(FetchDescriptor<FixedItem>())
+        let snapshots = try targetContext.fetch(FetchDescriptor<InvestmentSnapshot>())
+        let preferences = try targetContext.fetch(FetchDescriptor<UserPreference>())
+
+        #expect(fixedItems.contains { $0.id.hasPrefix("fixed_demo_") })
+        #expect(!snapshots.isEmpty)
+        #expect(preferences.count == 1)
     }
 
     private func makeLegacyImportFile() throws -> URL {

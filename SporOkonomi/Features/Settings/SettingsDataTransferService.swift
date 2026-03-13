@@ -57,17 +57,43 @@ enum SettingsDataTransferService {
         }
     }
 
-    static func writePlainPayload(_ payload: ExportPayload, filePrefix: String) throws -> URL {
+    static func writeEncryptedPayload(
+        _ payload: ExportPayload,
+        filePrefix: String,
+        password: String
+    ) throws -> URL {
+        let trimmedPassword = password.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedPassword.isEmpty else {
+            throw DataTransferError.passwordRequiredForEncryptedExport
+        }
+
+        let plainData = try encodePayload(payload)
+        let salt = Data((0..<16).map { _ in UInt8.random(in: .min ... .max) })
+        let key = deriveKey(password: trimmedPassword, salt: salt)
+        let sealedBox = try AES.GCM.seal(plainData, using: key)
+        let envelope = EncryptedExportEnvelope(
+            format: "enkelt-budsjett-export-encrypted-v1",
+            exportedAt: payload.exportedAt,
+            saltBase64: salt.base64EncodedString(),
+            sealedBoxBase64: sealedBox.combined?.base64EncodedString() ?? ""
+        )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
-        let data = try encoder.encode(payload)
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyyMMdd_HHmmss"
-        let fileName = "\(filePrefix)-\(formatter.string(from: .now)).json"
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
-        try data.write(to: url, options: .atomic)
-        return url
+        let encryptedData = try encoder.encode(envelope)
+        return try writeDataToProtectedTemporaryFile(
+            encryptedData,
+            filePrefix: filePrefix,
+            fileExtension: "json"
+        )
+    }
+
+    static func writePlainPayload(_ payload: ExportPayload, filePrefix: String) throws -> URL {
+        try writeDataToProtectedTemporaryFile(
+            encodePayload(payload),
+            filePrefix: filePrefix,
+            fileExtension: "json"
+        )
     }
 
     private static func deriveKey(password: String, salt: Data) -> SymmetricKey {
@@ -78,5 +104,29 @@ enum SettingsDataTransferService {
             info: Data("enkelt-budsjett-export-v1".utf8),
             outputByteCount: 32
         )
+    }
+
+    private static func encodePayload(_ payload: ExportPayload) throws -> Data {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.dateEncodingStrategy = .iso8601
+        return try encoder.encode(payload)
+    }
+
+    private static func writeDataToProtectedTemporaryFile(
+        _ data: Data,
+        filePrefix: String,
+        fileExtension: String
+    ) throws -> URL {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd_HHmmss"
+        let fileName = "\(filePrefix)-\(formatter.string(from: .now)).\(fileExtension)"
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+        try data.write(to: url, options: .atomic)
+        try FileManager.default.setAttributes(
+            [.protectionKey: FileProtectionType.complete],
+            ofItemAtPath: url.path
+        )
+        return url
     }
 }

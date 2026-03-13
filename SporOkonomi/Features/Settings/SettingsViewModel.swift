@@ -34,6 +34,7 @@ struct DataImportReport {
 }
 
 enum DataTransferError: LocalizedError {
+    case passwordRequiredForEncryptedExport
     case passwordRequiredForEncryptedImport
     case encryptedPayloadInvalid
     case encryptedPayloadWrongPassword
@@ -41,14 +42,16 @@ enum DataTransferError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
+        case .passwordRequiredForEncryptedExport:
+            return "Velg et passord for å lage en kryptert eksportfil."
         case .passwordRequiredForEncryptedImport:
-            return "Denne filen er kryptert og kan ikke importeres (eksporter på nytt uten kryptering)."
+            return "Denne filen er kryptert. Skriv inn passordet for å importere den."
         case .encryptedPayloadInvalid:
             return "Filen kunne ikke leses som gyldig eksportformat."
         case .encryptedPayloadWrongPassword:
             return "Feil passord eller ugyldig kryptert fil."
         case .replaceFailedRollbackFailed:
-            return "Import feilet, og automatisk gjenoppretting fra backup feilet også. Bruk backup-filen manuelt."
+            return "Import feilet, og automatisk gjenoppretting feilet også. Kontroller dataene før du prøver igjen."
         }
     }
 }
@@ -139,11 +142,12 @@ final class SettingsViewModel {
         try await CheckInReminderService.syncFromPreference(preference)
     }
 
-    func exportData(context: ModelContext) throws -> URL {
+    func exportData(context: ModelContext, password: String) throws -> URL {
         let payload = try SettingsDataTransferService.makeExportPayload(context: context)
-        return try SettingsDataTransferService.writePlainPayload(
+        return try SettingsDataTransferService.writeEncryptedPayload(
             payload,
-            filePrefix: "enkelt-budsjett-export"
+            filePrefix: "enkelt-budsjett-export",
+            password: password
         )
     }
 
@@ -182,16 +186,10 @@ final class SettingsViewModel {
         let payload = try SettingsDataTransferService.decodeImportPayload(from: data, password: password)
         try preflightImport(payload: payload)
 
-        var backupFileName: String?
         var backupPayloadForRollback: ExportPayload?
         if mode == .replace {
             let backupPayload = try SettingsDataTransferService.makeExportPayload(context: context)
             backupPayloadForRollback = backupPayload
-            let backupURL = try SettingsDataTransferService.writePlainPayload(
-                backupPayload,
-                filePrefix: "enkelt-budsjett-auto-backup"
-            )
-            backupFileName = backupURL.lastPathComponent
             try DemoDataSeeder.wipeAllData(context: context)
         }
 
@@ -225,7 +223,7 @@ final class SettingsViewModel {
             goals: payload.goals.count,
             challenges: payload.challenges.count,
             preferences: payload.preferences.count,
-            backupFileName: backupFileName
+            backupFileName: nil
         )
     }
 

@@ -43,7 +43,7 @@ enum DemoDataSeeder {
         try context.guardedSave(feature: "DemoData", operation: "save", enforceReadOnly: false)
 
         let report = try buildReport(context: context)
-        print("[DemoDataSeeder] Seed fullført: months=\(report.budgetMonths), categories=\(report.categories), plans=\(report.budgetPlans), tx=\(report.transactions), buckets=\(report.buckets), snapshots=\(report.snapshots), goals=\(report.goals), prefs=\(report.preferences)")
+        debugLog("[DemoDataSeeder] Seed fullført: months=\(report.budgetMonths), categories=\(report.categories), plans=\(report.budgetPlans), tx=\(report.transactions), buckets=\(report.buckets), snapshots=\(report.snapshots), goals=\(report.goals), prefs=\(report.preferences)")
         return report
     }
 
@@ -67,7 +67,7 @@ enum DemoDataSeeder {
         try context.guardedSave(feature: "DemoData", operation: "save", enforceReadOnly: false)
 
         let report = try buildReport(context: context)
-        print("[DemoDataSeeder] Marketing-demo lastet: months=\(report.budgetMonths), categories=\(report.categories), plans=\(report.budgetPlans), tx=\(report.transactions), buckets=\(report.buckets), snapshots=\(report.snapshots), goals=\(report.goals), prefs=\(report.preferences)")
+        debugLog("[DemoDataSeeder] Marketing-demo lastet: months=\(report.budgetMonths), categories=\(report.categories), plans=\(report.budgetPlans), tx=\(report.transactions), buckets=\(report.buckets), snapshots=\(report.snapshots), goals=\(report.goals), prefs=\(report.preferences)")
         return report
     }
 
@@ -88,7 +88,13 @@ enum DemoDataSeeder {
         UserDefaults.standard.removeObject(forKey: "onboarding_local_events")
         UserDefaults.standard.removeObject(forKey: "challenges_waitlist_optin")
         try context.guardedSave(feature: "DemoData", operation: "save", enforceReadOnly: false)
-        print("[DemoDataSeeder] Alle lokale data er slettet")
+        debugLog("[DemoDataSeeder] Alle lokale data er slettet")
+    }
+
+    private static func debugLog(_ message: String) {
+#if DEBUG
+        print(message)
+#endif
     }
 
     private static func createCategories(
