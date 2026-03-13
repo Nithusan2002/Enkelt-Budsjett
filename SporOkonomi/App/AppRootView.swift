@@ -290,11 +290,11 @@ struct AppRootView: View {
         case .primary:
             return ""
         case .primaryWithoutCloud:
-            return "Appen kjører lokalt uten iCloud-synk. Sjekk iCloud-innstillinger på enheten."
+            return "Data lagres lokalt på denne enheten. iCloud-synk er ikke aktiv."
         case .recovery:
-            return "Appen kjører i recovery-lagring. Primær lagring kunne ikke åpnes."
+            return "Primær lagring kunne ikke åpnes. Appen bruker en separat recovery-lagring på denne enheten."
         case .memoryOnly:
-            return "Appen kjører midlertidig uten varig lagring. Skrivende handlinger er låst til normal lagring er tilbake."
+            return "Appen kjører midlertidig uten varig lagring. Endringer kan ikke lagres permanent."
         }
     }
 }

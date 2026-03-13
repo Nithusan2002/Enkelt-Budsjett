@@ -913,9 +913,9 @@ struct SettingsView: View {
         case .primary:
             return "Primær"
         case .primaryWithoutCloud:
-            return "Primær (lokal)"
+            return "Primær (uten iCloud)"
         case .recovery:
-            return "Recovery"
+            return "Recovery (lokal)"
         case .memoryOnly:
             return "Midlertidig"
         }
@@ -948,8 +948,14 @@ struct SettingsView: View {
                 detail += "\n\nFeildetaljer: \(error)"
             }
             return detail
-        case .recovery, .memoryOnly:
-            return "Recovery/midlertidig modus betyr at primær lagring ikke kunne åpnes. Skrivende handlinger er derfor begrenset."
+        case .recovery:
+            var detail = "Primær lagring kunne ikke åpnes. Appen bruker en separat recovery-lagring på denne enheten."
+            if let error = SporOkonomiApp.lastCloudInitError, !error.isEmpty {
+                detail += "\n\nFeildetaljer: \(error)"
+            }
+            return detail
+        case .memoryOnly:
+            return "Appen kjører midlertidig uten varig lagring. Endringer kan ikke lagres permanent."
         }
     }
 
