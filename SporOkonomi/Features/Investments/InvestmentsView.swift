@@ -387,6 +387,8 @@ struct InvestmentsView: View {
                                 : Color.clear,
                             in: RoundedRectangle(cornerRadius: 8)
                         )
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }

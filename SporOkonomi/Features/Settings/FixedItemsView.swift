@@ -546,6 +546,8 @@ private struct FixedItemCategoryPickerSheet: View {
                                         .foregroundStyle(AppTheme.primary)
                                 }
                             }
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                     }

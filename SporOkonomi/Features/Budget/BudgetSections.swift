@@ -1508,6 +1508,8 @@ struct BudgetGroupDetailView: View {
                                         }
                                         .padding(.horizontal, 12)
                                         .padding(.vertical, 10)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .contentShape(Rectangle())
                                     }
                                     .buttonStyle(.plain)
                                     .contextMenu {

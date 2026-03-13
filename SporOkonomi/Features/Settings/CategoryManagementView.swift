@@ -47,6 +47,8 @@ struct CategoryManagementView: View {
                                 ))
                                 .labelsHidden()
                             }
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                     }
