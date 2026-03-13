@@ -2165,7 +2165,7 @@ private struct AboutAppView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Hva appen er laget for")
                             .font(.headline.weight(.semibold))
-                        Text("Spor økonomi hjelper deg å få oversikt over hverdagsøkonomi og investeringer uten bankkoblinger, støy eller unødvendig kompleksitet.")
+                        Text("Spor økonomi gir deg full kontroll over hverdagsøkonomien med en enkel og rolig oversikt.")
                             .appBodyStyle()
                             .foregroundStyle(AppTheme.textSecondary)
                     }
