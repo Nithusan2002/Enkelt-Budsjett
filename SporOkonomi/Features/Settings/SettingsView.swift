@@ -369,6 +369,17 @@ struct SettingsView: View {
             .buttonStyle(.plain)
 
             NavigationLink {
+                EconomySettingsHomeView(
+                    pref: pref,
+                    isReadOnlyMode: isReadOnlyMode,
+                    investmentBuckets: investmentBuckets
+                )
+            } label: {
+                settingsRow(title: "Oppsett", value: "", showsChevron: false)
+            }
+            .buttonStyle(.plain)
+
+            NavigationLink {
                 AppSettingsHomeView(
                     pref: pref,
                     isReadOnlyMode: isReadOnlyMode,
@@ -378,18 +389,7 @@ struct SettingsView: View {
                     onApplyReminderSettings: applyReminderSettings
                 )
             } label: {
-                settingsRow(title: "Appinnstillinger", value: currentAppearanceMode.title, showsChevron: false)
-            }
-            .buttonStyle(.plain)
-
-            NavigationLink {
-                EconomySettingsHomeView(
-                    pref: pref,
-                    isReadOnlyMode: isReadOnlyMode,
-                    investmentBuckets: investmentBuckets
-                )
-            } label: {
-                settingsRow(title: "Oppsett", value: "", showsChevron: false)
+                settingsRow(title: "App", value: currentAppearanceMode.title, showsChevron: false)
             }
             .buttonStyle(.plain)
 
@@ -521,7 +521,7 @@ struct SettingsView: View {
             }
             .disabled(isReadOnlyMode)
         } header: {
-            sectionHeader("Appinnstillinger")
+            sectionHeader("App")
         } footer: {
             if isReadOnlyMode {
                 Text("Skrivende handlinger er midlertidig deaktivert.")
@@ -531,6 +531,13 @@ struct SettingsView: View {
 
     private var budgetAndInvestmentsSection: some View {
         Section {
+            NavigationLink {
+                CategoryManagementView()
+            } label: {
+                settingsRow(title: "Kategorier", value: "", showsChevron: false)
+            }
+            .buttonStyle(.plain)
+
             NavigationLink {
                 FixedItemsView()
             } label: {
@@ -548,14 +555,7 @@ struct SettingsView: View {
             Button {
                 showGoalSheet = true
             } label: {
-                settingsRow(title: "Formue Mål", value: "", showsChevron: true)
-            }
-            .buttonStyle(.plain)
-
-            NavigationLink {
-                CategoryManagementView()
-            } label: {
-                settingsRow(title: "Kategorier", value: "", showsChevron: false)
+                settingsRow(title: "Mål", value: "", showsChevron: true)
             }
             .buttonStyle(.plain)
         } header: {
@@ -1501,7 +1501,7 @@ private struct AppSettingsHomeView: View {
         }
         .scrollContentBackground(.hidden)
         .background(AppTheme.background)
-        .navigationTitle("Appinnstillinger")
+        .navigationTitle("App")
         .safeAreaInset(edge: .bottom) {
             Color.clear
                 .frame(height: 86)
