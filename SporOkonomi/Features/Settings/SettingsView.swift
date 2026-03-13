@@ -2130,6 +2130,10 @@ private struct AboutAppView: View {
         colorScheme == .dark ? "Spor-økonomi-applogo-Dark" : "Spor-økonomi-applogo"
     }
 
+    private var appLogoWidth: CGFloat {
+        colorScheme == .dark ? 206 : 340
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
@@ -2137,7 +2141,7 @@ private struct AboutAppView: View {
                     Image(appLogoAssetName)
                         .resizable()
                         .scaledToFit()
-                        .frame(maxWidth: 340)
+                        .frame(width: appLogoWidth)
                         .accessibilityHidden(true)
 
                     VStack(spacing: 4) {
