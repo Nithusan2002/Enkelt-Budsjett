@@ -2107,7 +2107,7 @@ private struct FAQSettingsView: View {
         )
     ]
 
-    @State private var expandedQuestionID: String? = "storage"
+    @State private var expandedQuestionID: String?
 
     var body: some View {
         ScrollView {
