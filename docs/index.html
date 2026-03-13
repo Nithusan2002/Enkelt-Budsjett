@@ -332,7 +332,6 @@
     }
 
     .mini-grid,
-    .features,
     .quote-grid {
       display: grid;
       gap: 16px;
@@ -399,36 +398,13 @@
       width: 100%;
       height: 100%;
       object-fit: cover;
+      display: block;
     }
 
-    .shot-placeholder {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      padding: 24px;
-      text-align: center;
+    .shot-meta {
+      margin-top: 12px;
+      font-size: 0.92rem;
       color: var(--muted);
-      background:
-        radial-gradient(circle at top left, rgba(22, 92, 78, 0.08), transparent 34%),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(240, 244, 241, 0.94));
-    }
-
-    .shot-placeholder strong {
-      color: var(--text);
-      font-size: 1rem;
-    }
-
-    .shot-placeholder code {
-      padding: 6px 10px;
-      border-radius: 999px;
-      background: rgba(22, 92, 78, 0.08);
-      color: var(--primary);
-      font-family: "SFMono-Regular", ui-monospace, monospace;
-      font-size: 0.82rem;
     }
 
     .shots-grid {
@@ -459,33 +435,6 @@
       margin-top: 28px;
     }
 
-    .band {
-      padding: 28px;
-      border-radius: var(--radius-xl);
-      background: rgba(24, 74, 64, 0.95);
-      color: #fff;
-      box-shadow: 0 20px 50px rgba(24, 74, 64, 0.24);
-    }
-
-    .band-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 14px;
-    }
-
-    .band-grid div {
-      padding: 16px;
-      border-radius: 18px;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .band-grid strong {
-      display: block;
-      margin-bottom: 6px;
-      font-size: 1rem;
-    }
-
     .section-head {
       max-width: 720px;
       margin-bottom: 18px;
@@ -498,17 +447,22 @@
       letter-spacing: -0.04em;
     }
 
-    .features {
+    .detail-grid {
       grid-template-columns: repeat(3, minmax(0, 1fr));
+      display: grid;
+      gap: 16px;
     }
 
-    .feature-card,
+    .detail-card,
     .quote-card {
       padding: 22px;
       border-radius: 24px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
     }
 
-    .feature-card h3,
+    .detail-card h3,
     .quote-card h3 {
       margin-bottom: 8px;
       font-size: 1.18rem;
@@ -553,12 +507,11 @@
     @media (max-width: 980px) {
       .hero,
       .quote-grid,
-      .features,
+      .detail-grid,
       .shots-grid {
         grid-template-columns: 1fr;
       }
 
-      .band-grid,
       .hero-points {
         grid-template-columns: 1fr;
       }
@@ -578,7 +531,6 @@
 
       .hero-card,
       .visual-card,
-      .band,
       .footer {
         padding: 22px;
       }
@@ -619,13 +571,13 @@
           <p class="eyebrow">Lanseres snart for iPhone</p>
           <h1 id="hero-title">En enkel budsjettapp for deg som vil forstå økonomien din</h1>
           <p class="lead">
-            Se hva du har igjen denne måneden, følg faste utgifter og få roligere oversikt uten komplisert oppsett.
+            Se hva du har igjen denne måneden, følg budsjettet ditt og oppdater investeringer i korte, enkle steg.
           </p>
           <div class="cta-row">
             <a class="button button-primary" href="#funksjoner">Se funksjonene</a>
             <a class="button button-secondary" href="./personvern/">Les om personvern</a>
           </div>
-          <p class="micro">Se hvordan appen er bygget for enkel oversikt, lokal kontroll og mindre støy i hverdagsøkonomien.</p>
+          <p class="micro">Bygget for hverdagsøkonomi med tydelig oversikt, lokal kontroll og mindre støy.</p>
           <div class="hero-points" aria-label="Hovedfordeler">
             <div>
               <strong>Enkel oversikt</strong>
@@ -643,93 +595,59 @@
         </div>
 
         <div class="visual-card" aria-label="Forhåndsvisning av app">
-          <span class="stat-chip">Budsjett, mål og investeringer</span>
+          <span class="stat-chip">Oversikt først</span>
           <div class="phone">
             <div class="shot-frame">
               <img src="./assets/screenshots/overview.png" alt="Spor økonomi oversikt" onerror="this.style.display='none'">
-              <div class="shot-placeholder">
-                <strong>Legg inn ekte appbilde her</strong>
-                <span>Drop et portrettbilde fra appen i denne stien:</span>
-                <code>docs/assets/screenshots/overview.png</code>
-              </div>
             </div>
           </div>
-        </div>
-      </section>
-
-      <section class="band" id="hvorfor" aria-labelledby="why-title">
-        <div class="section-head">
-          <h2 id="why-title">Bygget for deg som vil ha tydelig oversikt uten å bli overlesset.</h2>
-          <p class="section-intro">Appen fokuserer på det du faktisk trenger for å følge økonomien måned for måned.</p>
-        </div>
-        <div class="band-grid">
-          <div>
-            <strong>Faste poster</strong>
-            <span>Gjenta månedlige utgifter uten dobbeltarbeid.</span>
-          </div>
-          <div>
-            <strong>Investeringsinnsjekk</strong>
-            <span>Oppdater porteføljen med en enkel månedlig rutine.</span>
-          </div>
-          <div>
-            <strong>Eksport og import</strong>
-            <span>Ta vare på egne data med enkel sikkerhetskopi.</span>
-          </div>
+          <p class="shot-meta">Oversikt er første skjerm fordi den raskest viser hva appen faktisk hjelper deg med.</p>
         </div>
       </section>
 
       <section id="funksjoner" aria-labelledby="features-title">
         <div class="section-head">
-          <h2 id="features-title">Tre områder som gjør appen nyttig i praksis.</h2>
-          <p class="section-intro">Forsiden er bevisst enkel. Arbeidet skjer i korte, fokuserte steg inne i appen.</p>
+          <h2 id="features-title">Tre tydelige områder som gjør appen nyttig i praksis.</h2>
+          <p class="section-intro">Spor økonomi er bygget rundt Oversikt, Budsjett og Investeringer. Hver del har én tydelig jobb i stedet for å forklare det samme flere ganger.</p>
         </div>
         <div class="shots-grid" aria-label="Appbilder">
           <article class="shot-card">
-            <h3>Budsjett</h3>
-            <p>Vis månedsoversikten med kategori- og gruppekontroll.</p>
+            <h3>Oversikt</h3>
+            <p>Se hva du har igjen denne måneden og få et raskt bilde av økonomien uten å lete.</p>
             <div class="shot-frame">
-              <img src="./assets/screenshots/budget.png" alt="Spor økonomi budsjett" onerror="this.style.display='none'">
-              <div class="shot-placeholder">
-                <strong>Legg til budsjettbilde</strong>
-                <code>docs/assets/screenshots/budget.png</code>
-              </div>
+              <img src="./assets/screenshots/overview.png" alt="Spor økonomi oversikt" onerror="this.style.display='none'">
             </div>
+            <p class="shot-meta">Starter med tallene som betyr mest akkurat nå.</p>
           </article>
           <article class="shot-card">
-            <h3>Faste poster</h3>
-            <p>Bruk ekte skjermbilde fra listen med faste kostnader eller detaljer.</p>
+            <h3>Budsjett</h3>
+            <p>Følg forbruk, grenser og faste utgifter i én månedlig arbeidsflate som er enkel å vedlikeholde.</p>
             <div class="shot-frame">
-              <img src="./assets/screenshots/fixed-items.png" alt="Spor økonomi faste poster" onerror="this.style.display='none'">
-              <div class="shot-placeholder">
-                <strong>Legg til fastpost-bilde</strong>
-                <code>docs/assets/screenshots/fixed-items.png</code>
-              </div>
+              <img src="./assets/screenshots/budget.png" alt="Spor økonomi budsjett" onerror="this.style.display='none'">
             </div>
+            <p class="shot-meta">Gir deg kontroll på måneden uten komplisert oppsett.</p>
           </article>
           <article class="shot-card">
             <h3>Investeringer</h3>
-            <p>Vis portefølje, utvikling eller siste innsjekk.</p>
+            <p>Oppdater investeringer manuelt når du vil, og følg utviklingen over tid uten bankkoblinger.</p>
             <div class="shot-frame">
               <img src="./assets/screenshots/investments.png" alt="Spor økonomi investeringer" onerror="this.style.display='none'">
-              <div class="shot-placeholder">
-                <strong>Legg til investeringsbilde</strong>
-                <code>docs/assets/screenshots/investments.png</code>
-              </div>
             </div>
+            <p class="shot-meta">Manuell investeringsoppfølging med roligere tempo og tydelig historikk.</p>
           </article>
         </div>
-        <div class="features">
-          <article class="feature-card">
-            <h3>Månedsbudsjett</h3>
-            <p>Følg inntekt, utgifter og manuell sparing med grupperte kategorier og tydelig progresjon.</p>
+        <div class="detail-grid" id="hvorfor" aria-label="Praktiske egenskaper">
+          <article class="detail-card">
+            <h3>Mindre støy</h3>
+            <p>Appen fokuserer på noen få tydelige flater i stedet for mange skjermer og valg.</p>
           </article>
-          <article class="feature-card">
-            <h3>Investeringsoversikt</h3>
-            <p>Registrer snapshots per måned for fond, aksjer, BSU, buffer og andre kontoer du vil følge.</p>
+          <article class="detail-card">
+            <h3>Lokal kontroll</h3>
+            <p>Data lagres lokalt som utgangspunkt. Hvis iCloud-synk er aktiv, skjer synk via Apple-kontoen din.</p>
           </article>
-          <article class="feature-card">
-            <h3>Mål og vaner</h3>
-            <p>Se hvor mye du har spart hittil i år og knytt økonomien til konkrete mål som føles oppnåelige.</p>
+          <article class="detail-card">
+            <h3>Enkel oppfølging</h3>
+            <p>Faste poster, budsjett og investeringer er laget for korte oppdateringer som faktisk blir gjort.</p>
           </article>
         </div>
       </section>
@@ -756,7 +674,7 @@
       <div class="footer-top">
         <div>
           <strong>Spor økonomi</strong>
-          <p class="micro">GitHub Pages-landingsside for appen.</p>
+          <p class="micro">En rolig budsjettapp for iPhone.</p>
         </div>
         <div class="footer-links" aria-label="Juridiske lenker">
           <a href="./support/">Support</a>
