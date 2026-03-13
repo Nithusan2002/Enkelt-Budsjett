@@ -2080,6 +2080,7 @@ private struct FAQSettingsView: View {
 
 private struct AboutAppView: View {
     @Environment(\.openURL) private var openURL
+    @Environment(\.colorScheme) private var colorScheme
 
     private var versionText: String {
         let short = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
@@ -2087,11 +2088,15 @@ private struct AboutAppView: View {
         return "Versjon \(short) (\(build))"
     }
 
+    private var appLogoAssetName: String {
+        colorScheme == .dark ? "Spor-økonomi-applogo-Dark" : "Spor-økonomi-applogo-Light"
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
                 VStack(spacing: 8) {
-                    Image("Spor-økonomi-applogo")
+                    Image(appLogoAssetName)
                         .resizable()
                         .scaledToFit()
                         .frame(height: 140)
