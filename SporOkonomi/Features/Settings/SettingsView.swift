@@ -2112,16 +2112,16 @@ private struct FAQSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                Text("Korte svar på det mange lurer på.")
+                Text("Korte svar på vanlige spørsmål.")
                     .appSecondaryStyle()
 
                 ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
                     VStack(alignment: .leading, spacing: 8) {
                         Text(section.title)
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(AppTheme.textSecondary)
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(AppTheme.textSecondary.opacity(0.9))
                             .padding(.horizontal, 4)
-                            .padding(.top, index == 0 ? 0 : 8)
+                            .padding(.top, index == 0 ? 0 : 10)
 
                         VStack(spacing: 0) {
                             ForEach(Array(section.items.enumerated()), id: \.element.id) { index, item in
@@ -2140,7 +2140,7 @@ private struct FAQSettingsView: View {
 
                                             Image(systemName: expandedQuestionID == item.id ? "chevron.up" : "chevron.down")
                                                 .font(.caption2.weight(.medium))
-                                                .foregroundStyle(AppTheme.textSecondary.opacity(0.7))
+                                                .foregroundStyle(AppTheme.textSecondary.opacity(0.58))
                                                 .padding(.top, 3)
                                         }
                                         .padding(.vertical, 12)
@@ -2152,7 +2152,7 @@ private struct FAQSettingsView: View {
                                         Text(item.answer)
                                             .appSecondaryStyle()
                                             .frame(maxWidth: .infinity, alignment: .leading)
-                                            .padding(.bottom, 12)
+                                            .padding(.bottom, 10)
                                     }
                                 }
 
