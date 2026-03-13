@@ -55,9 +55,11 @@ struct OnboardingFeatureTests {
 
         #expect(viewModel.showsProgressHeader == false)
         #expect(viewModel.primaryButtonTitle == "Kom i gang")
-        #expect(viewModel.secondaryButtonTitle == "Hopp over")
-        #expect(viewModel.introTitle == "Få kontroll på økonomien din")
-        #expect(viewModel.introBodyText == "Se hvor mye du har igjen hver måned.")
+        #expect(viewModel.secondaryButtonTitle == "Hopp over intro")
+        #expect(viewModel.introTitle == "Se hvor mye du faktisk har igjen hver måned")
+        #expect(viewModel.introBodyText == "Få roligere oversikt uten komplisert oppsett.")
+        #expect(viewModel.introPreviewEyebrow == "Eksempel")
+        #expect(viewModel.introPreviewTitle == "6 200 kr igjen denne måneden")
     }
 
     @Test
@@ -143,7 +145,7 @@ struct OnboardingFeatureTests {
         let viewModel = OnboardingViewModel(preference: preference)
 
         viewModel.monthlyIncomeText = "12 000"
-        viewModel.selectedFixedCosts = [.rent, .food, .subscriptions]
+        viewModel.selectedFixedCosts = [.rent, .electricity, .subscriptions, .transport]
 
         #expect(viewModel.resultAmount == 6_200)
         #expect(viewModel.resultAmountText == "6 200 kr")
@@ -207,7 +209,7 @@ struct OnboardingFeatureTests {
         let viewModel = OnboardingViewModel(preference: preference)
 
         viewModel.monthlyIncomeText = "12 000"
-        viewModel.selectedFixedCosts = [.rent, .food, .subscriptions]
+        viewModel.selectedFixedCosts = [.rent, .electricity, .subscriptions, .transport]
 
         #expect(viewModel.summaryTitle == "Du er klar")
         #expect(viewModel.summaryBadgeText == "Klar til bruk")

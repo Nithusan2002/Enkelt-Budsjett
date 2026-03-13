@@ -49,7 +49,7 @@ enum OnboardingGoalOption: String, CaseIterable, Identifiable {
 
 enum OnboardingFixedCostOption: String, CaseIterable, Identifiable {
     case rent
-    case food
+    case electricity
     case subscriptions
     case transport
 
@@ -59,8 +59,8 @@ enum OnboardingFixedCostOption: String, CaseIterable, Identifiable {
         switch self {
         case .rent:
             return "Husleie"
-        case .food:
-            return "Mat"
+        case .electricity:
+            return "Strøm"
         case .subscriptions:
             return "Abonnement"
         case .transport:
@@ -72,8 +72,8 @@ enum OnboardingFixedCostOption: String, CaseIterable, Identifiable {
         switch self {
         case .rent:
             return 3_500
-        case .food:
-            return 1_500
+        case .electricity:
+            return 600
         case .subscriptions:
             return 800
         case .transport:
@@ -145,11 +145,11 @@ final class OnboardingViewModel: ObservableObject {
     var secondaryButtonTitle: String? {
         switch currentStep {
         case .intro:
-            return "Hopp over introen"
+            return "Hopp over intro"
         case .goals:
             return "Ikke nå"
         case .income:
-            return "Legg inn senere"
+            return nil
         case .summary:
             return nil
         case .fixedCosts:
@@ -172,11 +172,11 @@ final class OnboardingViewModel: ObservableObject {
     }
 
     var introTitle: String {
-        "Få kontroll på økonomien din"
+        "Se hvor mye du faktisk har igjen hver måned"
     }
 
     var introBodyText: String {
-        "Se hvor mye du har igjen hver måned."
+        "Få roligere oversikt uten komplisert oppsett."
     }
 
     var introPreviewEyebrow: String {
@@ -184,7 +184,7 @@ final class OnboardingViewModel: ObservableObject {
     }
 
     var introPreviewTitle: String {
-        "Slik kan oversikten se ut"
+        "6 200 kr igjen denne måneden"
     }
 
     var introPreviewFootnote: String {
@@ -230,15 +230,15 @@ final class OnboardingViewModel: ObservableObject {
 
     var fixedCostHelpText: String? {
         guard !selectedFixedCosts.isEmpty else { return nil }
-        return "Bare for et raskt anslag akkurat nå."
+        return "Brukes bare for et raskt anslag."
     }
 
     var fixedCostsBodyText: String {
-        "Kryss av det du vil ha med nå."
+        "Velg det som passer."
     }
 
     var fixedCostsSupportText: String {
-        "Du kan fylle inn resten senere."
+        "Du kan justere dette senere."
     }
 
     var monthlyIncome: Double? {

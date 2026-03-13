@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 struct OnboardingView: View {
     @Environment(\.modelContext) private var modelContext
@@ -7,6 +8,8 @@ struct OnboardingView: View {
     @StateObject private var viewModel: OnboardingViewModel
     @FocusState private var focusedField: OnboardingInputField?
     @State private var animatedResultAmount = 0
+    @State private var introCardVisible = false
+    @State private var summaryMarkVisible = false
 
     private enum OnboardingInputField {
         case income
@@ -67,11 +70,13 @@ struct OnboardingView: View {
                 viewModel.markCurrentStepSeen()
                 updateFocus(for: viewModel.currentStep)
                 updateAnimatedResult(for: viewModel.currentStep)
+                updateStepAnimations(for: viewModel.currentStep)
             }
             .onChange(of: viewModel.currentStep) { _, newStep in
                 viewModel.markCurrentStepSeen()
                 updateFocus(for: newStep)
                 updateAnimatedResult(for: newStep)
+                updateStepAnimations(for: newStep)
             }
             .onChange(of: viewModel.monthlyIncomeText) { _, _ in
                 if viewModel.currentStep == .summary {
@@ -106,14 +111,14 @@ struct OnboardingView: View {
 
             LinearGradient(
                 colors: [
-                    AppTheme.primary.opacity(viewModel.currentStep == .intro ? 0.20 : 0.10),
-                    AppTheme.primary.opacity(0.05),
+                    viewModel.currentStep == .intro ? Color(red: 0.07, green: 0.18, blue: 0.14) : AppTheme.primary.opacity(0.14),
+                    viewModel.currentStep == .intro ? Color(red: 0.11, green: 0.29, blue: 0.22) : AppTheme.primary.opacity(0.07),
                     AppTheme.background
                 ],
                 startPoint: .top,
                 endPoint: .bottom
             )
-            .frame(maxHeight: 360, alignment: .top)
+            .frame(maxHeight: viewModel.currentStep == .intro ? 430 : 340, alignment: .top)
             .ignoresSafeArea(edges: .top)
             .allowsHitTesting(false)
         }
@@ -191,23 +196,27 @@ struct OnboardingView: View {
     }
 
     private var introStep: some View {
-        VStack(spacing: 22) {
+        VStack(spacing: 24) {
             introPreviewCard
+                .opacity(introCardVisible ? 1 : 0)
+                .offset(y: introCardVisible ? 0 : 10)
 
             VStack(spacing: 8) {
                 Text(viewModel.introTitle)
                     .font(.system(size: 36, weight: .bold, design: .rounded))
-                    .foregroundStyle(AppTheme.textPrimary)
+                    .foregroundStyle(Color.white)
                     .multilineTextAlignment(.center)
+                    .frame(maxWidth: 420)
 
                 Text(viewModel.introBodyText)
                     .appBodyStyle()
+                    .foregroundStyle(Color.white.opacity(0.84))
                     .multilineTextAlignment(.center)
-                    .frame(maxWidth: 320)
+                    .frame(maxWidth: 330)
             }
         }
         .frame(maxWidth: .infinity, alignment: .center)
-        .padding(.top, 10)
+        .padding(.top, 20)
     }
 
     private var goalsStep: some View {
@@ -259,6 +268,10 @@ struct OnboardingView: View {
                 Text("Dette brukes til å vise hva du har igjen.")
                     .appSecondaryStyle()
                     .frame(maxWidth: .infinity, alignment: .leading)
+
+                Text("Du kan endre dette senere.")
+                    .appSecondaryStyle()
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(16)
             .background(AppTheme.surface)
@@ -275,15 +288,14 @@ struct OnboardingView: View {
     private var fixedCostsStep: some View {
         VStack(spacing: 16) {
             headerBlock(
-                title: "Har du faste utgifter?",
+                title: "Har du faste utgifter",
                 body: viewModel.fixedCostsBodyText
             )
 
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 132), spacing: 10)], spacing: 10) {
                 ForEach(OnboardingFixedCostOption.allCases) { option in
-                    selectionCard(
+                    selectionChip(
                         title: option.title,
-                        subtitle: nil,
                         isSelected: viewModel.selectedFixedCosts.contains(option)
                     ) {
                         withAnimation(.easeInOut(duration: 0.18)) {
@@ -308,15 +320,24 @@ struct OnboardingView: View {
     }
 
     private var summaryStep: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 18) {
             ZStack {
                 Circle()
+                    .stroke(AppTheme.primary.opacity(0.18), lineWidth: 10)
+                    .frame(width: 92, height: 92)
+                    .scaleEffect(summaryMarkVisible ? 1 : 0.88)
+
+                Circle()
                     .fill(AppTheme.surface)
-                    .frame(width: 80, height: 80)
+                    .frame(width: 74, height: 74)
+                    .scaleEffect(summaryMarkVisible ? 1 : 0.92)
+
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 30, weight: .semibold))
                     .foregroundStyle(AppTheme.primary)
+                    .scaleEffect(summaryMarkVisible ? 1 : 0.82)
             }
+            .animation(.spring(response: 0.45, dampingFraction: 0.82), value: summaryMarkVisible)
 
             VStack(spacing: 8) {
                 Text(viewModel.summaryTitle)
@@ -369,6 +390,7 @@ struct OnboardingView: View {
             .frame(maxWidth: .infinity)
             .appProminentCTAStyle()
             .disabled(viewModel.isPrimaryDisabled)
+            .opacity(viewModel.isPrimaryDisabled ? 0.45 : 1)
             .accessibilityLabel(viewModel.primaryButtonTitle)
 
             if let secondary = viewModel.secondaryButtonTitle {
@@ -385,39 +407,22 @@ struct OnboardingView: View {
     }
 
     private var introPreviewCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Label(viewModel.introPreviewEyebrow, systemImage: "sparkles")
-                    .font(.caption.weight(.semibold))
-                    .tracking(0.3)
-                    .foregroundStyle(AppTheme.primary)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(AppTheme.primary.opacity(0.10))
-                    .clipShape(Capsule())
-
-                Spacer()
-
-                Text("Preview")
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(AppTheme.textSecondary)
-            }
-
-            Text(viewModel.introPreviewTitle)
+        VStack(alignment: .leading, spacing: 14) {
+            Text(viewModel.introPreviewEyebrow)
                 .font(.caption.weight(.semibold))
                 .tracking(0.3)
-                .foregroundStyle(AppTheme.textSecondary)
+                .foregroundStyle(AppTheme.primary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(AppTheme.primary.opacity(0.08))
+                .clipShape(Capsule())
 
-            Text("6 200 kr")
-                .font(.system(size: 38, weight: .bold, design: .rounded))
-                .foregroundStyle(AppTheme.textPrimary.opacity(0.92))
+            Text(viewModel.introPreviewTitle)
+                .font(.system(size: 30, weight: .bold, design: .rounded))
+                .foregroundStyle(AppTheme.textPrimary)
                 .monospacedDigit()
 
-            Text("igjen denne måneden")
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(AppTheme.textPrimary.opacity(0.92))
-
-            VStack(spacing: 8) {
+            VStack(spacing: 10) {
                 previewRow(label: "Inntekt", value: "12 000 kr")
                 previewRow(label: "Faste utgifter", value: "5 800 kr")
             }
@@ -436,8 +441,8 @@ struct OnboardingView: View {
                 .foregroundStyle(AppTheme.textSecondary)
         }
         .frame(maxWidth: 460, alignment: .leading)
-        .padding(18)
-        .background(AppTheme.surface.opacity(0.86))
+        .padding(22)
+        .background(AppTheme.surface.opacity(0.95))
         .clipShape(RoundedRectangle(cornerRadius: 24))
         .overlay(
             RoundedRectangle(cornerRadius: 24)
@@ -484,6 +489,33 @@ struct OnboardingView: View {
                     .stroke(isSelected ? AppTheme.primary : AppTheme.divider, lineWidth: isSelected ? 2 : 1)
             )
             .scaleEffect(isSelected ? 0.98 : 1.0)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func selectionChip(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(isSelected ? AppTheme.primary : AppTheme.textPrimary)
+
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(AppTheme.primary)
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .background(isSelected ? AppTheme.primary.opacity(0.10) : AppTheme.surface)
+            .clipShape(Capsule())
+            .overlay(
+                Capsule()
+                    .stroke(isSelected ? AppTheme.primary.opacity(0.55) : AppTheme.divider, lineWidth: 1)
+            )
+            .scaleEffect(isSelected ? 0.98 : 1)
         }
         .buttonStyle(.plain)
     }
@@ -565,6 +597,25 @@ struct OnboardingView: View {
         animatedResultAmount = 0
         withAnimation(.easeOut(duration: 0.8)) {
             animatedResultAmount = Int(viewModel.resultAmount.rounded())
+        }
+    }
+
+    private func updateStepAnimations(for step: OnboardingStep) {
+        introCardVisible = false
+        summaryMarkVisible = false
+
+        switch step {
+        case .intro:
+            withAnimation(.easeOut(duration: 0.45)) {
+                introCardVisible = true
+            }
+        case .summary:
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
+                summaryMarkVisible = true
+            }
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+        default:
+            break
         }
     }
 
