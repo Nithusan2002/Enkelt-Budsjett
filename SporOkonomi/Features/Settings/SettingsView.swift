@@ -2189,7 +2189,7 @@ private struct AboutAppView: View {
     }
 
     private var heroAssetName: String {
-        colorScheme == .dark ? "Spor-økonomi-applogo-Dark" : "About-AppIcon-Light"
+        colorScheme == .dark ? "About-AppIcon-Dark" : "About-AppIcon-Light"
     }
 
     var body: some View {
