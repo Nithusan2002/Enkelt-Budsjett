@@ -8,7 +8,7 @@ struct OnboardingView: View {
     @StateObject private var viewModel: OnboardingViewModel
     @FocusState private var focusedField: OnboardingInputField?
     @State private var animatedResultAmount = 0
-    @State private var introCardVisible = false
+    @State private var introPage = 0
     @State private var summaryMarkVisible = false
 
     private enum OnboardingInputField {
@@ -111,8 +111,8 @@ struct OnboardingView: View {
 
             LinearGradient(
                 colors: [
-                    viewModel.currentStep == .intro ? Color(red: 0.07, green: 0.18, blue: 0.14) : AppTheme.primary.opacity(0.14),
-                    viewModel.currentStep == .intro ? Color(red: 0.11, green: 0.29, blue: 0.22) : AppTheme.primary.opacity(0.07),
+                    viewModel.currentStep == .intro ? Color.white.opacity(0.18) : AppTheme.primary.opacity(0.14),
+                    viewModel.currentStep == .intro ? AppTheme.primary.opacity(0.10) : AppTheme.primary.opacity(0.07),
                     AppTheme.background
                 ],
                 startPoint: .top,
@@ -197,26 +197,37 @@ struct OnboardingView: View {
 
     private var introStep: some View {
         VStack(spacing: 24) {
-            introPreviewCard
-                .opacity(introCardVisible ? 1 : 0)
-                .offset(y: introCardVisible ? 0 : 10)
+            TabView(selection: $introPage) {
+                ForEach(Array(introSlides.enumerated()), id: \.offset) { index, slide in
+                    VStack(spacing: 22) {
+                        introIllustration(for: slide.illustration)
 
-            VStack(spacing: 8) {
-                Text(viewModel.introTitle)
-                    .font(.system(size: 36, weight: .bold, design: .rounded))
-                    .foregroundStyle(Color.white)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 420)
+                        VStack(spacing: 10) {
+                            Text(slide.title)
+                                .font(.system(size: 34, weight: .bold, design: .rounded))
+                                .foregroundStyle(AppTheme.textPrimary)
+                                .multilineTextAlignment(.center)
+                                .frame(maxWidth: 330)
 
-                Text(viewModel.introBodyText)
-                    .appBodyStyle()
-                    .foregroundStyle(Color.white.opacity(0.84))
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 330)
+                            Text(slide.body)
+                                .appBodyStyle()
+                                .foregroundStyle(AppTheme.textSecondary)
+                                .multilineTextAlignment(.center)
+                                .frame(maxWidth: 300)
+                        }
+                    }
+                    .tag(index)
+                    .padding(.top, 8)
+                    .padding(.horizontal, 6)
+                }
             }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .frame(height: 560)
+
+            introPageIndicator
         }
-        .frame(maxWidth: .infinity, alignment: .center)
-        .padding(.top, 20)
+        .frame(maxWidth: 460, alignment: .center)
+        .padding(.top, 4)
     }
 
     private var goalsStep: some View {
@@ -406,49 +417,200 @@ struct OnboardingView: View {
         .frame(maxWidth: .infinity, alignment: .center)
     }
 
-    private var introPreviewCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text(viewModel.introPreviewEyebrow)
-                .font(.caption.weight(.semibold))
-                .tracking(0.3)
-                .foregroundStyle(AppTheme.primary)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(AppTheme.primary.opacity(0.08))
-                .clipShape(Capsule())
+    private var introPageIndicator: some View {
+        HStack(spacing: 8) {
+            ForEach(Array(introSlides.indices), id: \.self) { index in
+                Capsule()
+                    .fill(index == introPage ? AppTheme.primary.opacity(0.55) : AppTheme.divider)
+                    .frame(width: index == introPage ? 28 : 8, height: 8)
+                    .animation(.easeInOut(duration: 0.2), value: introPage)
+            }
+        }
+    }
 
-            Text(viewModel.introPreviewTitle)
-                .font(.system(size: 30, weight: .bold, design: .rounded))
-                .foregroundStyle(AppTheme.textPrimary)
-                .monospacedDigit()
+    @ViewBuilder
+    private func introIllustration(for style: IntroIllustrationStyle) -> some View {
+        ZStack {
+            Circle()
+                .fill(AppTheme.primary.opacity(0.10))
+                .frame(width: 260, height: 260)
+                .offset(x: -26, y: 8)
 
-            VStack(spacing: 10) {
-                previewRow(label: "Inntekt", value: "12 000 kr")
-                previewRow(label: "Faste utgifter", value: "5 800 kr")
+            RoundedRectangle(cornerRadius: 28)
+                .fill(AppTheme.primary.opacity(0.08))
+                .frame(width: 300, height: 210)
+                .offset(y: 34)
+
+            switch style {
+            case .lockscreen:
+                lockscreenIllustration
+            case .overview:
+                overviewIllustration
+            case .progress:
+                progressIllustration
+            }
+        }
+        .frame(height: 340)
+    }
+
+    private var lockscreenIllustration: some View {
+        HStack(spacing: 20) {
+            VStack(spacing: 12) {
+                Circle()
+                    .fill(AppTheme.surface)
+                    .frame(width: 70, height: 70)
+                    .overlay(
+                        Image(systemName: "person.fill")
+                            .font(.system(size: 28, weight: .semibold))
+                            .foregroundStyle(AppTheme.primary)
+                    )
+
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(AppTheme.primary.opacity(0.16))
+                    .frame(width: 88, height: 14)
             }
 
-            Capsule()
-                .fill(AppTheme.primary.opacity(0.18))
-                .frame(height: 10)
-                .overlay(alignment: .leading) {
+            RoundedRectangle(cornerRadius: 28)
+                .fill(AppTheme.textPrimary)
+                .frame(width: 132, height: 220)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(Color(red: 0.55, green: 0.88, blue: 0.66))
+                        .padding(12)
+                        .overlay {
+                            VStack(spacing: 16) {
+                                Circle()
+                                    .fill(AppTheme.surface)
+                                    .frame(width: 42, height: 42)
+                                    .overlay(
+                                        Image(systemName: "person.crop.circle.fill")
+                                            .font(.system(size: 24))
+                                            .foregroundStyle(AppTheme.textPrimary.opacity(0.85))
+                                    )
+
+                                Image(systemName: "lock.fill")
+                                    .font(.system(size: 40, weight: .bold))
+                                    .foregroundStyle(AppTheme.surface)
+
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(AppTheme.surface.opacity(0.88))
+                                    .frame(width: 76, height: 68)
+                                    .overlay(
+                                        Image(systemName: "key.fill")
+                                            .font(.system(size: 28, weight: .bold))
+                                            .foregroundStyle(AppTheme.textPrimary)
+                                    )
+                            }
+                        }
+                }
+        }
+    }
+
+    private var overviewIllustration: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 24)
+                .fill(AppTheme.surface)
+                .frame(width: 220, height: 150)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24)
+                        .stroke(AppTheme.textPrimary.opacity(0.15), lineWidth: 1)
+                )
+
+            VStack(spacing: 14) {
+                HStack(spacing: 12) {
+                    Circle()
+                        .stroke(AppTheme.textPrimary, lineWidth: 4)
+                        .frame(width: 46, height: 46)
                     Capsule()
-                        .fill(AppTheme.primary)
-                        .frame(width: 168)
+                        .fill(Color(red: 0.55, green: 0.88, blue: 0.66))
+                        .frame(width: 90, height: 14)
+                    Circle()
+                        .stroke(AppTheme.textPrimary, lineWidth: 4)
+                        .frame(width: 46, height: 46)
                 }
 
-            Text(viewModel.introPreviewFootnote)
-                .font(.caption)
-                .foregroundStyle(AppTheme.textSecondary)
+                VStack(spacing: 9) {
+                    ForEach(0..<3, id: \.self) { _ in
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(AppTheme.primary.opacity(0.18))
+                            .frame(width: 150, height: 10)
+                    }
+                }
+            }
+
+            HStack {
+                magnifyingGlass(offset: CGSize(width: -110, height: 56))
+                Spacer()
+                magnifyingGlass(offset: CGSize(width: 112, height: -28))
+            }
+            .frame(width: 280)
         }
-        .frame(maxWidth: 460, alignment: .leading)
-        .padding(22)
-        .background(AppTheme.surface.opacity(0.95))
-        .clipShape(RoundedRectangle(cornerRadius: 24))
-        .overlay(
+    }
+
+    private var progressIllustration: some View {
+        ZStack {
             RoundedRectangle(cornerRadius: 24)
-                .stroke(AppTheme.divider, lineWidth: 1)
-        )
-        .shadow(color: Color.black.opacity(0.10), radius: 18, y: 10)
+                .fill(AppTheme.surface)
+                .frame(width: 210, height: 150)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24)
+                        .stroke(AppTheme.primary.opacity(0.18), lineWidth: 1)
+                )
+
+            VStack(spacing: 10) {
+                HStack(spacing: 8) {
+                    ForEach(0..<7, id: \.self) { _ in
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color(red: 0.55, green: 0.88, blue: 0.66))
+                            .frame(width: 20, height: 8)
+                    }
+                }
+
+                ForEach(0..<5, id: \.self) { _ in
+                    HStack(spacing: 8) {
+                        ForEach(0..<7, id: \.self) { _ in
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(AppTheme.primary.opacity(0.10))
+                                .frame(width: 20, height: 14)
+                        }
+                    }
+                }
+            }
+
+            Path { path in
+                path.move(to: CGPoint(x: 70, y: 212))
+                path.addLine(to: CGPoint(x: 140, y: 156))
+                path.addLine(to: CGPoint(x: 210, y: 178))
+                path.addLine(to: CGPoint(x: 290, y: 110))
+            }
+            .stroke(AppTheme.textPrimary, style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
+
+            ForEach(Array([CGPoint(x: 140, y: 156), CGPoint(x: 210, y: 178), CGPoint(x: 290, y: 110)].enumerated()), id: \.offset) { _, point in
+                Circle()
+                    .fill(AppTheme.textPrimary)
+                    .frame(width: 12, height: 12)
+                    .position(point)
+            }
+
+            Image(systemName: "arrow.up.left")
+                .font(.system(size: 34, weight: .bold))
+                .foregroundStyle(Color(red: 0.55, green: 0.88, blue: 0.66))
+                .position(x: 80, y: 156)
+        }
+    }
+
+    private func magnifyingGlass(offset: CGSize) -> some View {
+        ZStack {
+            Circle()
+                .stroke(AppTheme.textPrimary, lineWidth: 3)
+                .frame(width: 44, height: 44)
+            Rectangle()
+                .fill(AppTheme.textPrimary)
+                .frame(width: 4, height: 20)
+                .rotationEffect(.degrees(45))
+                .offset(x: 14, y: 16)
+        }
+        .offset(offset)
     }
 
     private func headerBlock(title: String, body: String) -> some View {
@@ -520,18 +682,6 @@ struct OnboardingView: View {
         .buttonStyle(.plain)
     }
 
-    private func previewRow(label: String, value: String) -> some View {
-        HStack {
-            Text(label)
-                .appSecondaryStyle()
-            Spacer(minLength: 8)
-            Text(value)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(AppTheme.textPrimary)
-                .monospacedDigit()
-        }
-    }
-
     private func currencyField(label: String, placeholder: String, text: Binding<String>, field: OnboardingInputField) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(label)
@@ -601,14 +751,11 @@ struct OnboardingView: View {
     }
 
     private func updateStepAnimations(for step: OnboardingStep) {
-        introCardVisible = false
         summaryMarkVisible = false
 
         switch step {
         case .intro:
-            withAnimation(.easeOut(duration: 0.45)) {
-                introCardVisible = true
-            }
+            break
         case .summary:
             withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
                 summaryMarkVisible = true
@@ -622,6 +769,40 @@ struct OnboardingView: View {
     private var formattedAnimatedResult: String {
         "\(animatedResultAmount.formatted(.number.grouping(.automatic))) kr"
     }
+}
+
+private extension OnboardingView {
+    var introSlides: [IntroSlide] {
+        [
+            IntroSlide(
+                title: "Se hva du faktisk har igjen hver måned",
+                body: "Få en rolig start med enkel oversikt før du går videre.",
+                illustration: .lockscreen
+            ),
+            IntroSlide(
+                title: "Fang oversikten på noen sekunder",
+                body: "Legg inn inntekt og faste utgifter uten komplisert oppsett.",
+                illustration: .overview
+            ),
+            IntroSlide(
+                title: "Følg fremgangen din uten støy",
+                body: "Spor økonomi hjelper deg å se utviklingen uten å fylle skjermen med detaljer.",
+                illustration: .progress
+            )
+        ]
+    }
+}
+
+private struct IntroSlide {
+    let title: String
+    let body: String
+    let illustration: IntroIllustrationStyle
+}
+
+private enum IntroIllustrationStyle {
+    case lockscreen
+    case overview
+    case progress
 }
 
 #Preview {
