@@ -1,68 +1,134 @@
 # Spor økonomi
 
-En offline-first iOS-app bygget i SwiftUI + SwiftData for:
-- budsjettsporing
-- investeringsoversikt (månedlige snapshots)
-- enkel måloppfølging
+Spor økonomi er en enkel og rolig iOS-app for personlig økonomi, bygget med SwiftUI og SwiftData.
 
-## Foreløpig status
+Appen er laget for brukere som vil forstå hva de har igjen denne måneden uten komplisert oppsett, tunge budsjettsystemer eller bankintegrasjon i MVP.
 
-- Budsjett: inntekt, utgift og manuell sparing med gruppert visning.
-- Faste poster: månedlig auto-opprettelse av transaksjoner.
-- Investeringer: månedlig innsjekk med oppdatering per måned (`periodKey`).
-- Oversikt: formue, utvikling og spart hittil i år.
-- Dataflyt: eksport/import av JSON med `Slå sammen` eller `Erstatt alt`.
+## Status
+
+Dette finnes i appen nå:
+
+- onboarding med kort flyt til første oversikt
+- valg mellom lokal bruk og konto
+- budsjett med inntekt, utgifter, manuell sparing og gruppegrenser
+- faste poster med månedlig auto-opprettelse
+- oversikt med netto denne måneden, mål og spart hittil i år
+- investeringsoversikt med månedlige snapshots
+- eksport og import av data
+- innstillinger for personvern, visning, lagring og konto
+- demo-verktøy for debug og sandbox/TestFlight
+
+## Produktretning
+
+Spor økonomi skal være:
+
+- enkel
+- rolig
+- tydelig
+- rask å bruke
+
+Kjerneverdi:
+
+`Se hva du har igjen denne måneden.`
+
+## Teknologi
+
+- iOS app i SwiftUI
+- lokal lagring med SwiftData
+- feature-basert struktur
+- offline-first som utgangspunkt
+- valgfri autentisering via Supabase-oppsett når konfigurert
+
+## Prosjektstruktur
+
+Viktige mapper:
+
+- `SporOkonomi/App` appstart, session state og root-navigation
+- `SporOkonomi/Features` feature-flater som Oversikt, Budsjett, Investeringer, Onboarding og Innstillinger
+- `SporOkonomi/Domain` modeller og tjenester
+- `SporOkonomi/Shared` tema, utilities og delt UI-logikk
+- `SporOkonomiTests` enhetstester
+- `docs` statisk launch-side og juridiske sider for publisering
+- `.github/workflows` minimale GitHub Actions for build og tester
 
 ## Kjør lokalt
 
 1. Åpne `SporOkonomi.xcodeproj` i Xcode.
-2. Velg iPhone-simulator eller fysisk enhet.
-3. Trykk `Run` (`Cmd + R`).
+2. Velg scheme `SporOkonomi`.
+3. Velg simulator eller fysisk enhet.
+4. Kjør appen med `Cmd + R`.
 
-## MVP-fokus
+## Test og verifikasjon
 
-- Lokal lagring (ingen konto nødvendig)
-- NOK som valuta
-- Månedsbasert budsjett og investeringsinsjekk
-- Enkel, varm og ikke-moraliserende UX
+Repoet inneholder enhetstester for blant annet:
+
+- onboarding
+- oversikt
+- budsjett
+- investeringer
+- tilbakevendende poster og demo-data
+- import
+- auth/session-flyt
+
+GitHub Actions:
+
+- `ios-build.yml` bygger appen på PR og push til `main`
+- `ios-tests.yml` kjører tester på PR og push til `main`
 
 ## Data og personvern
 
-- Appen lagrer data lokalt på enheten (offline-first).
-- Ingen tredjepartssporing i MVP.
-- Eksport og import av data (JSON) er tilgjengelig fra `Innstillinger > Data`.
+- appen lagrer data lokalt på enheten som standard
+- ingen bankintegrasjon i MVP
+- eksport og import av data er tilgjengelig fra innstillinger
+- juridiske tekster finnes både som publiserte sider i `docs/` og kildetekster i `docs/legal/`
 
-## App Store-klargjøring (juridisk)
+Relevante filer:
 
-- Privacy manifest: `SporOkonomi/PrivacyInfo.xcprivacy`
-- App Store Connect metadata: `AppStoreConnect-metadata.md`
-- Personverntekst (NO): `docs/legal/personvern-no.md`
-- Vilkår (NO): `docs/legal/vilkar-no.md`
+- `docs/legal/personvern-no.md`
+- `docs/legal/vilkar-no.md`
+- `SporOkonomi/PrivacyInfo.xcprivacy`
 
-## GitHub Pages
+## Launch-side og GitHub Pages
 
-Repoet inneholder en statisk landingsside i `docs/` som kan publiseres direkte med GitHub Pages.
+Repoet inneholder en statisk launch-side i `docs/`.
+
+Publiser med GitHub Pages:
 
 1. Push repoet til GitHub.
 2. Gå til `Settings > Pages`.
 3. Velg `Deploy from a branch`.
 4. Velg branch `main` og mappe `/docs`.
-5. Publisert side blir tilgjengelig på `https://<github-bruker>.github.io/<repo-navn>/`
 
-Følgende undersider blir også publisert:
+Undersider i `docs/`:
 
-- `https://<github-bruker>.github.io/<repo-navn>/support/`
-- `https://<github-bruker>.github.io/<repo-navn>/personvern/`
-- `https://<github-bruker>.github.io/<repo-navn>/vilkar/`
+- `support/`
+- `personvern/`
+- `vilkar/`
 
-## Demo-år (realistisk)
+## Demo-data
 
-- I Debug og TestFlight vises en egen seksjon i `Innstillinger > Demo`.
-- Velg `Last inn demo (3 år realistisk)` for å fylle appen med 36 måneder data.
-- Velg `Tøm alle data` i samme seksjon for å nullstille.
+Appen har demo-verktøy for å fylle appen med realistiske data.
 
-Demo-datasettet inkluderer:
-- 36 `BudgetMonth`
-- realistiske kategorier/budsjettplaner/transaksjoner (studentprofil i NOK)
-- 36 investeringssnapshots (Fond/Aksjer/BSU/Buffer/Krypto)
-- mål og preferanser slik at Oversikt ser ferdig ut
+- i Debug er demo-verktøy tilgjengelige i innstillinger
+- i sandbox/TestFlight vises de også via StoreKit-basert miljøsjekk
+- demo-seeding kan brukes for QA, previews og markedsføringsbilder
+
+Eksisterende demo-data dekker blant annet:
+
+- budsjettmåneder
+- transaksjoner
+- faste poster
+- investeringssnapshots
+- mål og preferanser
+
+## Begrensninger akkurat nå
+
+- bankintegrasjon er ikke del av MVP
+- launch-siden bruker fortsatt manuell GitHub Pages-publisering
+- full release-klargjøring av App Store-materiale pågår fortsatt
+
+## Relaterte filer
+
+- `AGENTS.md` arbeidskontrakt og prosjektregler for agenter
+- `AppStoreConnect-metadata.md` App Store-arbeidsnotater
+- `legal-pages/` alternative statiske juridiske sider
