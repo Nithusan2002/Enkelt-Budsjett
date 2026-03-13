@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 
 enum AppTheme {
-    static let background = Color(light: "#FAFAF9", dark: "#1A5448")
+    static let background = Color(light: "#F5F3F0", dark: "#1A5448")
     static let surface = Color(light: "#FFFFFF", dark: "#15332F")
     static let surfaceElevated = Color(light: "#FFFFFF", dark: "#1B3B36")
     static let primary = Color(light: "#1A5448", dark: "#E8EDE7")
