@@ -2116,12 +2116,12 @@ private struct FAQSettingsView: View {
                     .appSecondaryStyle()
 
                 ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 10) {
                         Text(section.title)
-                            .font(.caption2.weight(.medium))
-                            .foregroundStyle(AppTheme.textSecondary.opacity(0.9))
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(AppTheme.textPrimary.opacity(0.78))
                             .padding(.horizontal, 4)
-                            .padding(.top, index == 0 ? 0 : 10)
+                            .padding(.top, index == 0 ? 0 : 12)
 
                         VStack(spacing: 0) {
                             ForEach(Array(section.items.enumerated()), id: \.element.id) { index, item in
