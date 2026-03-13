@@ -10,6 +10,7 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.openURL) private var openURL
     @EnvironmentObject private var sessionStore: SessionStore
+    @EnvironmentObject private var navigationState: AppNavigationState
     @Query private var preferences: [UserPreference]
     @Query(sort: \InvestmentBucket.sortOrder) private var investmentBuckets: [InvestmentBucket]
     @AppStorage("app_appearance_mode") private var appAppearanceModeRawValue = AppAppearancePreference.followSystem.rawValue
@@ -38,6 +39,7 @@ struct SettingsView: View {
     @State private var showImportError = false
     @State private var showImportPasswordSheet = false
     @State private var showImportSuccess = false
+    @State private var showAccountSettingsHome = false
     @State private var pendingImportMode: DataImportMode = .merge
     @State private var pendingImportURL: URL?
     @State private var importPassword = ""
@@ -194,6 +196,26 @@ struct SettingsView: View {
                     }
                 }
             }
+            .navigationDestination(isPresented: $showAccountSettingsHome) {
+                AccountSettingsHomeView(
+                    authEmail: pref.authEmail,
+                    isReadOnlyMode: isReadOnlyMode,
+                    onCreateAccount: {
+                        emailAuthMode = .signUp
+                    },
+                    onSignInWithEmail: {
+                        emailAuthMode = .signIn
+                    },
+                    onSignInWithGoogle: {
+                        Task {
+                            await sessionStore.signInWithGoogle(preference: pref, context: modelContext)
+                        }
+                    },
+                    onSignOut: {
+                        sessionStore.signOut(preference: pref, context: modelContext)
+                    }
+                )
+            }
     }
 
     private var formWithAlerts: some View {
@@ -281,6 +303,22 @@ struct SettingsView: View {
                 settingsErrorMessage = newValue
                 sessionStore.clearError()
             }
+            .onAppear {
+                openPendingSettingsRouteIfNeeded()
+            }
+            .onChange(of: navigationState.pendingSettingsRoute) { _, _ in
+                openPendingSettingsRouteIfNeeded()
+            }
+    }
+
+    private func openPendingSettingsRouteIfNeeded() {
+        guard navigationState.selectedTab == .settings,
+              navigationState.pendingSettingsRoute == .account else {
+            return
+        }
+
+        navigationState.pendingSettingsRoute = nil
+        showAccountSettingsHome = true
     }
 
     private var accountSection: some View {
@@ -2080,7 +2118,6 @@ private struct FAQSettingsView: View {
 
 private struct AboutAppView: View {
     @Environment(\.openURL) private var openURL
-    @Environment(\.colorScheme) private var colorScheme
 
     private var versionText: String {
         let short = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
@@ -2088,15 +2125,11 @@ private struct AboutAppView: View {
         return "Versjon \(short) (\(build))"
     }
 
-    private var appLogoAssetName: String {
-        colorScheme == .dark ? "Spor-økonomi-applogo-Dark" : "Spor-økonomi-applogo-Light"
-    }
-
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
                 VStack(spacing: 8) {
-                    Image(appLogoAssetName)
+                    Image("Spor-økonomi-applogo")
                         .resizable()
                         .scaledToFit()
                         .frame(maxWidth: 340)

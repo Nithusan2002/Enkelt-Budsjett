@@ -45,10 +45,12 @@ struct AppRootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Query private var preferences: [UserPreference]
     @AppStorage("app_appearance_mode") private var appAppearanceModeRawValue = AppAppearancePreference.followSystem.rawValue
+    @AppStorage("has_seen_post_onboarding_login_prompt") private var hasSeenPostOnboardingLoginPrompt = false
     @StateObject private var viewModel = AppRootViewModel()
     @StateObject private var navigationState = AppNavigationState()
     @StateObject private var sessionStore = SessionStore()
     @State private var bootstrapAttempted = false
+    @State private var showLoginPrompt = false
 
     private var preference: UserPreference? { preferences.first }
     private var activeStoreMode: AppStoreMode { SporOkonomiApp.activeStoreMode }
@@ -76,9 +78,7 @@ struct AppRootView: View {
         ZStack {
             Group {
                 if let preference {
-                    if sessionStore.requiresAuthChoice {
-                        WelcomeAuthView(preference: preference)
-                    } else if !preference.onboardingCompleted {
+                    if !preference.onboardingCompleted {
                         OnboardingView(preference: preference)
                     } else {
                         TabView(selection: $navigationState.selectedTab) {
@@ -149,17 +149,26 @@ struct AppRootView: View {
             viewModel.configureLock(enabled: shouldUseFaceIDLock)
             Task {
                 await sessionStore.restore(from: preference, context: modelContext)
+                syncPostOnboardingLoginState()
             }
         }
         .onChange(of: preference?.authSessionModeRaw) { _, _ in
             Task {
                 await sessionStore.restore(from: preference, context: modelContext)
+                syncPostOnboardingLoginState()
             }
         }
         .onChange(of: preference?.authUserID) { _, _ in
             Task {
                 await sessionStore.restore(from: preference, context: modelContext)
+                syncPostOnboardingLoginState()
             }
+        }
+        .onChange(of: preference?.onboardingCompleted) { _, _ in
+            syncPostOnboardingLoginState()
+        }
+        .onChange(of: sessionStore.sessionMode) { _, _ in
+            syncPostOnboardingLoginState()
         }
         .onChange(of: shouldUseFaceIDLock) { _, newValue in
             viewModel.configureLock(enabled: newValue)
@@ -170,6 +179,41 @@ struct AppRootView: View {
         .onChange(of: preferredColorScheme) { _, _ in
             applyBarAppearance()
         }
+        .sheet(isPresented: $showLoginPrompt) {
+            LoginPromptSheet(
+                onLogIn: {
+                    hasSeenPostOnboardingLoginPrompt = true
+                    showLoginPrompt = false
+                    navigationState.selectedTab = .settings
+                    navigationState.pendingSettingsRoute = .account
+                },
+                onDismiss: {
+                    hasSeenPostOnboardingLoginPrompt = true
+                    showLoginPrompt = false
+                }
+            )
+            .presentationDetents([.height(260)])
+            .presentationDragIndicator(.visible)
+        }
+    }
+
+    private func syncPostOnboardingLoginState() {
+        if LoginPromptPolicy.shouldNormalizeUndecidedMode(preference: preference),
+           let preference {
+            sessionStore.continueWithoutAccount(preference: preference, context: modelContext)
+        }
+
+        let shouldShowPrompt = LoginPromptPolicy.shouldPresentPrompt(
+            preference: preference,
+            sessionMode: sessionStore.sessionMode,
+            hasSeenPrompt: hasSeenPostOnboardingLoginPrompt
+        )
+
+        if shouldShowPrompt {
+            hasSeenPostOnboardingLoginPrompt = true
+        }
+
+        showLoginPrompt = shouldShowPrompt
     }
 
     private func applyBarAppearance() {
@@ -296,6 +340,39 @@ struct AppRootView: View {
         case .memoryOnly:
             return "Appen kjører midlertidig uten varig lagring. Endringer kan ikke lagres permanent."
         }
+    }
+}
+
+private struct LoginPromptSheet: View {
+    let onLogIn: () -> Void
+    let onDismiss: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Vil du lagre dataene dine?")
+                .font(.system(.title3, design: .rounded).weight(.semibold))
+                .foregroundStyle(AppTheme.textPrimary)
+
+            Text("Logg inn for å synkronisere og sikre dataene dine. Du kan fortsatt bruke appen lokalt uten konto.")
+                .appSecondaryStyle()
+
+            VStack(spacing: 10) {
+                Button("Logg inn") {
+                    onLogIn()
+                }
+                .appProminentCTAStyle()
+
+                Button("Ikke nå") {
+                    onDismiss()
+                }
+                .buttonStyle(.bordered)
+                .tint(AppTheme.primary)
+            }
+            .padding(.top, 4)
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(AppTheme.background)
     }
 }
 

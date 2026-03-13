@@ -10,6 +10,48 @@ private typealias Transaction = SporOkonomi.Transaction
 struct AuthSessionTests {
 
     @Test
+    func loginPromptDoesNotShowBeforeOnboardingIsCompleted() {
+        let preference = UserPreference(
+            authSessionModeRaw: AuthSessionMode.local.rawValue,
+            onboardingCompleted: false
+        )
+
+        let shouldShow = LoginPromptPolicy.shouldPresentPrompt(
+            preference: preference,
+            sessionMode: .local,
+            hasSeenPrompt: false
+        )
+
+        #expect(shouldShow == false)
+    }
+
+    @Test
+    func loginPromptShowsAfterOnboardingForLocalUsersUntilSeen() {
+        let preference = UserPreference(
+            authSessionModeRaw: AuthSessionMode.local.rawValue,
+            onboardingCompleted: true
+        )
+
+        let shouldShow = LoginPromptPolicy.shouldPresentPrompt(
+            preference: preference,
+            sessionMode: .local,
+            hasSeenPrompt: false
+        )
+
+        #expect(shouldShow)
+    }
+
+    @Test
+    func loginPromptNormalizesUndecidedModeAfterOnboarding() {
+        let preference = UserPreference(
+            authSessionModeRaw: AuthSessionMode.undecided.rawValue,
+            onboardingCompleted: true
+        )
+
+        #expect(LoginPromptPolicy.shouldNormalizeUndecidedMode(preference: preference))
+    }
+
+    @Test
     func authTokenStoreUsesWhenUnlockedThisDeviceOnlyAccessibility() {
         let store = AuthTokenStore()
 
