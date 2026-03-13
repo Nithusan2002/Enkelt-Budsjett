@@ -49,7 +49,6 @@ Viktige mapper:
 - `SporOkonomi/Shared` tema, utilities og delt UI-logikk
 - `SporOkonomiTests` enhetstester
 - `docs` statisk launch-side og juridiske sider for publisering
-- `.github/workflows` minimale GitHub Actions for build og tester
 
 ## Kjør lokalt
 
@@ -69,11 +68,6 @@ Repoet inneholder enhetstester for blant annet:
 - tilbakevendende poster og demo-data
 - import
 - auth/session-flyt
-
-GitHub Actions:
-
-- `ios-build.yml` bygger appen på PR og push til `main`
-- `ios-tests.yml` kjører tester på PR og push til `main`
 
 ## Data og personvern
 
@@ -139,4 +133,3 @@ Se `LICENSE` for detaljer.
 
 - `AGENTS.md` arbeidskontrakt og prosjektregler for agenter
 - `AppStoreConnect-metadata.md` App Store-arbeidsnotater
-- `legal-pages/` alternative statiske juridiske sider
