@@ -143,6 +143,7 @@ struct OverviewView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Åpne AI-assistent")
+                .offset(y: 4)
                 .padding(.trailing, 2)
             }
         }
