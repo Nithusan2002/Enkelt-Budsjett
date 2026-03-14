@@ -302,12 +302,17 @@ struct SettingsView: View {
 
     private func openPendingSettingsRouteIfNeeded() {
         guard navigationState.selectedTab == .settings,
-              navigationState.pendingSettingsRoute == .account else {
+              let pendingRoute = navigationState.pendingSettingsRoute else {
             return
         }
 
         navigationState.pendingSettingsRoute = nil
-        showAccountSettingsHome = true
+        switch pendingRoute {
+        case .account:
+            showAccountSettingsHome = true
+        case .premium:
+            showPremiumHome = true
+        }
     }
 
     private var accountSection: some View {

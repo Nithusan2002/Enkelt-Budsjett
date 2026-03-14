@@ -119,7 +119,7 @@ struct OverviewView: View {
                         )
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Åpne assistent")
+                .accessibilityLabel("Åpne AI-assistent")
             }
         }
         .sheet(isPresented: $viewModel.showGoalEditor) {
@@ -133,7 +133,7 @@ struct OverviewView: View {
         }
         .sheet(isPresented: $showAssistantSheet) {
             OverviewAssistantSheet()
-                .presentationDetents([.medium, .large])
+                .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
         }
         .onAppear {
@@ -565,119 +565,51 @@ struct OverviewView: View {
 }
 
 private struct OverviewAssistantSheet: View {
-    private struct Suggestion: Identifiable {
-        let id: String
-        let title: String
-        let response: String
-    }
-
     @Environment(\.dismiss) private var dismiss
-    @State private var question = ""
-    @State private var currentResponse: String?
-
-    private let suggestions: [Suggestion] = [
-        Suggestion(
-            id: "month",
-            title: "Forklar måneden min",
-            response: "Du ligger innenfor budsjettet så langt denne måneden. Vil du se hva som har påvirket mest?"
-        ),
-        Suggestion(
-            id: "remaining",
-            title: "Hvorfor har jeg så lite igjen?",
-            response: "Det skjer ofte når faste utgifter og småkjøp kommer tett i starten av måneden. Vil du se hva som tok mest plass?"
-        ),
-        Suggestion(
-            id: "register",
-            title: "Hjelp meg å registrere noe",
-            response: "Hvis du vil registrere noe raskt, er det best å starte i Budsjett. Vil du legge inn en inntekt eller en utgift?"
-        ),
-        Suggestion(
-            id: "next",
-            title: "Hva bør jeg gjøre nå?",
-            response: "Start med én liten ting: se over denne måneden og sjekk om én kategori bør justeres. Vil du se budsjettet eller investeringene?"
-        )
-    ]
+    @EnvironmentObject private var navigationState: AppNavigationState
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Hva vil du ha hjelp med?")
+                    Text("AI-assistent kommer snart")
                         .font(.title3.weight(.semibold))
                         .foregroundStyle(AppTheme.textPrimary)
 
-                    Text("Jeg kan forklare tallene dine og hjelpe deg videre.")
+                    Text("Få hjelp til å forstå tallene dine, oppsummere måneden og finne neste steg.")
                         .appBodyStyle()
                         .foregroundStyle(AppTheme.textSecondary)
                 }
 
-                VStack(alignment: .leading, spacing: 10) {
-                    ForEach(suggestions) { suggestion in
-                        Button {
-                            currentResponse = suggestion.response
-                            question = suggestion.title
-                        } label: {
-                            HStack {
-                                Text(suggestion.title)
-                                    .font(.subheadline.weight(.medium))
-                                    .foregroundStyle(AppTheme.textPrimary)
-                                Spacer()
-                                Image(systemName: "arrow.up.left")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(AppTheme.textSecondary.opacity(0.7))
-                            }
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 12)
-                            .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .stroke(AppTheme.divider, lineWidth: 1)
-                            )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-
-                if let currentResponse {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Forslag")
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "clock")
                             .font(.footnote.weight(.semibold))
-                            .foregroundStyle(AppTheme.textSecondary)
-
-                        Text(currentResponse)
-                            .appBodyStyle()
+                            .foregroundStyle(AppTheme.primary)
+                        Text("Kommer snart")
+                            .font(.footnote.weight(.semibold))
                             .foregroundStyle(AppTheme.textPrimary)
                     }
-                    .padding(14)
-                    .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 18))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 18)
-                            .stroke(AppTheme.divider, lineWidth: 1)
-                    )
+
+                    Text("Denne funksjonen blir en del av Premium.")
+                        .appBodyStyle()
+                        .foregroundStyle(AppTheme.textPrimary)
                 }
+                .padding(16)
+                .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 18))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18)
+                        .stroke(AppTheme.divider, lineWidth: 1)
+                )
 
                 Spacer(minLength: 0)
 
-                HStack(spacing: 10) {
-                    TextField("Skriv et spørsmål", text: $question)
-                        .textFieldStyle(.appInput)
-
-                    Button("Send") {
-                        guard !question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-                        currentResponse = "Jeg kan hjelpe deg med å forstå tallene dine og finne ett neste steg. Vil du se budsjettet eller investeringene først?"
-                    }
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? AppTheme.textSecondary : AppTheme.primary)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .background(AppTheme.surface, in: Capsule())
-                    .overlay(
-                        Capsule()
-                            .stroke(AppTheme.divider, lineWidth: 1)
-                    )
-                    .buttonStyle(.plain)
-                    .disabled(question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                Button("Se Premium") {
+                    dismiss()
+                    navigationState.selectedTab = .settings
+                    navigationState.pendingSettingsRoute = .premium
                 }
+                .appProminentCTAStyle()
             }
             .padding()
             .background(AppTheme.background)
