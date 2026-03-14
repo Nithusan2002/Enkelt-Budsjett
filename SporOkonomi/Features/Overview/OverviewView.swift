@@ -143,7 +143,6 @@ struct OverviewView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Åpne AI-assistent")
-                .offset(y: 4)
                 .padding(.trailing, 2)
             }
         }
@@ -250,16 +249,6 @@ struct OverviewView: View {
                     tone: heroProgressTone
                 )
             }
-
-            Button(viewModel.heroPrimaryCTATitle()) {
-                navigationState.selectedTab = .budget
-            }
-            .font(.footnote.weight(.semibold))
-            .foregroundStyle(AppTheme.primary)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(AppTheme.primary.opacity(0.12), in: Capsule())
-            .buttonStyle(.plain)
 
             if isCheckInDue && latestSnapshot == nil {
                 Text("Du kan legge til snapshot senere i Investeringer.")
