@@ -32,22 +32,16 @@ struct InvestmentCheckInWizardView: View {
                             set: { viewModel.setSelectedMonth($0) }
                         ),
                         periodText: formattedMonth(viewModel.selectedMonthDate),
-                        isEditingExistingPeriod: viewModel.isEditingExistingPeriod,
                         hasPreviousData: !viewModel.previousValues.isEmpty,
                         onPrefill: { viewModel.copyPreviousToChanged() },
-                        onStart: { viewModel.start() },
-                        onCancel: { dismiss() }
+                        onStart: { viewModel.start() }
                     )
                 } else if viewModel.isSummary {
                     WizardSummaryView(
                         periodText: formattedMonth(viewModel.selectedMonthDate),
                         lastSavedAt: viewModel.existingSnapshotForSelectedPeriod?.capturedAt,
-                        previousTotal: viewModel.prevTotal,
                         newTotal: viewModel.newTotal,
-                        delta: viewModel.delta,
-                        deltaPercent: viewModel.changePct,
                         changedCount: viewModel.changedBucketCount,
-                        changedRows: viewModel.changedRows,
                         isSaving: isSaving,
                         onBack: { viewModel.goBack() },
                         onSave: save,
@@ -56,13 +50,8 @@ struct InvestmentCheckInWizardView: View {
                 } else if let bucket = viewModel.currentBucket {
                     WizardBucketStepView(
                         progressText: viewModel.progressText,
-                        navigationItems: viewModel.bucketNavigationItems,
-                        onSelectBucket: { viewModel.jump(to: $0) },
                         bucketName: bucket.name,
-                        isNewType: viewModel.isNewType(bucket.id),
                         previousValue: viewModel.previousValue(for: bucket.id),
-                        currentValue: viewModel.effectiveValue(for: bucket.id),
-                        hasStoredDelta: viewModel.hasStoredDelta(for: bucket.id),
                         mode: Binding(
                             get: { viewModel.stepStates[bucket.id]?.mode ?? .unchanged },
                             set: { viewModel.setMode($0, for: bucket.id) }
@@ -180,45 +169,28 @@ struct InvestmentCheckInWizardView: View {
 private struct WizardIntroView: View {
     @Binding var selectedMonthDate: Date
     let periodText: String
-    let isEditingExistingPeriod: Bool
     let hasPreviousData: Bool
     let onPrefill: () -> Void
     let onStart: () -> Void
-    let onCancel: () -> Void
     @State private var showMonthPicker = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Uendret bruker forrige måneds verdi. Første gang brukes 0.")
+            Text("Gå gjennom beholdningene dine og oppdater det som har endret seg.")
                 .appBodyStyle()
                 .foregroundStyle(AppTheme.textSecondary)
 
             VStack(alignment: .leading, spacing: 10) {
-                Text("Denne innsjekken gjelder for")
-                    .appSecondaryStyle()
-                Button {
+                Text("Denne innsjekken gjelder \(periodText.lowercased()).")
+                    .font(.headline.weight(.semibold))
+                    .foregroundStyle(AppTheme.textPrimary)
+
+                Button("Bytt måned") {
                     showMonthPicker = true
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "calendar")
-                            .foregroundStyle(AppTheme.primary)
-                        Text(periodText)
-                            .font(.headline.weight(.semibold))
-                            .foregroundStyle(AppTheme.textPrimary)
-                        Spacer()
-                        Image(systemName: "chevron.down")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(AppTheme.textSecondary)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(AppTheme.background, in: RoundedRectangle(cornerRadius: 12))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(AppTheme.divider, lineWidth: 1)
-                    )
                 }
                 .buttonStyle(.plain)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(AppTheme.primary)
                 .sheet(isPresented: $showMonthPicker) {
                     InvestmentMonthPickerSheet(
                         selectedDate: selectedMonthDate,
@@ -227,38 +199,25 @@ private struct WizardIntroView: View {
                     .presentationDetents([.medium])
                     .presentationDragIndicator(.visible)
                 }
-
-                if isEditingExistingPeriod {
-                    Text("Du oppdaterer eksisterende innsjekk for denne måneden.")
-                        .font(.footnote)
-                        .foregroundStyle(AppTheme.textSecondary)
-                }
             }
-            .padding()
-            .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.divider, lineWidth: 1))
 
             if !hasPreviousData {
-                Text("Første innsjekk: start med grove tall, du kan justere senere.")
+                Text("Første innsjekk starter på 0 for typer uten tidligere verdi.")
                     .appSecondaryStyle()
-                    .padding(.horizontal, 4)
             }
 
             Spacer()
         }
         .padding()
         .safeAreaInset(edge: .bottom) {
-            HStack(spacing: 10) {
-                Button("Avbryt") {
-                    onCancel()
-                }
-                .buttonStyle(.bordered)
-
+            VStack(alignment: .leading, spacing: 10) {
                 if hasPreviousData {
                     Button("Kopier forrige måned") {
                         onPrefill()
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.plain)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(AppTheme.textSecondary)
                 }
 
                 Button("Start") {
@@ -282,7 +241,7 @@ private struct InvestmentMonthPickerSheet: View {
     private var monthOptions: [Date] {
         let calendar = Calendar.current
         let base = DateService.monthBounds(for: optionsAnchor).start
-        return (-120...120).compactMap { offset in
+        return (-12...6).compactMap { offset in
             calendar.date(byAdding: .month, value: offset, to: base).map { DateService.monthBounds(for: $0).start }
         }
     }
@@ -335,13 +294,8 @@ private struct InvestmentMonthPickerSheet: View {
 
 private struct WizardBucketStepView: View {
     let progressText: String
-    let navigationItems: [InvestmentWizardBucketNavItem]
-    let onSelectBucket: (String) -> Void
     let bucketName: String
-    let isNewType: Bool
     let previousValue: Double
-    let currentValue: Double
-    let hasStoredDelta: Bool
     @Binding var mode: InvestmentWizardInputMode
     @Binding var inputText: String
     let errorMessage: String?
@@ -356,61 +310,31 @@ private struct WizardBucketStepView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            WizardBucketNavigationStrip(
-                items: navigationItems,
-                onSelect: onSelectBucket
-            )
-
             Text(progressText)
                 .appSecondaryStyle()
 
-            HStack(spacing: 8) {
-                Text(bucketName)
-                    .font(.title2.weight(.semibold))
-                if isNewType {
-                    Text("Ny type")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(AppTheme.primary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(AppTheme.primary.opacity(0.12), in: Capsule())
-                }
-            }
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("\(bucketName). Forrige \(formatNOK(previousValue)).")
+            Text(bucketName)
+                .font(.title2.weight(.semibold))
 
-            Text("Forrige: \(formatNOK(previousValue))")
+            Text(previousValue > 0 ? "Sist registrert: \(formatNOK(previousValue))" : "Ingen tidligere verdi")
                 .appBodyStyle()
                 .foregroundStyle(AppTheme.textSecondary)
-                .accessibilityHidden(true)
-
-            if shouldShowDeltaChip {
-                HStack(spacing: 6) {
-                    Image(systemName: currentValue >= previousValue ? "arrow.up.right" : "arrow.down.right")
-                    Text("\(currentValue >= previousValue ? "+" : "-")\(formatNOK(abs(currentValue - previousValue))) fra forrige")
-                }
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(currentValue >= previousValue ? AppTheme.positive : AppTheme.negative)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background((currentValue >= previousValue ? AppTheme.positive : AppTheme.negative).opacity(0.12), in: Capsule())
-                .accessibilityElement(children: .combine)
-            }
 
             HStack(spacing: 10) {
                 modeButton(title: "Uendret", modeValue: .unchanged)
-                modeButton(title: "Endret", modeValue: .changed)
+                modeButton(title: "Oppdater verdi", modeValue: .changed)
             }
-
-            statusLine
 
             if mode == .changed {
                 VStack(alignment: .leading, spacing: 6) {
+                    Text("Ny verdi")
+                        .appSecondaryStyle()
+
                     HStack(spacing: 8) {
                         Text("kr")
                             .font(.headline.weight(.semibold))
                             .foregroundStyle(AppTheme.textSecondary)
-                        TextField("Beløp", text: $inputText)
+                        TextField("0", text: $inputText)
                             .keyboardType(.decimalPad)
                             .textFieldStyle(.appInput)
                             .monospacedDigit()
@@ -430,6 +354,15 @@ private struct WizardBucketStepView: View {
                 }
             }
 
+            if showAddNewType {
+                Button("Legg til ny type") {
+                    onAddNewType()
+                }
+                .buttonStyle(.plain)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(AppTheme.textSecondary)
+            }
+
             Spacer()
         }
         .padding()
@@ -439,13 +372,6 @@ private struct WizardBucketStepView: View {
                     onBack()
                 }
                 .buttonStyle(.bordered)
-
-                if showAddNewType {
-                    Button("Ny type") {
-                        onAddNewType()
-                    }
-                    .buttonStyle(.bordered)
-                }
 
                 Button(nextTitle) {
                     onNext()
@@ -469,44 +395,6 @@ private struct WizardBucketStepView: View {
                 amountFieldFocused = true
             }
         }
-    }
-
-    private var shouldShowDeltaChip: Bool {
-        abs(currentValue - previousValue) > 0.0001 && (mode == .changed || hasStoredDelta)
-    }
-
-    private var statusTextForAccessibility: String {
-        if mode == .changed {
-            if errorMessage != nil { return "Mangler beløp" }
-            return "Endret"
-        }
-        return "Uendret"
-    }
-
-    private var statusLine: some View {
-        HStack(spacing: 6) {
-            Image(systemName: statusIconName)
-            Text(statusTextForAccessibility)
-        }
-        .font(.footnote.weight(.semibold))
-        .foregroundStyle(statusColor)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(statusColor.opacity(0.12), in: Capsule())
-    }
-
-    private var statusIconName: String {
-        if mode == .changed {
-            return errorMessage == nil ? "checkmark.circle.fill" : "exclamationmark.circle.fill"
-        }
-        return "arrow.triangle.2.circlepath.circle.fill"
-    }
-
-    private var statusColor: Color {
-        if mode == .changed {
-            return errorMessage == nil ? AppTheme.positive : AppTheme.warning
-        }
-        return AppTheme.textSecondary
     }
 
     @ViewBuilder
@@ -612,117 +500,38 @@ private struct AddInvestmentTypeDuringCheckInSheet: View {
     }
 }
 
-private struct WizardBucketNavigationStrip: View {
-    let items: [InvestmentWizardBucketNavItem]
-    let onSelect: (String) -> Void
-
-    var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(items) { item in
-                    Button {
-                        onSelect(item.id)
-                    } label: {
-                        HStack(spacing: 6) {
-                            if item.isCompleted {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .font(.caption)
-                            }
-                            Text(item.title)
-                                .font(.footnote.weight(.semibold))
-                                .lineLimit(1)
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 8)
-                        .background(item.isCurrent ? AppTheme.primary.opacity(0.14) : AppTheme.surface, in: Capsule())
-                        .overlay(
-                            Capsule()
-                                .stroke(item.isCurrent ? AppTheme.primary : AppTheme.divider, lineWidth: 1)
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.vertical, 2)
-        }
-        .accessibilityLabel("Hopp mellom beholdningstyper")
-    }
-}
-
 private struct WizardSummaryView: View {
     let periodText: String
     let lastSavedAt: Date?
-    let previousTotal: Double
     let newTotal: Double
-    let delta: Double
-    let deltaPercent: Double?
     let changedCount: Int
-    let changedRows: [InvestmentWizardChangeRow]
     let isSaving: Bool
     let onBack: () -> Void
     let onSave: () -> Void
     let saveDisabled: Bool
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                Text("Oppsummering")
-                    .font(.title3.weight(.semibold))
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Klar til å lagre")
+                .font(.title3.weight(.semibold))
 
-                Text("Gjelder: \(periodText)")
-                    .appSecondaryStyle()
+            VStack(alignment: .leading, spacing: 12) {
+                summaryRow("Måned", value: periodText.lowercased())
+                summaryRow(
+                    "Oppdatert",
+                    value: changedCount == 1 ? "1 beholdning" : "\(changedCount) beholdninger"
+                )
+                summaryRow("Ny total", value: formatNOK(newTotal))
+
                 if let lastSavedAt {
                     Text("Sist lagret: \(formatDateTime(lastSavedAt))")
                         .font(.footnote)
                         .foregroundStyle(AppTheme.textSecondary)
                 }
-
-                row("Forrige total", value: formatNOK(previousTotal))
-                row("Ny total", value: formatNOK(newTotal))
-                row("Total endring fra forrige måned", value: deltaText)
-
-                if changedCount == 0 {
-                    Text("Ingen endringer – total forblir \(formatNOK(newTotal)).")
-                        .appBodyStyle()
-                        .foregroundStyle(AppTheme.textSecondary)
-                } else {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Endret i \(changedCount) typer")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(AppTheme.textSecondary)
-                        ForEach(changedRows) { row in
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(row.bucketName)
-                                    .font(.footnote.weight(.semibold))
-                                HStack {
-                                    Text("Ny verdi")
-                                        .font(.caption)
-                                        .foregroundStyle(AppTheme.textSecondary)
-                                    Spacer()
-                                    Text(formatNOK(row.newValue))
-                                        .font(.footnote)
-                                        .monospacedDigit()
-                                }
-                                HStack {
-                                    Text("Endring")
-                                        .font(.caption)
-                                        .foregroundStyle(AppTheme.textSecondary)
-                                    Spacer()
-                                    Text(signedAmountText(row.delta))
-                                        .font(.footnote.weight(.semibold))
-                                        .monospacedDigit()
-                                        .foregroundStyle(row.delta >= 0 ? AppTheme.positive : AppTheme.negative)
-                                }
-                            }
-                            .accessibilityElement(children: .ignore)
-                            .accessibilityLabel("\(row.bucketName). Ny verdi \(formatNOK(row.newValue)). Endring \(signedAmountText(row.delta)).")
-                        }
-                    }
-                    .padding(10)
-                    .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.divider, lineWidth: 1))
-                }
             }
+            .padding(12)
+            .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.divider, lineWidth: 1))
         }
         .safeAreaInset(edge: .bottom) {
             HStack(spacing: 10) {
@@ -751,18 +560,7 @@ private struct WizardSummaryView: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Oppsummering")
-        .accessibilityValue("Gjelder \(periodText). Forrige total \(formatNOK(previousTotal)). Ny total \(formatNOK(newTotal)). Endring \(deltaText). Endret i \(changedCount) typer.")
-    }
-
-    private var deltaText: String {
-        let sign = delta >= 0 ? "+" : "−"
-        let percent = deltaPercent.map { " (\(formatPercent($0)))" } ?? ""
-        return "\(sign)\(formatNOK(abs(delta)))\(percent)"
-    }
-
-    private func signedAmountText(_ amount: Double) -> String {
-        let sign = amount >= 0 ? "+" : "−"
-        return "\(sign)\(formatNOK(abs(amount)))"
+        .accessibilityValue("Måned \(periodText). Oppdatert \(changedCount) beholdninger. Ny total \(formatNOK(newTotal)).")
     }
 
     private func formatDateTime(_ date: Date) -> String {
@@ -772,7 +570,7 @@ private struct WizardSummaryView: View {
         return formatter.string(from: date)
     }
 
-    private func row(_ title: String, value: String) -> some View {
+    private func summaryRow(_ title: String, value: String) -> some View {
         HStack {
             Text(title)
                 .appBodyStyle()
