@@ -214,13 +214,11 @@ private struct FixedItemEditorSheet: View {
 
     @State private var draft = FixedItemDraft()
     @State private var createCurrentMonth = false
-    @State private var hasCustomizedCreateCurrentMonth = false
     @State private var useEndDate = false
     @State private var showDayPicker = false
     @State private var showCategoryPicker = false
     @State private var showAmountError = false
     @State private var showCategoryError = false
-    @State private var showAdvanced = false
     @FocusState private var titleFocused: Bool
 
     init(
@@ -233,19 +231,14 @@ private struct FixedItemEditorSheet: View {
         self.onSave = onSave
     }
 
-    private var filteredCategories: [Category] {
-        switch draft.kind {
-        case .expense:
-            return categories.filter { $0.type == .expense && $0.isActive }
-        case .income:
-            return categories.filter { $0.type == .income && $0.isActive }
-        case .refund, .transfer, .manualSaving:
-            return categories.filter(\.isActive)
+    private var selectableCategories: [Category] {
+        categories.filter { category in
+            category.isActive && (category.type == .expense || category.type == .income)
         }
     }
 
     private var selectedCategoryName: String {
-        filteredCategories.first(where: { $0.id == draft.categoryID })?.name ?? "Velg kategori"
+        selectableCategories.first(where: { $0.id == draft.categoryID })?.name ?? "Velg kategori"
     }
 
     private var isValid: Bool {
@@ -258,10 +251,6 @@ private struct FixedItemEditorSheet: View {
             return trimmed
         }
         return selectedCategoryName == "Velg kategori" ? "Fast post" : selectedCategoryName
-    }
-
-    private var automaticMonthDescription: String {
-        "Legges inn på valgt dag hver måned."
     }
 
     private var shouldShowCreateForCurrentMonth: Bool {
@@ -285,14 +274,9 @@ private struct FixedItemEditorSheet: View {
         return todayDay < draft.dayOfMonth
     }
 
-    private var createCurrentMonthBinding: Binding<Bool> {
-        Binding(
-            get: { createCurrentMonth },
-            set: { newValue in
-                hasCustomizedCreateCurrentMonth = true
-                createCurrentMonth = newValue
-            }
-        )
+    private func syncKindFromSelectedCategory() {
+        guard let category = selectableCategories.first(where: { $0.id == draft.categoryID }) else { return }
+        draft.kind = category.type == .income ? .income : .expense
     }
 
     private var nameRow: some View {
@@ -304,19 +288,6 @@ private struct FixedItemEditorSheet: View {
                 .focused($titleFocused)
                 .textInputAutocapitalization(.sentences)
                 .submitLabel(.next)
-        }
-    }
-
-    private var typeRow: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Type")
-                .font(.footnote.weight(.medium))
-                .foregroundStyle(AppTheme.textSecondary)
-            Picker("Type", selection: $draft.kind) {
-                Text("Utgift").tag(TransactionKind.expense)
-                Text("Inntekt").tag(TransactionKind.income)
-            }
-            .pickerStyle(.segmented)
         }
     }
 
@@ -380,9 +351,9 @@ private struct FixedItemEditorSheet: View {
             showDayPicker = true
         } label: {
             HStack {
-                Text("Dag i måneden")
+                Text("Gjentas")
                 Spacer()
-                Text("\(draft.dayOfMonth).")
+                Text("\(draft.dayOfMonth). hver måned")
                     .foregroundStyle(AppTheme.textPrimary)
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.semibold))
@@ -390,65 +361,36 @@ private struct FixedItemEditorSheet: View {
             }
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Dag i måneden, valgt \(draft.dayOfMonth)")
+        .accessibilityLabel("Gjentas, valgt \(draft.dayOfMonth). hver måned")
     }
 
-    private var basicsSection: some View {
+    private var detailsSection: some View {
         Section {
             nameRow
-            typeRow
             amountRow
             amountErrorRow
             categoryRow
             categoryErrorRow
-            dayRow
         }
     }
 
-    private var automationSection: some View {
-        Section("Automatikk") {
-            Toggle("Opprett automatisk hver måned", isOn: $draft.autoCreate)
-                .accessibilityLabel("Opprett automatisk hver måned")
-            Text(automaticMonthDescription)
-                .appSecondaryStyle()
-        }
-    }
-
-    @ViewBuilder
-    private var currentMonthSection: some View {
-        if shouldShowCreateForCurrentMonth {
-            Section("Nåværende måned") {
-                Toggle("Opprett også denne måneden", isOn: createCurrentMonthBinding)
-                Text(currentMonthContextText)
-                    .appSecondaryStyle()
-            }
-        }
-    }
-
-    private var advancedSection: some View {
+    private var scheduleSection: some View {
         Section {
-            DisclosureGroup(isExpanded: $showAdvanced) {
-                DatePicker("Startdato", selection: $draft.startDate, displayedComponents: [.date])
-                Toggle("Sluttdato", isOn: $useEndDate)
-                if useEndDate {
-                    DatePicker(
-                        "Velg sluttdato",
-                        selection: Binding(
-                            get: { draft.endDate ?? draft.startDate },
-                            set: { draft.endDate = $0 }
-                        ),
-                        in: draft.startDate...,
-                        displayedComponents: [.date]
-                    )
-                }
-
-                if existing != nil {
-                    Toggle("Aktiv", isOn: $draft.isActive)
-                }
-            } label: {
-                Text("Avansert")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(AppTheme.textSecondary)
+            dayRow
+            Text("Posten legges til automatisk etter planen du velger.")
+                .appSecondaryStyle()
+            DatePicker("Startdato", selection: $draft.startDate, displayedComponents: [.date])
+            Toggle("Sluttdato", isOn: $useEndDate)
+            if useEndDate {
+                DatePicker(
+                    "Velg sluttdato",
+                    selection: Binding(
+                        get: { draft.endDate ?? draft.startDate },
+                        set: { draft.endDate = $0 }
+                    ),
+                    in: draft.startDate...,
+                    displayedComponents: [.date]
+                )
             }
         }
     }
@@ -456,10 +398,8 @@ private struct FixedItemEditorSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                basicsSection
-                automationSection
-                currentMonthSection
-                advancedSection
+                detailsSection
+                scheduleSection
             }
             .navigationTitle(existing == nil ? "Ny fast post" : "Fast post")
             .navigationBarTitleDisplayMode(.inline)
@@ -494,25 +434,24 @@ private struct FixedItemEditorSheet: View {
                     draft.isActive = existing.isActive
                     draft.autoCreate = existing.autoCreate
                     createCurrentMonth = false
-                } else if let first = filteredCategories.first {
+                } else if let first = selectableCategories.first {
                     draft.categoryID = first.id
+                    syncKindFromSelectedCategory()
                     useEndDate = false
                     draft.endDate = nil
                     createCurrentMonth = suggestedCreateCurrentMonthDefault
                 }
                 titleFocused = existing == nil
             }
-            .onChange(of: draft.kind) { _, _ in
-                if !filteredCategories.contains(where: { $0.id == draft.categoryID }) {
-                    draft.categoryID = filteredCategories.first?.id ?? ""
-                }
+            .onChange(of: draft.categoryID) { _, _ in
+                syncKindFromSelectedCategory()
             }
             .onChange(of: draft.dayOfMonth) { _, _ in
-                guard existing == nil, !hasCustomizedCreateCurrentMonth else { return }
+                guard existing == nil else { return }
                 createCurrentMonth = suggestedCreateCurrentMonthDefault
             }
             .onChange(of: draft.startDate) { _, _ in
-                guard existing == nil, !hasCustomizedCreateCurrentMonth else { return }
+                guard existing == nil else { return }
                 createCurrentMonth = suggestedCreateCurrentMonthDefault
             }
             .onChange(of: useEndDate) { _, enabled in
@@ -527,7 +466,7 @@ private struct FixedItemEditorSheet: View {
             }
             .sheet(isPresented: $showCategoryPicker) {
                 FixedItemCategoryPickerSheet(
-                    categories: filteredCategories,
+                    categories: selectableCategories,
                     selectedCategoryID: $draft.categoryID
                 )
             }
