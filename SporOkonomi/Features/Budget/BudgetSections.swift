@@ -177,17 +177,30 @@ struct BudgetHeroCardView: View {
     let summary: BudgetSummaryData
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 18) {
             if hasPlannedBudget {
                 Text("Igjen denne måneden")
-                    .appSecondaryStyle()
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(AppTheme.textSecondary)
 
                 Text(isAmountsHidden ? "Beløp skjult" : formatNOK(remaining))
-                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                    .font(.system(size: 40, weight: .bold, design: .rounded))
                     .monospacedDigit()
                     .foregroundStyle(summary.isWithinBudget ? AppTheme.textPrimary : AppTheme.warning)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.75)
+                    .minimumScaleFactor(0.7)
+                    .allowsTightening(true)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(summary.statusLine(isAmountsHidden: isAmountsHidden))
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(summary.isWithinBudget ? AppTheme.positive : AppTheme.warning)
+
+                    if groupsWithoutLimitWithSpendCount > 0 {
+                        Text("\(groupsWithoutLimitWithSpendCount) grupper har aktivitet uten grense.")
+                            .appSecondaryStyle()
+                    }
+                }
 
                 HStack(spacing: 12) {
                     budgetMetric(
@@ -202,20 +215,18 @@ struct BudgetHeroCardView: View {
                         tone: AppTheme.textPrimary
                     )
                 }
-
-                Text(summary.statusLine(isAmountsHidden: isAmountsHidden))
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(summary.isWithinBudget ? AppTheme.positive : AppTheme.warning)
-
-                if groupsWithoutLimitWithSpendCount > 0 {
-                    Text("\(groupsWithoutLimitWithSpendCount) grupper har aktivitet uten grense.")
-                        .appSecondaryStyle()
-                }
             } else {
                 Text("Ingen grenser satt")
-                    .appCardTitleStyle()
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(AppTheme.textSecondary)
 
-                Text("Du kan fortsatt føre som vanlig. Sett grenser når du vil ha mer oversikt.")
+                Text("Før som vanlig denne måneden")
+                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .foregroundStyle(AppTheme.textPrimary)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
+
+                Text("Sett grenser når du vil ha mer oversikt over hva som er igjen.")
                     .appSecondaryStyle()
 
                 Button("Sett grenser") {
@@ -226,9 +237,24 @@ struct BudgetHeroCardView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.divider, lineWidth: 1))
+        .padding(20)
+        .background(
+            LinearGradient(
+                colors: [
+                    AppTheme.surface,
+                    AppTheme.primary.opacity(0.07),
+                    AppTheme.surfaceElevated
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 24, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(AppTheme.divider.opacity(0.8), lineWidth: 1)
+        )
+        .shadow(color: AppTheme.primary.opacity(0.08), radius: 20, y: 12)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
             hasPlannedBudget
@@ -255,8 +281,11 @@ struct BudgetHeroCardView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(AppTheme.background, in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.divider, lineWidth: 1))
+        .background(AppTheme.surface.opacity(0.72), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(AppTheme.divider.opacity(0.75), lineWidth: 1)
+        )
     }
 
 }
