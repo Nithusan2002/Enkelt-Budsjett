@@ -135,6 +135,151 @@ Ytelse:
 
 ---
 
+# UI consistency system
+
+Mål:
+- gjøre appen mer symmetrisk uten å gjøre skjermene monotone
+- sikre at Budsjett, Investeringer og Mål føles som samme produktfamilie
+- standardisere mønstre for hero, seksjoner, forms og handlinger
+
+Prinsipp:
+- del visuell logikk og komponentmønstre
+- varier informasjonsprioritet per feature
+- standardiser struktur før dekor
+
+## 1. Hero-regel
+
+Alle hovedskjermer skal ha et hero-kort øverst når skjermen har ett tydelig hovedtall eller hovedstatus.
+
+Hero-kortet skal som standard ha:
+- liten label
+- ett hovedtall eller hovedstatus
+- én sekundær statuslinje
+- eventuelt én lavprioritert metadata-linje
+
+Hero-kort skal dele samme visuelle shell:
+- lik hjørneradius
+- lik intern padding
+- subtil gradient
+- myk shadow
+- samme border/stroke-logikk
+
+Innholdet skal fortsatt være feature-spesifikt:
+- Budsjett skal være mer operativt og handlingsnært
+- Investeringer skal være mer status- og utviklingsdrevet
+- Mål skal være mer fokusert og enkelt
+
+## 2. Seksjonsheader-regel
+
+Alle større seksjoner skal bruke samme grunnmønster:
+- venstre: seksjonstittel
+- høyre: én sekundær handling hvis relevant
+
+Eksempler:
+- `Beholdning` + `+`
+- `Grupper` + `Rediger`
+- `Historikk` + `Se alle`
+
+Regler:
+- seksjonsspesifikke handlinger skal ligge i header når de naturlig hører til seksjonen
+- unngå å plassere lokale admin-handlinger nederst i skjermen hvis de kan ligge i header
+- høyrehandlingen skal være liten, tydelig og sekundær
+
+## 3. Primær CTA-regel
+
+Hver hovedskjerm skal ha maks én tydelig primær CTA.
+
+Regler:
+- bruk floating CTA kun når handlingen er sentral for skjermen
+- copy skal alltid være feature-spesifikk
+- basestil kan være delt, men tekst og accessibility-label skal aldri være hardkodet til en annen feature
+- primær CTA skal ikke konkurrere med lokale seksjonshandlinger
+
+## 4. Form-regel
+
+Alle opprett- og rediger-skjermer skal bruke samme grunnstruktur:
+- tydelig skjermtittel
+- kort hjelpetekst kun ved behov
+- labels over felter
+- jevn vertikal spacing
+- én tydelig lagrehandling
+
+Unngå:
+- dobbeltoverskrifter som sier nesten det samme
+- felt uten tydelig label
+- blanding av ulike datovisninger eller inputmønstre i samme form
+
+## 5. Kort-regel
+
+Kort skal brukes for å gruppere informasjon, ikke bare som dekor.
+
+Kort skal være konsistente på tvers av appen:
+- samme radiusfamilie
+- samme border-logikk
+- samme shadow-nivå per korttype
+- samme padding-prinsipper
+
+Ikke introduser nye kortstiler uten tydelig funksjonell grunn.
+
+## 6. Typografi-regel
+
+Det skal være tydelig hva som er viktigst på skjermen.
+
+Regler:
+- ett hovedtall per skjerm får sterkest visuell vekt
+- seksjonstitler skal bruke konsistent størrelse og vekt
+- metadata og hjelpetekst skal bruke sekundært nivå
+- ikke la flere elementer konkurrere om å være hovedfokus
+
+## 7. Tomtilstandsregel
+
+Alle tomtilstander skal være korte og konkrete:
+- hva mangler
+- hva kan brukeren gjøre nå
+
+Regler:
+- én anbefalt handling er nok
+- ikke bruk flere coach-kort samtidig
+- unngå moraliserende språk
+
+## 8. Handlingshierarki-regel
+
+Handlingshierarki skal være tydelig:
+- primær handling: visuelt tydelig og unik
+- sekundære handlinger: små og lokale
+- administrative handlinger: nedtonet eller flyttet til riktig seksjonsnivå
+- destruktive handlinger: vises bare når konteksten er tydelig
+
+## 9. Språk- og formatregel
+
+All UI-copy skal være norsk.
+
+Regler:
+- bruk norsk datoformat konsekvent
+- bruk konsekvent pengebeløp-format
+- unngå blanding av norsk og engelsk i labels, datoer og hjelpetekst
+
+## 10. Feature-familie-regel
+
+Budsjett, Investeringer og Mål skal føles som samme app.
+
+Det betyr:
+- samme designlogikk
+- samme komponentfamilie
+- samme handlingshierarki
+- men ulik informasjonsprioritet per feature
+
+Målet er ikke identiske skjermer, men gjenkjennelig struktur og rytme.
+
+Prioriter standardisering i denne rekkefølgen:
+1. hero-kort
+2. seksjonsheadere
+3. primær CTA
+4. formskjermer
+5. tomtilstander
+
+---
+
 # Anti-hallusinasjonsregler
 
 AI skal ikke:
