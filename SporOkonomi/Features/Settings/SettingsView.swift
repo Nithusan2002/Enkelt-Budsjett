@@ -350,6 +350,16 @@ struct SettingsView: View {
             .buttonStyle(.plain)
 
             NavigationLink {
+                PremiumSettingsView(
+                    privacyPolicyURL: privacyPolicyURL,
+                    termsURL: termsURL
+                )
+            } label: {
+                settingsRow(title: "Premium", value: "Mer historikk og flere verktøy", showsChevron: false)
+            }
+            .buttonStyle(.plain)
+
+            NavigationLink {
                 EconomySettingsHomeView(
                     pref: pref,
                     isReadOnlyMode: isReadOnlyMode,
