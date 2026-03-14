@@ -313,12 +313,8 @@ struct InvestmentsDevelopmentChartView: View {
         1
     }
 
-    private var totalLineOutlineColor: Color {
-        colorScheme == .dark ? AppTheme.surface.opacity(0.94) : AppTheme.background
-    }
-
     private var totalLineColor: Color {
-        colorScheme == .dark ? AppTheme.textPrimary : .black
+        .black
     }
 
     private var latestVisibleBuckets: [InvestmentsDevelopmentBucketPoint] {
@@ -442,26 +438,10 @@ struct InvestmentsDevelopmentChartView: View {
                     x: .value("Måned", point.date),
                     y: .value("Total", point.total)
                 )
-                .lineStyle(StrokeStyle(lineWidth: 7.6, lineCap: .round, lineJoin: .round))
-                .foregroundStyle(totalLineOutlineColor)
-                .offset(y: -1)
-
-                LineMark(
-                    x: .value("Måned", point.date),
-                    y: .value("Total", point.total)
-                )
                 .lineStyle(StrokeStyle(lineWidth: 4.8, lineCap: .round, lineJoin: .round))
                 .foregroundStyle(totalLineColor)
                 .offset(y: -1)
             }
-
-            PointMark(
-                x: .value("Siste måned", latest.date),
-                y: .value("Siste total", latest.total)
-            )
-            .symbolSize(92)
-            .foregroundStyle(totalLineOutlineColor)
-            .offset(y: -1)
 
             PointMark(
                 x: .value("Siste måned", latest.date),
@@ -579,9 +559,7 @@ struct InvestmentsDevelopmentChartView: View {
     }
 
     private func areaFillColor(for bucket: InvestmentsDevelopmentBucketPoint) -> Color {
-        let base = bucket.color
-        let opacity = colorScheme == .dark ? 0.34 : 0.22
-        return base.opacity(opacity)
+        bucket.color
     }
 
     private func tooltip(for point: InvestmentsDevelopmentChartPoint) -> some View {

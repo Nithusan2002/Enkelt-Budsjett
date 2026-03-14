@@ -669,7 +669,7 @@ private struct InvestmentsBottomCTAButton: View {
             HStack(spacing: 10) {
                 Image(systemName: "plus")
                     .font(.title3.weight(.bold))
-                Text("Legg til investering")
+                Text("Oppdater formue")
                     .font(.title3.weight(.semibold))
                     .lineLimit(1)
             }
@@ -684,7 +684,7 @@ private struct InvestmentsBottomCTAButton: View {
             .shadow(color: .black.opacity(0.22), radius: 12, x: 0, y: 6)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Legg til investering")
+        .accessibilityLabel("Oppdater formue")
     }
 }
 
