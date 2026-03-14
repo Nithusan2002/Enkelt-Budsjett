@@ -225,24 +225,6 @@ struct SettingsView: View {
             } message: {
             Text(exportMessage.isEmpty ? "Prøv igjen litt senere." : exportMessage)
             }
-            .confirmationDialog("Importer data", isPresented: $showImportModeDialog, titleVisibility: .visible) {
-            Button("Slå sammen med eksisterende data") {
-                beginImportSelection(mode: .merge)
-            }
-            Button("Erstatt all data", role: .destructive) {
-                beginImportSelection(mode: .replace)
-            }
-            Button("Avbryt", role: .cancel) { }
-            } message: {
-            Text("Velg hvordan importen skal håndtere data som allerede finnes.")
-            }
-            .fileImporter(
-                isPresented: $showImportPicker,
-                allowedContentTypes: [UTType.json, UTType.data],
-                allowsMultipleSelection: false
-            ) { result in
-                handleImport(result)
-            }
             .alert("Kunne ikke importere data", isPresented: $showImportError) {
             Button("OK", role: .cancel) { }
             } message: {
@@ -403,7 +385,9 @@ struct SettingsView: View {
                         resetExportPasswordState()
                         showExportPasswordSheet = true
                     },
-                    onImport: { showImportModeDialog = true },
+                    importPickerIsPresented: $showImportPicker,
+                    onSelectImportMode: beginImportSelection,
+                    onImportResult: handleImport,
                     onConfirmDeleteAccount: {
                         Task {
                             if await sessionStore.deleteAccount(preference: pref, context: modelContext) {
@@ -1745,7 +1729,9 @@ private struct DataPrivacySettingsHomeView: View {
     let isAuthenticated: Bool
     let shouldShowDemoTools: Bool
     let onExport: () -> Void
-    let onImport: () -> Void
+    @Binding var importPickerIsPresented: Bool
+    let onSelectImportMode: (DataImportMode) -> Void
+    let onImportResult: (Result<[URL], Error>) -> Void
     let onConfirmDeleteAccount: () -> Void
     let onConfirmDeleteAll: () -> Void
     let onLoadDemo: () -> Void
@@ -1755,6 +1741,7 @@ private struct DataPrivacySettingsHomeView: View {
     @State private var dangerousConfirmation: DangerousConfirmation?
     @State private var showDemoLoadConfirm = false
     @State private var showMarketingDemoLoadConfirm = false
+    @State private var showImportModeDialog = false
 
     private let privacyPolicyURL = URL(string: "https://nithusan2002.github.io/spor-okonomi/personvern/")
     private let termsURL = URL(string: "https://nithusan2002.github.io/spor-okonomi/vilkar/")
@@ -1782,7 +1769,7 @@ private struct DataPrivacySettingsHomeView: View {
                 .buttonStyle(.plain)
 
                 Button {
-                    onImport()
+                    showImportModeDialog = true
                 } label: {
                     settingsRow(title: "Importer data", value: "", showsChevron: true)
                 }
@@ -1891,6 +1878,24 @@ private struct DataPrivacySettingsHomeView: View {
             }
         } message: {
             Text("Dette erstatter lokale data på denne enheten med et kuratert demooppsett for screenshots og markedsflater.")
+        }
+        .confirmationDialog("Importer data", isPresented: $showImportModeDialog, titleVisibility: .visible) {
+            Button("Slå sammen med eksisterende data") {
+                onSelectImportMode(.merge)
+            }
+            Button("Erstatt all data", role: .destructive) {
+                onSelectImportMode(.replace)
+            }
+            Button("Avbryt", role: .cancel) { }
+        } message: {
+            Text("Velg hvordan importen skal håndtere data som allerede finnes.")
+        }
+        .fileImporter(
+            isPresented: $importPickerIsPresented,
+            allowedContentTypes: [UTType.json, UTType.data],
+            allowsMultipleSelection: false
+        ) { result in
+            onImportResult(result)
         }
         .alert(item: $dangerousConfirmation) { confirmation in
             switch confirmation {
