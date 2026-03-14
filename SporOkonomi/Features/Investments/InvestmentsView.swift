@@ -387,50 +387,65 @@ struct InvestmentsView: View {
         let allHistory = viewModel.history(snapshots)
         let history = showFullHistory ? allHistory : Array(allHistory.prefix(6))
         return Section {
-            DisclosureGroup(isExpanded: $isHistoryExpanded) {
-                if allHistory.isEmpty {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Ingen innsjekker ennå")
-                            .appCardTitleStyle()
-                        Text("Oppdater verdien når du vil følge utviklingen over tid.")
-                            .appSecondaryStyle()
-                        Button("Oppdater verdi") {
-                            openCheckIn()
-                        }
-                        .appProminentCTAStyle()
-                        .disabled(isReadOnlyMode)
+            VStack(alignment: .leading, spacing: 16) {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isHistoryExpanded.toggle()
                     }
-                    .padding(.top, 8)
-                } else {
-                    VStack(alignment: .leading, spacing: 12) {
-                        ForEach(history, id: \.periodKey) { snapshot in
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(formatPeriodKeyAsDate(snapshot.periodKey))
-                                        .appBodyStyle()
-                                    Text(formatShortDate(snapshot.capturedAt))
-                                        .appSecondaryStyle()
-                                }
-                                Spacer()
-                                Text(displayedAmount(snapshot.totalValue))
-                                    .appBodyStyle()
-                                    .monospacedDigit()
+                } label: {
+                    HStack {
+                        Text("Tidligere innsjekker")
+                            .appCardTitleStyle()
+                        Spacer()
+                        Image(systemName: isHistoryExpanded ? "chevron.up" : "chevron.down")
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(AppTheme.textPrimary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+
+                if isHistoryExpanded {
+                    if allHistory.isEmpty {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Ingen innsjekker ennå")
+                                .appCardTitleStyle()
+                            Text("Oppdater verdien når du vil følge utviklingen over tid.")
+                                .appSecondaryStyle()
+                            Button("Oppdater verdi") {
+                                openCheckIn()
                             }
+                            .appProminentCTAStyle()
+                            .disabled(isReadOnlyMode)
                         }
-                        if allHistory.count > 6 {
-                            Button(showFullHistory ? "Vis færre" : "Se alle") {
-                                withAnimation(.easeInOut(duration: 0.2)) {
-                                    showFullHistory.toggle()
+                    } else {
+                        VStack(alignment: .leading, spacing: 12) {
+                            ForEach(history, id: \.periodKey) { snapshot in
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(formatPeriodKeyAsDate(snapshot.periodKey))
+                                            .appBodyStyle()
+                                        Text(formatShortDate(snapshot.capturedAt))
+                                            .appSecondaryStyle()
+                                    }
+                                    Spacer()
+                                    Text(displayedAmount(snapshot.totalValue))
+                                        .appBodyStyle()
+                                        .monospacedDigit()
                                 }
                             }
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(AppTheme.primary)
+                            if allHistory.count > 6 {
+                                Button(showFullHistory ? "Vis færre" : "Se alle") {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        showFullHistory.toggle()
+                                    }
+                                }
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(AppTheme.primary)
+                            }
                         }
                     }
                 }
-            } label: {
-                Text("Tidligere innsjekker")
-                    .appCardTitleStyle()
             }
             .padding(18)
             .cardContainer()
