@@ -310,11 +310,19 @@ struct InvestmentsDevelopmentChartView: View {
     }
 
     private var areaOpacity: Double {
-        1
+        0.82
     }
 
     private var totalLineColor: Color {
-        .black
+        Color(light: "#163F38", dark: "#E8F0EC")
+    }
+
+    private var totalLineLiftColor: Color {
+        Color(light: "#163F38", dark: "#DDE8E2").opacity(colorScheme == .dark ? 0.18 : 0.12)
+    }
+
+    private var latestPointRingColor: Color {
+        colorScheme == .dark ? AppTheme.surface : AppTheme.background
     }
 
     private var latestVisibleBuckets: [InvestmentsDevelopmentBucketPoint] {
@@ -438,18 +446,39 @@ struct InvestmentsDevelopmentChartView: View {
                     x: .value("Måned", point.date),
                     y: .value("Total", point.total)
                 )
+                .interpolationMethod(.catmullRom)
+                .lineStyle(StrokeStyle(lineWidth: 6.2, lineCap: .round, lineJoin: .round))
+                .foregroundStyle(totalLineLiftColor)
+
+                LineMark(
+                    x: .value("Måned", point.date),
+                    y: .value("Total", point.total)
+                )
+                .interpolationMethod(.catmullRom)
                 .lineStyle(StrokeStyle(lineWidth: 4.8, lineCap: .round, lineJoin: .round))
                 .foregroundStyle(totalLineColor)
-                .offset(y: -1)
             }
 
             PointMark(
                 x: .value("Siste måned", latest.date),
                 y: .value("Siste total", latest.total)
             )
-            .symbolSize(30)
+            .symbolSize(150)
+            .foregroundStyle(totalLineLiftColor)
+
+            PointMark(
+                x: .value("Siste måned", latest.date),
+                y: .value("Siste total", latest.total)
+            )
+            .symbolSize(74)
+            .foregroundStyle(latestPointRingColor)
+
+            PointMark(
+                x: .value("Siste måned", latest.date),
+                y: .value("Siste total", latest.total)
+            )
+            .symbolSize(34)
             .foregroundStyle(totalLineColor)
-            .offset(y: -1)
 
             if let selectedPoint {
                 RuleMark(x: .value("Valgt", selectedPoint.date))
