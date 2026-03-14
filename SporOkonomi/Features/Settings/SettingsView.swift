@@ -1598,7 +1598,7 @@ private struct EconomySettingsHomeView: View {
                 Button {
                     showGoalSheet = true
                 } label: {
-                    settingsRow(title: "Formue Mål", value: "", showsChevron: true)
+                    settingsRow(title: "Mål", value: "", showsChevron: true)
                 }
                 .buttonStyle(.plain)
 
@@ -2185,6 +2185,10 @@ private struct AboutAppView: View {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
     }
 
+    private var websiteURL: URL? {
+        URL(string: "https://nithusan.no/spor-okonomi/")
+    }
+
     private var heroAssetName: String {
         colorScheme == .dark ? "About-AppIcon-Dark" : "About-AppIcon-Light"
     }
@@ -2285,6 +2289,7 @@ private struct AboutAppView: View {
                     }
                 }
 
+                aboutWebsiteCard
                 aboutInfoCard
             }
             .padding(.horizontal, 16)
@@ -2338,6 +2343,39 @@ private struct AboutAppView: View {
             RoundedRectangle(cornerRadius: 18)
                 .stroke(AppTheme.divider.opacity(0.55), lineWidth: 1)
         )
+    }
+
+    private var aboutWebsiteCard: some View {
+        Group {
+            if let websiteURL {
+                Link(destination: websiteURL) {
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                        Text("Nettside")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(AppTheme.textSecondary)
+
+                        Spacer(minLength: 12)
+
+                        Text("spor-okonomi")
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(AppTheme.primary)
+
+                        Image(systemName: "arrow.up.right")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(AppTheme.textSecondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 17)
+                    .padding(.vertical, 15)
+                    .background(AppTheme.surface.opacity(0.78), in: RoundedRectangle(cornerRadius: 18))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18)
+                            .stroke(AppTheme.divider.opacity(0.55), lineWidth: 1)
+                    )
+                }
+                .accessibilityLabel("Nettside, spor-okonomi")
+            }
+        }
     }
 
     private func aboutInfoRow(title: String, value: String) -> some View {
