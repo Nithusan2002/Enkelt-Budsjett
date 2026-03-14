@@ -280,70 +280,16 @@ enum DemoDataSeeder {
     }
 
     private static func createMarketingSnapshots(context: ModelContext, referenceDate: Date) throws {
-        let snapshotDefinitions: [(periodKey: String, capturedAt: Date, values: [InvestmentSnapshotValue])] = [
-            (
-                "2025-09",
-                date(year: 2025, month: 9, day: 26),
-                [
-                    .init(periodKey: "2025-09", bucketID: "bucket_marketing_funds", amount: 77_500),
-                    .init(periodKey: "2025-09", bucketID: "bucket_marketing_stocks", amount: 28_200),
-                    .init(periodKey: "2025-09", bucketID: "bucket_marketing_crypto", amount: 12_600),
-                    .init(periodKey: "2025-09", bucketID: "bucket_marketing_buffer", amount: 22_700)
-                ]
-            ),
-            (
-                "2025-10",
-                date(year: 2025, month: 10, day: 26),
-                [
-                    .init(periodKey: "2025-10", bucketID: "bucket_marketing_funds", amount: 79_200),
-                    .init(periodKey: "2025-10", bucketID: "bucket_marketing_stocks", amount: 28_900),
-                    .init(periodKey: "2025-10", bucketID: "bucket_marketing_crypto", amount: 13_400),
-                    .init(periodKey: "2025-10", bucketID: "bucket_marketing_buffer", amount: 23_000)
-                ]
-            ),
-            (
-                "2025-11",
-                date(year: 2025, month: 11, day: 26),
-                [
-                    .init(periodKey: "2025-11", bucketID: "bucket_marketing_funds", amount: 80_600),
-                    .init(periodKey: "2025-11", bucketID: "bucket_marketing_stocks", amount: 29_300),
-                    .init(periodKey: "2025-11", bucketID: "bucket_marketing_crypto", amount: 14_200),
-                    .init(periodKey: "2025-11", bucketID: "bucket_marketing_buffer", amount: 22_700)
-                ]
-            ),
-            (
-                "2025-12",
-                date(year: 2025, month: 12, day: 26),
-                [
-                    .init(periodKey: "2025-12", bucketID: "bucket_marketing_funds", amount: 82_000),
-                    .init(periodKey: "2025-12", bucketID: "bucket_marketing_stocks", amount: 29_900),
-                    .init(periodKey: "2025-12", bucketID: "bucket_marketing_crypto", amount: 14_800),
-                    .init(periodKey: "2025-12", bucketID: "bucket_marketing_buffer", amount: 22_500)
-                ]
-            ),
-            (
-                "2026-01",
-                date(year: 2026, month: 1, day: 26),
-                [
-                    .init(periodKey: "2026-01", bucketID: "bucket_marketing_funds", amount: 84_000),
-                    .init(periodKey: "2026-01", bucketID: "bucket_marketing_stocks", amount: 31_600),
-                    .init(periodKey: "2026-01", bucketID: "bucket_marketing_crypto", amount: 15_000),
-                    .init(periodKey: "2026-01", bucketID: "bucket_marketing_buffer", amount: 23_600)
-                ]
-            ),
-            (
-                "2026-02",
-                date(year: 2026, month: 2, day: 26),
-                [
-                    .init(periodKey: "2026-02", bucketID: "bucket_marketing_funds", amount: 87_120),
-                    .init(periodKey: "2026-02", bucketID: "bucket_marketing_stocks", amount: 31_680),
-                    .init(periodKey: "2026-02", bucketID: "bucket_marketing_crypto", amount: 15_840),
-                    .init(periodKey: "2026-02", bucketID: "bucket_marketing_buffer", amount: 23_760)
-                ]
-            )
-        ]
+        let calendar = Calendar.current
+        let latestMonth = calendar.date(byAdding: .month, value: -1, to: referenceDate) ?? referenceDate
+        let latestMonthStart = calendar.date(
+            from: calendar.dateComponents([.year, .month], from: latestMonth)
+        ) ?? latestMonth
+        let snapshotDefinitions = marketingSnapshotDefinitions(
+            endingAt: latestMonthStart,
+            monthCount: 36
+        )
 
-        _ = referenceDate
         for definition in snapshotDefinitions {
             try InvestmentService.upsertSnapshot(
                 context: context,
@@ -352,6 +298,55 @@ enum DemoDataSeeder {
                 values: definition.values
             )
         }
+    }
+
+    private static func marketingSnapshotDefinitions(
+        endingAt latestMonthStart: Date,
+        monthCount: Int
+    ) -> [(periodKey: String, capturedAt: Date, values: [InvestmentSnapshotValue])] {
+        let calendar = Calendar.current
+        let curves: [(bucketID: String, start: Double, end: Double)] = [
+            ("bucket_marketing_funds", 52_400, 87_120),
+            ("bucket_marketing_stocks", 18_400, 31_680),
+            ("bucket_marketing_crypto", 5_200, 15_840),
+            ("bucket_marketing_buffer", 14_300, 23_760)
+        ]
+        let denominator = max(Double(monthCount - 1), 1)
+
+        return (0..<monthCount).compactMap { index in
+            let monthOffset = index - (monthCount - 1)
+            guard let monthStart = calendar.date(byAdding: .month, value: monthOffset, to: latestMonthStart) else {
+                return nil
+            }
+
+            let components = calendar.dateComponents([.year, .month], from: monthStart)
+            let periodKey = DateService.periodKey(from: monthStart)
+            let progress = Double(index) / denominator
+            let values = curves.map { curve in
+                InvestmentSnapshotValue(
+                    periodKey: periodKey,
+                    bucketID: curve.bucketID,
+                    amount: interpolatedSnapshotAmount(start: curve.start, end: curve.end, progress: progress)
+                )
+            }
+
+            return (
+                periodKey,
+                date(
+                    year: components.year ?? 2026,
+                    month: components.month ?? 1,
+                    day: 26
+                ),
+                values
+            )
+        }
+    }
+
+    private static func interpolatedSnapshotAmount(start: Double, end: Double, progress: Double) -> Double {
+        guard progress > 0 else { return start }
+        guard progress < 1 else { return end }
+        let raw = start + ((end - start) * progress)
+        return (raw / 20).rounded() * 20
     }
 
     private static func createMarketingGoalAndPreference(context: ModelContext, referenceDate: Date) throws {

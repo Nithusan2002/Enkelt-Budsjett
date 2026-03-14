@@ -406,7 +406,7 @@ struct RecurringAndDemoTests {
         #expect(report.budgetMonths == 1)
         #expect(report.categories == 9)
         #expect(report.buckets == 4)
-        #expect(report.snapshots == 6)
+        #expect(report.snapshots == 36)
         #expect(report.goals == 1)
 
         let periodKey = "2026-03"
@@ -439,8 +439,11 @@ struct RecurringAndDemoTests {
 
         let latestSnapshot = snapshots.sorted { $0.periodKey < $1.periodKey }.last
         let previousSnapshot = snapshots.sorted { $0.periodKey < $1.periodKey }.dropLast().last
+        #expect(snapshots.count == 36)
+        #expect(snapshots.sorted { $0.periodKey < $1.periodKey }.first?.periodKey == "2023-03")
+        #expect(latestSnapshot?.periodKey == "2026-02")
         #expect(latestSnapshot?.totalValue == 158_400)
-        #expect(previousSnapshot?.totalValue == 154_200)
+        #expect((previousSnapshot?.totalValue ?? 0) < (latestSnapshot?.totalValue ?? 0))
         #expect(Calendar.current.component(.month, from: latestSnapshot?.capturedAt ?? referenceDate) == 2)
         #expect(Calendar.current.component(.day, from: latestSnapshot?.capturedAt ?? referenceDate) == 26)
 
