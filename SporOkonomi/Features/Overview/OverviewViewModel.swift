@@ -33,6 +33,25 @@ struct OverviewBudgetStatus {
     let spent: Double
 }
 
+struct AIInsightCategorySummary: Codable, Equatable {
+    let title: String
+    let amount: Double
+}
+
+struct AIInsightGoalSummary: Codable, Equatable {
+    let progress: Double
+    let monthlyNeed: Double
+}
+
+struct AIInsightRequestSummary: Codable, Equatable {
+    let income: Double
+    let spent: Double
+    let remaining: Double
+    let fixedItemsTotal: Double
+    let topCategories: [AIInsightCategorySummary]
+    let goal: AIInsightGoalSummary?
+}
+
 @MainActor
 final class OverviewViewModel: ObservableObject {
     @Published var showGoalEditor = false
@@ -127,6 +146,52 @@ final class OverviewViewModel: ObservableObject {
             net: net,
             income: income,
             spent: actual
+        )
+    }
+
+    func aiInsightSummary(
+        status: OverviewBudgetStatus,
+        transactions: [Transaction],
+        categories: [Category],
+        goalSummary: GoalSummary?,
+        fixedItemsTotal: Double,
+        now: Date = .now
+    ) -> AIInsightRequestSummary {
+        let monthKey = DateService.periodKey(from: now)
+        let categoriesByID = Dictionary(uniqueKeysWithValues: categories.map { ($0.id, $0) })
+
+        let topCategories = Dictionary(grouping: transactions.filter {
+            DateService.periodKey(from: $0.date) == monthKey && BudgetService.trackedBudgetImpact($0) > 0
+        }) { transaction in
+            guard let categoryID = transaction.categoryID,
+                  let category = categoriesByID[categoryID] else {
+                return "Annet"
+            }
+            return category.name
+        }
+        .map { title, rows in
+            AIInsightCategorySummary(
+                title: title,
+                amount: rows.reduce(0) { $0 + BudgetService.trackedBudgetImpact($1) }
+            )
+        }
+        .sorted { lhs, rhs in
+            if lhs.amount == rhs.amount {
+                return lhs.title < rhs.title
+            }
+            return lhs.amount > rhs.amount
+        }
+        .prefix(3)
+
+        return AIInsightRequestSummary(
+            income: status.income,
+            spent: status.spent,
+            remaining: status.hasPlan ? status.remaining : status.net,
+            fixedItemsTotal: fixedItemsTotal,
+            topCategories: Array(topCategories),
+            goal: goalSummary.map {
+                AIInsightGoalSummary(progress: $0.progress, monthlyNeed: $0.perMonth)
+            }
         )
     }
 

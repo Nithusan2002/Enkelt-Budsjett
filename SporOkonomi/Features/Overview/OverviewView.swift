@@ -48,6 +48,23 @@ struct OverviewView: View {
         viewModel.registeredSavingYTD(transactions: transactions, categories: categories)
     }
 
+    private var fixedItemsTotal: Double {
+        FixedItemsService.fixedTotalForMonth(
+            periodKey: DateService.periodKey(from: .now),
+            transactions: transactions
+        )
+    }
+
+    private var aiInsightSummary: AIInsightRequestSummary {
+        viewModel.aiInsightSummary(
+            status: budgetStatus,
+            transactions: transactions,
+            categories: categories,
+            goalSummary: activeGoal == nil ? nil : goalSummary,
+            fixedItemsTotal: fixedItemsTotal
+        )
+    }
+
     private var hasSavedData: Bool {
         abs(registeredSavingYTD) >= 1
     }
@@ -113,7 +130,7 @@ struct OverviewView: View {
             )
         }
         .sheet(isPresented: $showAssistantSheet) {
-            OverviewAssistantSheet()
+            AIInsightSheetView(summary: aiInsightSummary)
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
         }
@@ -552,88 +569,5 @@ struct OverviewView: View {
 
     private func openInvestments() {
         navigationState.selectedTab = .investments
-    }
-}
-
-private struct OverviewAssistantSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var navigationState: AppNavigationState
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            HStack {
-                Spacer()
-
-                Button("Lukk") {
-                    dismiss()
-                }
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(AppTheme.textSecondary)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(AppTheme.surface, in: Capsule())
-                .overlay(
-                    Capsule()
-                        .stroke(AppTheme.divider, lineWidth: 1)
-                )
-                .buttonStyle(.plain)
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("AI-assistent kommer snart")
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(AppTheme.textPrimary)
-
-                Text("Få hjelp til å forstå tallene dine, oppsummere måneden og finne neste steg.")
-                    .appBodyStyle()
-                    .foregroundStyle(AppTheme.textSecondary)
-            }
-
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(spacing: 8) {
-                    Image(systemName: "clock")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(AppTheme.primary)
-                    Text("Kommer snart")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(AppTheme.textPrimary)
-                }
-
-                Text("Denne funksjonen blir en del av Premium.")
-                    .appBodyStyle()
-                    .foregroundStyle(AppTheme.textPrimary)
-            }
-            .padding(18)
-            .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 18))
-            .overlay(
-                RoundedRectangle(cornerRadius: 18)
-                    .stroke(AppTheme.divider, lineWidth: 1)
-            )
-
-            VStack(spacing: 12) {
-                Button("Se Premium") {
-                    dismiss()
-                    navigationState.selectedTab = .settings
-                    navigationState.pendingSettingsRoute = .premium
-                }
-                .appProminentCTAStyle()
-
-                Button("Lukk") {
-                    dismiss()
-                }
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(AppTheme.textSecondary)
-                .frame(maxWidth: .infinity)
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(24)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(
-            RoundedRectangle(cornerRadius: 32, style: .continuous)
-                .fill(AppTheme.background)
-                .ignoresSafeArea()
-        )
-        .presentationBackground(.clear)
     }
 }

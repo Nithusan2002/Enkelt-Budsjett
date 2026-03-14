@@ -735,6 +735,74 @@ struct AuthSessionTests {
         #expect(tokenStore.savedTokens?.refreshToken == "fresh-refresh")
         #expect(tokenStore.load() == nil)
     }
+
+    @Test
+    func aiInsightsServiceSkipsAuthorizationHeaderWithoutStoredSession() async throws {
+        let configuration = try SupabaseConfiguration.load(
+            projectURLString: "https://example.supabase.co",
+            publishableKey: "publishable-key",
+            redirectScheme: "sporokonomi",
+            redirectHost: "auth-callback"
+        )
+        let tokenStore = MockTokenStore(initialTokens: nil)
+        let sessionConfiguration = URLSessionConfiguration.ephemeral
+        sessionConfiguration.protocolClasses = [MockURLProtocol.self]
+        let session = URLSession(configuration: sessionConfiguration)
+        let service = AIInsightsService(
+            configuration: configuration,
+            session: session,
+            tokenStore: tokenStore
+        )
+
+        MockURLProtocol.requestHandler = { request in
+            #expect(request.value(forHTTPHeaderField: "apikey") == "publishable-key")
+            #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
+
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            let data = #"{"summary":"Kort","keyDriver":"Mat","nextStep":"Se over matbudsjettet"}"#.data(using: .utf8)!
+            return (response, data)
+        }
+
+        let result = try await service.fetchInsight(
+            summary: AIInsightRequestSummary(
+                income: 25_000,
+                spent: 10_000,
+                remaining: 15_000,
+                fixedItemsTotal: 7_000,
+                topCategories: [AIInsightCategorySummary(title: "Mat", amount: 3_000)],
+                goal: nil
+            )
+        )
+
+        #expect(result.summary == "Kort")
+    }
+
+    @Test
+    @MainActor
+    func aiInsightSheetUsesMockResponseInDebugBuilds() async {
+        let summary = AIInsightRequestSummary(
+            income: 32_000,
+            spent: 20_000,
+            remaining: 12_000,
+            fixedItemsTotal: 9_500,
+            topCategories: [AIInsightCategorySummary(title: "Bolig", amount: 8_000)],
+            goal: nil
+        )
+        let viewModel = AIInsightSheetViewModel(summary: summary, service: nil)
+
+        await viewModel.loadIfNeeded()
+
+#if DEBUG
+        guard case .loaded(let response) = viewModel.state else {
+            Issue.record("Forventet mock-respons i debug.")
+            return
+        }
+        #expect(response.summary.contains("Debug-modus"))
+        #expect(response.keyDriver.contains("Bolig"))
+#else
+        #expect(Bool(true))
+#endif
+    }
 }
 
 private final class MockAuthClient: AuthClientProtocol {

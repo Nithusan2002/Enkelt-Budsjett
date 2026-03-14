@@ -80,6 +80,56 @@ struct OverviewFeatureTests {
 
     @Test
     @MainActor
+    func overviewBuildsAggregatedAIInsightSummary() {
+        let viewModel = OverviewViewModel()
+        let now = Calendar.current.date(from: DateComponents(year: 2026, month: 3, day: 10)) ?? .now
+        let status = OverviewBudgetStatus(
+            hasPlan: true,
+            planned: 12_000,
+            remaining: 5_200,
+            net: 15_200,
+            income: 25_000,
+            spent: 6_800
+        )
+        let categories = [
+            Category(name: "Mat", type: .expense, groupKey: BudgetGroup.hverdags.rawValue, sortOrder: 0),
+            Category(name: "Bolig", type: .expense, groupKey: BudgetGroup.bolig.rawValue, sortOrder: 1)
+        ]
+        let transactions = [
+            Transaction(date: now, amount: 2_300, kind: .expense, categoryID: categories[0].id),
+            Transaction(date: now, amount: 3_100, kind: .expense, categoryID: categories[1].id),
+            Transaction(date: now, amount: 1_400, kind: .manualSaving, categoryID: categories[0].id),
+            Transaction(date: now, amount: 25_000, kind: .income)
+        ]
+        let goal = GoalSummary(
+            targetAmount: 250_000,
+            targetDate: Calendar.current.date(byAdding: .year, value: 1, to: now) ?? now,
+            createdAt: Calendar.current.date(byAdding: .month, value: -2, to: now) ?? now,
+            progress: 0.62,
+            monthsRemaining: 10,
+            perMonth: 2_800
+        )
+
+        let summary = viewModel.aiInsightSummary(
+            status: status,
+            transactions: transactions,
+            categories: categories,
+            goalSummary: goal,
+            fixedItemsTotal: 7_500,
+            now: now
+        )
+
+        #expect(summary.income == 25_000)
+        #expect(summary.spent == 6_800)
+        #expect(summary.remaining == 5_200)
+        #expect(summary.fixedItemsTotal == 7_500)
+        #expect(summary.topCategories.map(\.title) == ["Mat", "Bolig"])
+        #expect(summary.topCategories.map(\.amount) == [3_700, 3_100])
+        #expect(summary.goal == AIInsightGoalSummary(progress: 0.62, monthlyNeed: 2_800))
+    }
+
+    @Test
+    @MainActor
     func overviewReturnsExpiredWhenGoalDateHasPassed() {
         let viewModel = OverviewViewModel()
         let summary = GoalSummary(
