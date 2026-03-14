@@ -7,33 +7,84 @@ struct GoalEditorView: View {
     let goal: Goal?
     @StateObject private var viewModel = GoalEditorViewModel()
     private var isReadOnlyMode: Bool { PersistenceGate.isReadOnlyMode }
+    private var screenTitle: String { goal == nil ? "Nytt formue-mål" : "Rediger formue-mål" }
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Formue-mål") {
-                    TextField("Jeg vil ha en formue på", text: $viewModel.targetAmountText)
-                        .keyboardType(.decimalPad)
-                        .textFieldStyle(.appInput)
-                        .multilineTextAlignment(.trailing)
-                        .monospacedDigit()
-                        .onChange(of: viewModel.targetAmountText) { _, newValue in
-                            let formatted = AppAmountInput.formatLive(newValue)
-                            if formatted != newValue {
-                                viewModel.targetAmountText = formatted
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    Text("Sett et mål for total formue og en dato du vil nå det innen.")
+                        .appSecondaryStyle()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    VStack(alignment: .leading, spacing: 18) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Målbeløp")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(AppTheme.textSecondary)
+
+                            HStack(spacing: 12) {
+                                TextField("250 000", text: $viewModel.targetAmountText)
+                                    .keyboardType(.decimalPad)
+                                    .textFieldStyle(.appInput)
+                                    .multilineTextAlignment(.leading)
+                                    .monospacedDigit()
+                                    .onChange(of: viewModel.targetAmountText) { _, newValue in
+                                        let formatted = AppAmountInput.formatLive(newValue)
+                                        if formatted != newValue {
+                                            viewModel.targetAmountText = formatted
+                                        }
+                                    }
+
+                                Text("kr")
+                                    .font(.headline.weight(.semibold))
+                                    .foregroundStyle(AppTheme.textSecondary)
                             }
                         }
-                    DatePicker("Måldato", selection: $viewModel.targetDate, displayedComponents: .date)
-                        .appBodyStyle()
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Måldato")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(AppTheme.textSecondary)
+
+                            DatePicker(
+                                "",
+                                selection: $viewModel.targetDate,
+                                displayedComponents: .date
+                            )
+                            .labelsHidden()
+                            .datePickerStyle(.compact)
+                            .environment(\.locale, Locale(identifier: "nb_NO"))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 12)
+                            .background(AppTheme.background, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .stroke(AppTheme.divider, lineWidth: 1)
+                            )
+                        }
+                    }
+                    .padding(18)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 24, style: .continuous)
+                            .fill(AppTheme.surface)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 24, style: .continuous)
+                            .stroke(AppTheme.divider.opacity(0.8), lineWidth: 1)
+                    )
                 }
+                .padding(16)
             }
-            .scrollContentBackground(.hidden)
             .background(AppTheme.background)
-            .navigationTitle("Mål")
+            .navigationTitle(screenTitle)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Avbryt") { dismiss() }
-                        .appBodyStyle()
+                        .foregroundStyle(AppTheme.textSecondary)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Lagre") {
@@ -41,7 +92,8 @@ struct GoalEditorView: View {
                             dismiss()
                         }
                     }
-                    .appCTAStyle()
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(viewModel.canSave && !isReadOnlyMode ? AppTheme.primary : AppTheme.textSecondary)
                     .disabled(!viewModel.canSave || isReadOnlyMode)
                 }
             }
