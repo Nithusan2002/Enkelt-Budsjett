@@ -77,6 +77,7 @@ struct SettingsView: View {
     private var baseForm: some View {
         Form {
             settingsHomeSection
+            homeLanguageSection
         }
         .onAppear {
             ensurePreference()
@@ -455,19 +456,60 @@ struct SettingsView: View {
         }
     }
 
+    private var homeLanguageSection: some View {
+        Section {
+            HStack(spacing: 12) {
+                Spacer()
+                homeLanguageFlag(flag: "🇳🇴", title: "Norsk", isSelected: true)
+                homeLanguageFlag(flag: "🇬🇧", title: "English", isSelected: false)
+                Spacer()
+            }
+            .padding(.vertical, 2)
+            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+            .listRowBackground(Color.clear)
+        } header: {
+            sectionHeader("Språk")
+        }
+    }
+
+    private func homeLanguageFlag(flag: String, title: String, isSelected: Bool) -> some View {
+        HStack(spacing: 8) {
+            Text(flag)
+                .font(.body)
+
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(AppTheme.textPrimary)
+
+            if isSelected {
+                Spacer(minLength: 4)
+                Image(systemName: "checkmark")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(AppTheme.primary)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .frame(minWidth: 112)
+        .background(
+            isSelected ? AppTheme.primary.opacity(0.08) : AppTheme.surface.opacity(0.9),
+            in: Capsule()
+        )
+        .overlay(
+            Capsule()
+                .stroke(isSelected ? AppTheme.primary.opacity(0.28) : AppTheme.divider.opacity(0.9), lineWidth: 1)
+        )
+        .opacity(isSelected ? 1 : 0.78)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title). \(isSelected ? "Aktivt språk" : "Kommer senere")")
+    }
+
     private var appSettingsSection: some View {
         Section {
             NavigationLink {
                 AppearanceSettingsView(selection: appearanceModeBinding)
             } label: {
                 settingsRow(title: "Visning", value: currentAppearanceMode.title, showsChevron: false)
-            }
-            .buttonStyle(.plain)
-
-            NavigationLink {
-                LanguageSettingsView()
-            } label: {
-                settingsRow(title: "Språk", value: "Norsk", showsChevron: false)
             }
             .buttonStyle(.plain)
 
@@ -1449,13 +1491,6 @@ private struct AppSettingsHomeView: View {
                 }
                 .buttonStyle(.plain)
 
-                NavigationLink {
-                    LanguageSettingsView()
-                } label: {
-                    settingsRow(title: "Språk", value: "Norsk", showsChevron: false)
-                }
-                .buttonStyle(.plain)
-
                 Toggle(isOn: reminderEnabledBinding) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Månedlig innsjekk")
@@ -2005,19 +2040,59 @@ private struct LanguageSettingsView: View {
     var body: some View {
         List {
             Section {
-                HStack {
-                    Text("Norsk")
-                        .appBodyStyle()
-                    Spacer()
-                    Image(systemName: "checkmark")
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(AppTheme.primary)
+                HStack(spacing: 12) {
+                    languageOption(
+                        flag: "🇳🇴",
+                        title: "Norsk",
+                        isSelected: true
+                    )
+
+                    languageOption(
+                        flag: "🇬🇧",
+                        title: "English",
+                        isSelected: false
+                    )
                 }
+                .padding(.vertical, 4)
             } footer: {
-                Text("Norsk er appens aktive språk.")
+                Text("Språkvalg kommer senere. Norsk er aktivt nå.")
             }
         }
         .navigationTitle("Språk")
+    }
+
+    private func languageOption(flag: String, title: String, isSelected: Bool) -> some View {
+        HStack(spacing: 10) {
+            Text(flag)
+                .font(.title3)
+
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(AppTheme.textPrimary)
+
+            Spacer()
+
+            if isSelected {
+                Image(systemName: "checkmark")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(AppTheme.primary)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            isSelected ? AppTheme.primary.opacity(0.10) : AppTheme.surface,
+            in: RoundedRectangle(cornerRadius: 16)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(isSelected ? AppTheme.primary.opacity(0.35) : AppTheme.divider, lineWidth: 1)
+        )
+        .opacity(isSelected ? 1 : 0.72)
+        .allowsHitTesting(false)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title). \(isSelected ? "Aktivt språk" : "Kommer senere")")
     }
 }
 
