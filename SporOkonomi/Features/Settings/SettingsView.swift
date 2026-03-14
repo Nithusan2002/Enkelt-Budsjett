@@ -2356,7 +2356,7 @@ private struct AboutAppView: View {
 
                         Spacer(minLength: 12)
 
-                        Text("spor-okonomi")
+                        Text("Spor økonomi")
                             .font(.footnote.weight(.medium))
                             .foregroundStyle(AppTheme.primary)
 
@@ -2373,7 +2373,7 @@ private struct AboutAppView: View {
                             .stroke(AppTheme.divider.opacity(0.55), lineWidth: 1)
                     )
                 }
-                .accessibilityLabel("Nettside, spor-okonomi")
+                .accessibilityLabel("Nettside, Spor økonomi")
             }
         }
     }
