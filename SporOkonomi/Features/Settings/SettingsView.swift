@@ -1879,16 +1879,22 @@ private struct DataPrivacySettingsHomeView: View {
         } message: {
             Text("Dette erstatter lokale data på denne enheten med et kuratert demooppsett for screenshots og markedsflater.")
         }
-        .confirmationDialog("Importer data", isPresented: $showImportModeDialog, titleVisibility: .visible) {
-            Button("Slå sammen med eksisterende data") {
-                onSelectImportMode(.merge)
-            }
-            Button("Erstatt all data", role: .destructive) {
-                onSelectImportMode(.replace)
-            }
-            Button("Avbryt", role: .cancel) { }
-        } message: {
-            Text("Velg hvordan importen skal håndtere data som allerede finnes.")
+        .sheet(isPresented: $showImportModeDialog) {
+            ImportModeSheet(
+                onSelectMerge: {
+                    showImportModeDialog = false
+                    onSelectImportMode(.merge)
+                },
+                onSelectReplace: {
+                    showImportModeDialog = false
+                    onSelectImportMode(.replace)
+                },
+                onCancel: {
+                    showImportModeDialog = false
+                }
+            )
+            .presentationDetents([.height(278)])
+            .presentationDragIndicator(.visible)
         }
         .fileImporter(
             isPresented: $importPickerIsPresented,
@@ -1962,6 +1968,74 @@ private struct DataPrivacySettingsHomeView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
+    }
+}
+
+private struct ImportModeSheet: View {
+    let onSelectMerge: () -> Void
+    let onSelectReplace: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Importer data")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(AppTheme.textPrimary)
+
+                Text("Velg hvordan importen skal håndtere data som allerede finnes.")
+                    .appBodyStyle()
+                    .foregroundStyle(AppTheme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            VStack(spacing: 10) {
+                Button(action: onSelectMerge) {
+                    importModeRow(
+                        title: "Slå sammen med eksisterende data",
+                        tone: AppTheme.primary
+                    )
+                }
+                .buttonStyle(.plain)
+
+                Button(action: onSelectReplace) {
+                    importModeRow(
+                        title: "Erstatt all data",
+                        tone: AppTheme.negative
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+
+            Button("Avbryt", action: onCancel)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(AppTheme.textSecondary)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 2)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 20)
+        .padding(.bottom, 16)
+        .background(AppTheme.background)
+    }
+
+    private func importModeRow(title: String, tone: Color) -> some View {
+        HStack {
+            Text(title)
+                .font(.body.weight(.semibold))
+                .foregroundStyle(tone)
+                .multilineTextAlignment(.leading)
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 18)
+        .background(AppTheme.surfaceElevated, in: RoundedRectangle(cornerRadius: 18))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(AppTheme.divider.opacity(0.75), lineWidth: 1)
+        )
     }
 }
 
