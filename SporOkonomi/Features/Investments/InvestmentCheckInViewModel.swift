@@ -119,7 +119,9 @@ final class InvestmentCheckInWizardViewModel: ObservableObject {
         return delta / prevTotal
     }
 
-    var nextButtonTitle: String { "Neste" }
+    var nextButtonTitle: String {
+        index == buckets.count - 1 ? "Oppsummering" : "Neste"
+    }
 
     var isLastBucketStep: Bool {
         guard hasBuckets else { return false }
