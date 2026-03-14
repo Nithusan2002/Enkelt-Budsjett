@@ -463,7 +463,7 @@ struct SettingsView: View {
             NavigationLink {
                 FAQSettingsView()
             } label: {
-                settingsRow(title: "Vanlige spørsmål", value: "Data, konto og tillatelser", showsChevron: false)
+                settingsRow(title: "FAQ", value: "Data, konto og tillatelser", showsChevron: false)
             }
             .buttonStyle(.plain)
         }

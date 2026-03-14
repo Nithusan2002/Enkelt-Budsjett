@@ -80,10 +80,14 @@ struct OverviewView: View {
     var body: some View {
         ScrollView {
             if shouldShowEmptyState {
-                emptyStateModule
-                    .padding()
+                VStack(alignment: .leading, spacing: 12) {
+                    overviewHeader
+                    emptyStateModule
+                }
+                .padding()
             } else {
                 VStack(alignment: .leading, spacing: 12) {
+                    overviewHeader
                     overviewStatusLine
                     monthlyStatusHeroModule
                     goalModule
@@ -102,26 +106,6 @@ struct OverviewView: View {
             }
         }
         .background(AppTheme.background)
-        .navigationTitle(overviewTitle)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    showAssistantSheet = true
-                } label: {
-                    Image(systemName: "sparkles")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(AppTheme.textPrimary)
-                        .frame(width: 34, height: 34)
-                        .background(AppTheme.surface, in: Circle())
-                        .overlay(
-                            Circle()
-                                .stroke(AppTheme.divider, lineWidth: 1)
-                        )
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Åpne AI-assistent")
-            }
-        }
         .sheet(isPresented: $viewModel.showGoalEditor) {
             GoalEditorView(goal: activeGoal)
         }
@@ -144,6 +128,32 @@ struct OverviewView: View {
             withAnimation(.easeOut(duration: 0.45)) {
                 displayedWealth = newValue
             }
+        }
+    }
+
+    private var overviewHeader: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Text(overviewTitle)
+                .font(.system(size: 52, weight: .bold))
+                .foregroundStyle(AppTheme.textPrimary)
+
+            Button {
+                showAssistantSheet = true
+            } label: {
+                Image(systemName: "sparkles")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(AppTheme.textPrimary)
+                    .frame(width: 34, height: 34)
+                    .background(AppTheme.surface, in: Circle())
+                    .overlay(
+                        Circle()
+                            .stroke(AppTheme.divider, lineWidth: 1)
+                    )
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Åpne AI-assistent")
+
+            Spacer(minLength: 0)
         }
     }
 
@@ -569,58 +579,80 @@ private struct OverviewAssistantSheet: View {
     @EnvironmentObject private var navigationState: AppNavigationState
 
     var body: some View {
-        NavigationStack {
-            VStack(alignment: .leading, spacing: 20) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("AI-assistent kommer snart")
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(AppTheme.textPrimary)
+        VStack(alignment: .leading, spacing: 24) {
+            HStack {
+                Spacer()
 
-                    Text("Få hjelp til å forstå tallene dine, oppsummere måneden og finne neste steg.")
-                        .appBodyStyle()
-                        .foregroundStyle(AppTheme.textSecondary)
+                Button("Lukk") {
+                    dismiss()
                 }
-
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "clock")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(AppTheme.primary)
-                        Text("Kommer snart")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(AppTheme.textPrimary)
-                    }
-
-                    Text("Denne funksjonen blir en del av Premium.")
-                        .appBodyStyle()
-                        .foregroundStyle(AppTheme.textPrimary)
-                }
-                .padding(16)
-                .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 18))
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(AppTheme.textSecondary)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(AppTheme.surface, in: Capsule())
                 .overlay(
-                    RoundedRectangle(cornerRadius: 18)
+                    Capsule()
                         .stroke(AppTheme.divider, lineWidth: 1)
                 )
+                .buttonStyle(.plain)
+            }
 
-                Spacer(minLength: 0)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("AI-assistent kommer snart")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(AppTheme.textPrimary)
 
+                Text("Få hjelp til å forstå tallene dine, oppsummere måneden og finne neste steg.")
+                    .appBodyStyle()
+                    .foregroundStyle(AppTheme.textSecondary)
+            }
+
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 8) {
+                    Image(systemName: "clock")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(AppTheme.primary)
+                    Text("Kommer snart")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(AppTheme.textPrimary)
+                }
+
+                Text("Denne funksjonen blir en del av Premium.")
+                    .appBodyStyle()
+                    .foregroundStyle(AppTheme.textPrimary)
+            }
+            .padding(18)
+            .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 18))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18)
+                    .stroke(AppTheme.divider, lineWidth: 1)
+            )
+
+            VStack(spacing: 12) {
                 Button("Se Premium") {
                     dismiss()
                     navigationState.selectedTab = .settings
                     navigationState.pendingSettingsRoute = .premium
                 }
                 .appProminentCTAStyle()
-            }
-            .padding()
-            .background(AppTheme.background)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Lukk") {
-                        dismiss()
-                    }
+
+                Button("Lukk") {
+                    dismiss()
                 }
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(AppTheme.textSecondary)
+                .frame(maxWidth: .infinity)
+                .buttonStyle(.plain)
             }
         }
+        .padding(24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(
+            RoundedRectangle(cornerRadius: 32, style: .continuous)
+                .fill(AppTheme.background)
+                .ignoresSafeArea()
+        )
+        .presentationBackground(.clear)
     }
 }
