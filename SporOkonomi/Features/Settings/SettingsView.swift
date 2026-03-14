@@ -40,6 +40,7 @@ struct SettingsView: View {
     @State private var showImportPasswordSheet = false
     @State private var showImportSuccess = false
     @State private var showAccountSettingsHome = false
+    @State private var showPremiumHome = false
     @State private var pendingImportMode: DataImportMode = .merge
     @State private var pendingImportURL: URL?
     @State private var importPassword = ""
@@ -76,6 +77,7 @@ struct SettingsView: View {
 
     private var baseForm: some View {
         Form {
+            premiumHomeSection
             settingsHomeSection
             homeLanguageSection
         }
@@ -217,6 +219,12 @@ struct SettingsView: View {
                     }
                 )
             }
+            .navigationDestination(isPresented: $showPremiumHome) {
+                PremiumSettingsView(
+                    privacyPolicyURL: privacyPolicyURL,
+                    termsURL: termsURL
+                )
+            }
     }
 
     private var formWithAlerts: some View {
@@ -350,16 +358,6 @@ struct SettingsView: View {
             .buttonStyle(.plain)
 
             NavigationLink {
-                PremiumSettingsView(
-                    privacyPolicyURL: privacyPolicyURL,
-                    termsURL: termsURL
-                )
-            } label: {
-                settingsRow(title: "Premium", value: "Mer historikk og flere verktøy", showsChevron: false)
-            }
-            .buttonStyle(.plain)
-
-            NavigationLink {
                 EconomySettingsHomeView(
                     pref: pref,
                     isReadOnlyMode: isReadOnlyMode,
@@ -463,6 +461,23 @@ struct SettingsView: View {
                 settingsRow(title: "Vanlige spørsmål", value: "Data, konto og tillatelser", showsChevron: false)
             }
             .buttonStyle(.plain)
+        }
+    }
+
+    private var premiumHomeSection: some View {
+        Section {
+            Button {
+                showPremiumHome = true
+            } label: {
+                premiumSettingsRow(
+                    title: "Premium",
+                    subtitle: "Mer historikk og flere verktøy"
+                )
+            }
+            .buttonStyle(.plain)
+            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 2, trailing: 0))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
         }
     }
 
@@ -936,6 +951,58 @@ struct SettingsView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+    }
+
+    private func premiumSettingsRow(title: String, subtitle: String) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(AppTheme.textPrimary)
+                Text(subtitle)
+                    .font(.footnote)
+                    .foregroundStyle(AppTheme.textSecondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 12)
+
+            Text("Kommer snart")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(AppTheme.primary)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 6)
+                .background(AppTheme.primary.opacity(0.08), in: Capsule())
+                .overlay(
+                    Capsule()
+                        .stroke(AppTheme.primary.opacity(0.18), lineWidth: 1)
+                )
+
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(AppTheme.textSecondary)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            LinearGradient(
+                colors: [
+                    AppTheme.surface,
+                    AppTheme.primary.opacity(0.05),
+                    AppTheme.surfaceElevated.opacity(0.98)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 20, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(AppTheme.divider.opacity(0.8), lineWidth: 1)
+        )
+        .shadow(color: AppTheme.primary.opacity(0.06), radius: 12, y: 6)
         .contentShape(Rectangle())
     }
 
