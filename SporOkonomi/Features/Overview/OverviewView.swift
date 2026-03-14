@@ -80,14 +80,10 @@ struct OverviewView: View {
     var body: some View {
         ScrollView {
             if shouldShowEmptyState {
-                VStack(alignment: .leading, spacing: 12) {
-                    overviewHeader
-                    emptyStateModule
-                }
-                .padding()
+                emptyStateModule
+                    .padding()
             } else {
                 VStack(alignment: .leading, spacing: 12) {
-                    overviewHeader
                     overviewStatusLine
                     monthlyStatusHeroModule
                     goalModule
@@ -106,6 +102,7 @@ struct OverviewView: View {
             }
         }
         .background(AppTheme.background)
+        .navigationTitle(overviewTitle)
         .sheet(isPresented: $viewModel.showGoalEditor) {
             GoalEditorView(goal: activeGoal)
         }
@@ -129,31 +126,24 @@ struct OverviewView: View {
                 displayedWealth = newValue
             }
         }
-    }
-
-    private var overviewHeader: some View {
-        HStack(alignment: .center, spacing: 12) {
-            Text(overviewTitle)
-                .font(.system(size: 52, weight: .bold))
-                .foregroundStyle(AppTheme.textPrimary)
-
-            Button {
-                showAssistantSheet = true
-            } label: {
-                Image(systemName: "sparkles")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(AppTheme.textPrimary)
-                    .frame(width: 34, height: 34)
-                    .background(AppTheme.surface, in: Circle())
-                    .overlay(
-                        Circle()
-                            .stroke(AppTheme.divider, lineWidth: 1)
-                    )
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showAssistantSheet = true
+                } label: {
+                    Image(systemName: "sparkles")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(AppTheme.textPrimary)
+                        .frame(width: 34, height: 34)
+                        .background(AppTheme.surface, in: Circle())
+                        .overlay(
+                            Circle()
+                                .stroke(AppTheme.divider, lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Åpne AI-assistent")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Åpne AI-assistent")
-
-            Spacer(minLength: 0)
         }
     }
 

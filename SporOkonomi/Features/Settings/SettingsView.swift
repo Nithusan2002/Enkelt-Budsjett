@@ -507,9 +507,17 @@ struct SettingsView: View {
             Text(flag)
                 .font(.body)
 
-            Text(title)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(AppTheme.textPrimary)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(AppTheme.textPrimary)
+
+                if !isSelected {
+                    Text("Kommer snart")
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(AppTheme.textSecondary)
+                }
+            }
 
             if isSelected {
                 Spacer(minLength: 4)
