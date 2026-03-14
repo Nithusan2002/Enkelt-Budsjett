@@ -15,6 +15,7 @@ struct InvestmentsView: View {
     @State private var showFullHistory = false
     @State private var isHistoryExpanded = false
     @State private var checkInToastMessage: String?
+    @State private var selectedBucketID: String?
     private var isReadOnlyMode: Bool { PersistenceGate.isReadOnlyMode }
 
     private enum SectionAnchor: String {
@@ -34,9 +35,6 @@ struct InvestmentsView: View {
     private var distributionRows: [InvestmentDistributionRowData] {
         viewModel.distributionRows(latestSnapshot: latest, buckets: buckets)
     }
-    private var insight: InvestmentInsightData {
-        viewModel.insight(snapshots: snapshots, buckets: buckets)
-    }
     private var snapshotToken: String {
         snapshots
             .map { "\($0.periodKey)-\($0.totalValue)" }
@@ -52,11 +50,11 @@ struct InvestmentsView: View {
                 distributionSection
                     .id(SectionAnchor.distribution.rawValue)
                 holdingsSection
-                insightSection
                 historySection
                 administrationSection
             }
             .listStyle(.insetGrouped)
+            .listSectionSpacing(14)
             .scrollContentBackground(.hidden)
             .background(AppTheme.background)
             .navigationTitle("Investeringer")
@@ -105,6 +103,20 @@ struct InvestmentsView: View {
                         .appSecondaryStyle()
                 }
             }
+            .navigationDestination(
+                isPresented: Binding(
+                    get: { selectedBucketID != nil },
+                    set: { if !$0 { selectedBucketID = nil } }
+                )
+            ) {
+                if let selectedBucketID,
+                   let bucket = buckets.first(where: { $0.id == selectedBucketID }) {
+                    BucketDetailView(bucket: bucket, snapshots: snapshots)
+                } else {
+                    Text("Finner ikke beholdning")
+                        .appSecondaryStyle()
+                }
+            }
             .onAppear {
                 if !isReadOnlyMode {
                     viewModel.ensureDefaultBuckets(context: modelContext, existingBuckets: buckets)
@@ -132,38 +144,27 @@ struct InvestmentsView: View {
                 navigationState.investmentsFocus = nil
             }
             .safeAreaInset(edge: .bottom) {
-                VStack(spacing: 10) {
-                    if let checkInToastMessage {
-                        Text(checkInToastMessage)
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(AppTheme.textPrimary)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 10)
-                            .background(AppTheme.surfaceElevated, in: Capsule())
-                            .overlay(Capsule().stroke(AppTheme.divider, lineWidth: 1))
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-                    }
-
-                    Button {
+                VStack(spacing: 8) {
+                    InvestmentsBottomCTAButton {
                         openCheckIn()
-                    } label: {
-                        Label("Registrer verdi", systemImage: "plus.circle.fill")
-                            .font(.headline.weight(.semibold))
-                            .frame(maxWidth: .infinity)
                     }
-                    .appProminentCTAStyle()
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
                     .disabled(isReadOnlyMode)
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
-                .padding(.bottom, 6)
-                .background(Color.clear)
+                .padding(.bottom, 8)
             }
-            .safeAreaPadding(.bottom, 94)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Text("Investeringer")
-                        .font(.title3.weight(.semibold))
+            .overlay(alignment: .bottom) {
+                if let checkInToastMessage {
+                    Text(checkInToastMessage)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(AppTheme.textPrimary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .background(AppTheme.surfaceElevated, in: Capsule())
+                        .overlay(Capsule().stroke(AppTheme.divider, lineWidth: 1))
+                        .padding(.bottom, 76)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
             .alert(
@@ -231,7 +232,7 @@ struct InvestmentsView: View {
                     .stroke(AppTheme.divider.opacity(0.8), lineWidth: 1)
             )
             .shadow(color: AppTheme.primary.opacity(0.08), radius: 24, y: 14)
-            .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 10, trailing: 0))
+            .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 1, trailing: 0))
             .listRowBackground(Color.clear)
             .listRowSeparator(.hidden)
         }
@@ -257,112 +258,71 @@ struct InvestmentsView: View {
             }
             .padding(18)
             .cardContainer()
-            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 10, trailing: 0))
+            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 1, trailing: 0))
             .listRowBackground(Color.clear)
             .listRowSeparator(.hidden)
         }
     }
 
     private var holdingsSection: some View {
-        Section("Beholdning") {
+        Section {
             if bucketRows.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Ingen aktive beholdninger ennå.")
                         .appSecondaryStyle()
-                    Button("Legg til type") {
-                        viewModel.resetAddBucketState()
-                        viewModel.showAddBucketSheet = true
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(AppTheme.primary)
-                    .disabled(isReadOnlyMode)
                 }
                 .padding(18)
                 .cardContainer()
                 .listRowSeparator(.hidden)
             } else {
                 ForEach(bucketRows) { row in
-                    NavigationLink(value: row.id) {
-                        bucketRow(row)
-                    }
-                    .moveDisabled(isReadOnlyMode)
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        if let bucket = buckets.first(where: { $0.id == row.id }) {
-                            Button("Rediger") {
-                                guard !isReadOnlyMode else {
-                                    viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
-                                    return
-                                }
-                                viewModel.selectedBucketForEdit = bucket
-                            }
-                            .tint(AppTheme.secondary)
-
-                            Button("Skjul", role: .destructive) {
-                                guard !isReadOnlyMode else {
-                                    viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
-                                    return
-                                }
-                                viewModel.hideBucket(bucket, context: modelContext)
-                            }
-                        }
-                    }
-                    .listRowInsets(EdgeInsets(top: row.id == bucketRows.first?.id ? 6 : 0, leading: 0, bottom: 0, trailing: 0))
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
+                    holdingRow(row, isFirst: row.id == bucketRows.first?.id)
                 }
             }
+        } header: {
+            holdingsHeader
         }
+        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
     }
 
     private var administrationSection: some View {
         let hiddenBuckets = buckets.filter { !$0.isActive }
-        return Section {
-            VStack(alignment: .leading, spacing: 14) {
-                Button {
-                    viewModel.resetAddBucketState()
-                    viewModel.showAddBucketSheet = true
-                } label: {
-                    Label("Legg til beholdningstype", systemImage: "plus.circle")
-                        .font(.footnote.weight(.semibold))
-                }
-                .foregroundStyle(AppTheme.primary)
-                .disabled(isReadOnlyMode)
+        guard !hiddenBuckets.isEmpty else { return AnyView(EmptyView()) }
 
-                if hiddenBuckets.isEmpty {
-                    Text("Ingen skjulte beholdningstyper.")
+        return AnyView(Section {
+            VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Skjulte beholdninger")
                         .appSecondaryStyle()
-                } else {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Skjulte beholdninger")
-                            .appSecondaryStyle()
-                        ForEach(hiddenBuckets) { bucket in
-                            HStack(spacing: 10) {
-                                Circle()
-                                    .fill(AppTheme.portfolioColor(for: bucket))
-                                    .frame(width: 10, height: 10)
-                                Text(bucket.name)
-                                    .appBodyStyle()
-                                Spacer()
-                                Button("Vis igjen") {
-                                    guard !isReadOnlyMode else {
-                                        viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
-                                        return
-                                    }
-                                    viewModel.restoreBucket(bucket, context: modelContext, existingBuckets: buckets)
+                    ForEach(hiddenBuckets) { bucket in
+                        HStack(spacing: 10) {
+                            Circle()
+                                .fill(AppTheme.portfolioColor(for: bucket))
+                                .frame(width: 10, height: 10)
+                            Text(bucket.name)
+                                .appBodyStyle()
+                            Spacer()
+                            Button("Vis igjen") {
+                                guard !isReadOnlyMode else {
+                                    viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+                                    return
                                 }
-                                .buttonStyle(.bordered)
-                                .tint(AppTheme.primary)
+                                viewModel.restoreBucket(bucket, context: modelContext, existingBuckets: buckets)
                             }
+                            .buttonStyle(.bordered)
+                            .tint(AppTheme.primary)
                         }
                     }
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(18)
             .cardContainer()
-            .listRowInsets(EdgeInsets(top: 10, leading: 0, bottom: 10, trailing: 0))
+            .listRowInsets(EdgeInsets(top: 1, leading: 0, bottom: 1, trailing: 0))
             .listRowBackground(Color.clear)
             .listRowSeparator(.hidden)
         }
+        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0)))
     }
 
     private var distributionSection: some View {
@@ -417,24 +377,7 @@ struct InvestmentsView: View {
             }
             .padding(18)
             .cardContainer()
-            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 10, trailing: 0))
-            .listRowBackground(Color.clear)
-            .listRowSeparator(.hidden)
-        }
-    }
-
-    private var insightSection: some View {
-        Section {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Innsikt")
-                    .appCardTitleStyle()
-                Text(insight.detail)
-                    .appBodyStyle()
-                    .foregroundStyle(AppTheme.textSecondary)
-            }
-            .padding(18)
-            .cardContainer()
-            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 10, trailing: 0))
+            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 1, trailing: 0))
             .listRowBackground(Color.clear)
             .listRowSeparator(.hidden)
         }
@@ -491,7 +434,7 @@ struct InvestmentsView: View {
             }
             .padding(18)
             .cardContainer()
-            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 10, trailing: 0))
+            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 1, trailing: 0))
             .listRowBackground(Color.clear)
             .listRowSeparator(.hidden)
         }
@@ -582,6 +525,67 @@ struct InvestmentsView: View {
         .cardContainer()
     }
 
+    private var holdingsHeader: some View {
+        HStack {
+            Text("Beholdning")
+                .appCardTitleStyle()
+            Spacer()
+            Button {
+                viewModel.resetAddBucketState()
+                viewModel.showAddBucketSheet = true
+            } label: {
+                Image(systemName: "plus")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(AppTheme.textSecondary)
+                    .frame(width: 30, height: 30)
+                    .background(AppTheme.background, in: Circle())
+                    .overlay(
+                        Circle()
+                            .stroke(AppTheme.divider, lineWidth: 1)
+                    )
+            }
+            .buttonStyle(.plain)
+            .disabled(isReadOnlyMode)
+            .accessibilityLabel("Legg til beholdningstype")
+        }
+        .textCase(nil)
+    }
+
+    private func holdingRow(_ row: InvestmentBucketRowData, isFirst: Bool) -> some View {
+        let bucket = buckets.first(where: { $0.id == row.id })
+
+        return Button {
+            selectedBucketID = row.id
+        } label: {
+            bucketRow(row)
+        }
+        .buttonStyle(.plain)
+        .moveDisabled(isReadOnlyMode)
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            if let bucket {
+                Button("Rediger") {
+                    guard !isReadOnlyMode else {
+                        viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+                        return
+                    }
+                    viewModel.selectedBucketForEdit = bucket
+                }
+                .tint(AppTheme.secondary)
+
+                Button("Skjul", role: .destructive) {
+                    guard !isReadOnlyMode else {
+                        viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+                        return
+                    }
+                    viewModel.hideBucket(bucket, context: modelContext)
+                }
+            }
+        }
+        .listRowInsets(EdgeInsets(top: isFirst ? 6 : 0, leading: 0, bottom: 0, trailing: 0))
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
+    }
+
     private func sparkline(series: [Double], color: Color) -> some View {
         let points = viewModel.bucketSparklinePoints(series)
         return Chart(points) { point in
@@ -640,6 +644,33 @@ struct InvestmentsView: View {
         viewModel.showCheckIn = true
     }
 
+}
+
+private struct InvestmentsBottomCTAButton: View {
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 10) {
+                Image(systemName: "plus")
+                    .font(.title3.weight(.bold))
+                Text("Legg til investering")
+                    .font(.title3.weight(.semibold))
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .foregroundStyle(AppTheme.onPrimary)
+            .background(AppTheme.primary, in: Capsule())
+            .overlay(
+                Capsule()
+                    .stroke(AppTheme.primary.opacity(0.35), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.22), radius: 12, x: 0, y: 6)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Legg til investering")
+    }
 }
 
 private extension View {
