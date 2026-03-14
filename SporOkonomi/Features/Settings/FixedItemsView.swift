@@ -261,7 +261,7 @@ private struct FixedItemEditorSheet: View {
     }
 
     private var automaticMonthDescription: String {
-        "Vi oppretter en transaksjon på valgt dag hver måned."
+        "Legges inn på valgt dag hver måned."
     }
 
     private var shouldShowCreateForCurrentMonth: Bool {
@@ -273,11 +273,11 @@ private struct FixedItemEditorSheet: View {
         return draft.dayOfMonth >= 1 && draft.dayOfMonth <= 31
     }
 
-    private var createCurrentMonthTitle: String {
+    private var currentMonthContextText: String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "nb_NO")
         formatter.dateFormat = "MMMM yyyy"
-        return "Opprett også for \(formatter.string(from: draft.startDate).capitalized)"
+        return formatter.string(from: draft.startDate).capitalized
     }
 
     private var suggestedCreateCurrentMonthDefault: Bool {
@@ -295,123 +295,174 @@ private struct FixedItemEditorSheet: View {
         )
     }
 
+    private var nameRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Navn")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(AppTheme.textPrimary)
+            TextField("F.eks. Husleie", text: $draft.title)
+                .focused($titleFocused)
+                .textInputAutocapitalization(.sentences)
+                .submitLabel(.next)
+        }
+    }
+
+    private var typeRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Type")
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(AppTheme.textSecondary)
+            Picker("Type", selection: $draft.kind) {
+                Text("Utgift").tag(TransactionKind.expense)
+                Text("Inntekt").tag(TransactionKind.income)
+            }
+            .pickerStyle(.segmented)
+        }
+    }
+
+    private var amountRow: some View {
+        HStack(spacing: 10) {
+            Text("kr")
+                .font(.headline.weight(.semibold))
+                .foregroundStyle(AppTheme.textSecondary)
+                .accessibilityHidden(true)
+            TextField("Beløp", text: $draft.amountText)
+                .keyboardType(.decimalPad)
+                .multilineTextAlignment(.trailing)
+                .accessibilityLabel("Beløp i kroner")
+                .onChange(of: draft.amountText) { _, value in
+                    let formatted = AppAmountInput.formatLive(value)
+                    if formatted != value {
+                        draft.amountText = formatted
+                    }
+                }
+        }
+    }
+
+    @ViewBuilder
+    private var amountErrorRow: some View {
+        if showAmountError && draft.amount <= 0 {
+            Text("Skriv inn et beløp for å lagre.")
+                .font(.footnote)
+                .foregroundStyle(AppTheme.negative)
+        }
+    }
+
+    private var categoryRow: some View {
+        Button {
+            showCategoryPicker = true
+        } label: {
+            HStack {
+                Text("Kategori")
+                Spacer()
+                Text(selectedCategoryName)
+                    .foregroundStyle(draft.categoryID.isEmpty ? AppTheme.textSecondary : AppTheme.textPrimary)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(AppTheme.textSecondary)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Kategori, \(selectedCategoryName)")
+    }
+
+    @ViewBuilder
+    private var categoryErrorRow: some View {
+        if showCategoryError && draft.categoryID.isEmpty {
+            Text("Velg kategori for å lagre.")
+                .font(.footnote)
+                .foregroundStyle(AppTheme.negative)
+        }
+    }
+
+    private var dayRow: some View {
+        Button {
+            showDayPicker = true
+        } label: {
+            HStack {
+                Text("Dag i måneden")
+                Spacer()
+                Text("\(draft.dayOfMonth).")
+                    .foregroundStyle(AppTheme.textPrimary)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(AppTheme.textSecondary)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Dag i måneden, valgt \(draft.dayOfMonth)")
+    }
+
+    private var basicsSection: some View {
+        Section {
+            nameRow
+            typeRow
+            amountRow
+            amountErrorRow
+            categoryRow
+            categoryErrorRow
+            dayRow
+        }
+    }
+
+    private var automationSection: some View {
+        Section("Automatikk") {
+            Toggle("Opprett automatisk hver måned", isOn: $draft.autoCreate)
+                .accessibilityLabel("Opprett automatisk hver måned")
+            Text(automaticMonthDescription)
+                .appSecondaryStyle()
+        }
+    }
+
+    @ViewBuilder
+    private var currentMonthSection: some View {
+        if shouldShowCreateForCurrentMonth {
+            Section("Nåværende måned") {
+                Toggle("Opprett også denne måneden", isOn: createCurrentMonthBinding)
+                Text(currentMonthContextText)
+                    .appSecondaryStyle()
+            }
+        }
+    }
+
+    private var advancedSection: some View {
+        Section {
+            DisclosureGroup(isExpanded: $showAdvanced) {
+                DatePicker("Startdato", selection: $draft.startDate, displayedComponents: [.date])
+                Toggle("Sluttdato", isOn: $useEndDate)
+                if useEndDate {
+                    DatePicker(
+                        "Velg sluttdato",
+                        selection: Binding(
+                            get: { draft.endDate ?? draft.startDate },
+                            set: { draft.endDate = $0 }
+                        ),
+                        in: draft.startDate...,
+                        displayedComponents: [.date]
+                    )
+                }
+
+                if existing != nil {
+                    Toggle("Aktiv", isOn: $draft.isActive)
+                }
+            } label: {
+                Text("Avansert")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(AppTheme.textSecondary)
+            }
+        }
+    }
+
     var body: some View {
         NavigationStack {
             Form {
-                Section("Det viktigste") {
-                    TextField("Navn", text: $draft.title)
-                        .focused($titleFocused)
-                        .textInputAutocapitalization(.sentences)
-                        .submitLabel(.next)
-
-                    Picker("Type", selection: $draft.kind) {
-                        Text("Utgift").tag(TransactionKind.expense)
-                        Text("Inntekt").tag(TransactionKind.income)
-                    }
-                    .pickerStyle(.segmented)
-
-                    HStack(spacing: 10) {
-                        Text("kr")
-                            .font(.headline.weight(.semibold))
-                            .foregroundStyle(AppTheme.textSecondary)
-                            .accessibilityHidden(true)
-                        TextField("Beløp", text: $draft.amountText)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .accessibilityLabel("Beløp i kroner")
-                            .onChange(of: draft.amountText) { _, value in
-                                let formatted = AppAmountInput.formatLive(value)
-                                if formatted != value {
-                                    draft.amountText = formatted
-                                }
-                            }
-                    }
-
-                    if showAmountError && draft.amount <= 0 {
-                        Text("Skriv inn et beløp for å lagre.")
-                            .font(.footnote)
-                            .foregroundStyle(AppTheme.negative)
-                    }
-
-                    Button {
-                        showCategoryPicker = true
-                    } label: {
-                        HStack {
-                            Text("Kategori")
-                            Spacer()
-                            Text(selectedCategoryName)
-                                .foregroundStyle(draft.categoryID.isEmpty ? AppTheme.textSecondary : AppTheme.textPrimary)
-                            Image(systemName: "chevron.right")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(AppTheme.textSecondary)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Kategori, \(selectedCategoryName)")
-
-                    if showCategoryError && draft.categoryID.isEmpty {
-                        Text("Velg kategori for å lagre.")
-                            .font(.footnote)
-                            .foregroundStyle(AppTheme.negative)
-                    }
-
-                    Button {
-                        showDayPicker = true
-                    } label: {
-                        HStack {
-                            Text("Dag i måneden")
-                            Spacer()
-                            Text("\(draft.dayOfMonth).")
-                                .foregroundStyle(AppTheme.textPrimary)
-                            Image(systemName: "chevron.right")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(AppTheme.textSecondary)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Dag i måneden, valgt \(draft.dayOfMonth)")
-                }
-
-                Section("Automatikk") {
-                    Text(automaticMonthDescription)
-                        .appSecondaryStyle()
-                    Toggle("Opprett automatisk hver måned", isOn: $draft.autoCreate)
-                        .accessibilityLabel("Opprett automatisk hver måned")
-                    Text("Transaksjonen legges inn på valgt dag.")
-                        .appSecondaryStyle()
-                }
-
-                if shouldShowCreateForCurrentMonth {
-                    Section("Nåværende måned") {
-                        Toggle(createCurrentMonthTitle, isOn: createCurrentMonthBinding)
-                        Text("Legger inn transaksjonen for denne måneden med en gang.")
-                            .appSecondaryStyle()
-                    }
-                }
-
-                Section {
-                    DisclosureGroup("Avansert", isExpanded: $showAdvanced) {
-                        DatePicker("Startdato", selection: $draft.startDate, displayedComponents: [.date])
-                        Toggle("Sluttdato", isOn: $useEndDate)
-                        if useEndDate {
-                            DatePicker(
-                                "Velg sluttdato",
-                                selection: Binding(
-                                    get: { draft.endDate ?? draft.startDate },
-                                    set: { draft.endDate = $0 }
-                                ),
-                                in: draft.startDate...,
-                                displayedComponents: [.date]
-                            )
-                        }
-
-                        if existing != nil {
-                            Toggle("Aktiv", isOn: $draft.isActive)
-                        }
-                    }
-                }
+                basicsSection
+                automationSection
+                currentMonthSection
+                advancedSection
             }
             .navigationTitle(existing == nil ? "Ny fast post" : "Fast post")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Avbryt") { dismiss() }
