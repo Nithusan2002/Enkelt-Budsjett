@@ -80,14 +80,10 @@ struct OverviewView: View {
     var body: some View {
         ScrollView {
             if shouldShowEmptyState {
-                VStack(alignment: .leading, spacing: 12) {
-                    overviewHeader
-                    emptyStateModule
-                }
-                .padding()
+                emptyStateModule
+                    .padding()
             } else {
                 VStack(alignment: .leading, spacing: 12) {
-                    overviewHeader
                     overviewStatusLine
                     monthlyStatusHeroModule
                     goalModule
@@ -106,6 +102,7 @@ struct OverviewView: View {
             }
         }
         .background(AppTheme.background)
+        .navigationTitle(overviewTitle)
         .sheet(isPresented: $viewModel.showGoalEditor) {
             GoalEditorView(goal: activeGoal)
         }
@@ -129,34 +126,26 @@ struct OverviewView: View {
                 displayedWealth = newValue
             }
         }
-    }
-
-    private var overviewHeader: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text(overviewTitle)
-                .font(.system(size: 56, weight: .bold))
-                .foregroundStyle(AppTheme.textPrimary)
-
-            Button {
-                showAssistantSheet = true
-            } label: {
-                Image(systemName: "sparkles")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(AppTheme.textPrimary)
-                    .frame(width: 36, height: 36)
-                    .background(AppTheme.surface.opacity(0.92), in: Circle())
-                    .overlay(
-                        Circle()
-                            .stroke(AppTheme.divider.opacity(0.8), lineWidth: 1)
-                    )
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showAssistantSheet = true
+                } label: {
+                    Image(systemName: "sparkles")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(AppTheme.textPrimary)
+                        .frame(width: 34, height: 34)
+                        .background(AppTheme.surface.opacity(0.92), in: Circle())
+                        .overlay(
+                            Circle()
+                                .stroke(AppTheme.divider.opacity(0.72), lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Åpne AI-assistent")
+                .padding(.trailing, 2)
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Åpne AI-assistent")
-            .offset(y: -4)
-
-            Spacer(minLength: 0)
         }
-        .padding(.bottom, 2)
     }
 
     private var overviewStatusLine: some View {
