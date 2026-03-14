@@ -44,6 +44,7 @@
         linear-gradient(180deg, #f8f5f1 0%, var(--bg) 42%, #f1f5f2 100%);
       line-height: 1.5;
       -webkit-font-smoothing: antialiased;
+      overflow-x: clip;
     }
 
     a {
@@ -496,11 +497,21 @@
 
     .footer-links {
       color: var(--muted);
+      gap: 10px;
+    }
+
+    .footer-links a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+      padding: 10px 14px;
+      border-radius: 999px;
     }
 
     .footer-links a:hover,
     .footer-links a:focus-visible {
       color: var(--primary);
+      background: rgba(22, 92, 78, 0.08);
       outline: none;
     }
 
@@ -520,13 +531,14 @@
     @media (max-width: 720px) {
       .page {
         width: min(calc(100% - 20px), var(--max-width));
-        padding-top: 10px;
+        padding-top: 8px;
       }
 
       .nav {
         position: static;
-        border-radius: 28px;
-        padding: 16px;
+        margin-bottom: 12px;
+        border-radius: 24px;
+        padding: 14px 16px;
       }
 
       .hero-card,
@@ -535,10 +547,78 @@
         padding: 22px;
       }
 
+      .brand-copy span {
+        display: none;
+      }
+
+      .nav-links {
+        display: none;
+      }
+
+      .hero {
+        gap: 18px;
+        margin-top: 0;
+      }
+
+      .hero-card {
+        padding: 20px;
+      }
+
+      .eyebrow {
+        padding: 7px 12px;
+        font-size: 0.86rem;
+      }
+
+      h1 {
+        margin: 16px 0 12px;
+        font-size: clamp(2.15rem, 10vw, 3rem);
+      }
+
+      .lead {
+        margin-bottom: 20px;
+        font-size: 1rem;
+      }
+
+      .cta-row {
+        margin-bottom: 20px;
+      }
+
+      .button {
+        width: 100%;
+      }
+
+      .visual-card {
+        padding: 18px;
+      }
+
+      .phone {
+        margin-top: 14px;
+        padding: 14px;
+      }
+
+      .shot-frame {
+        min-height: 420px;
+      }
+
       .nav,
       .footer-top,
       .footer-links {
         align-items: flex-start;
+      }
+
+      .footer-top,
+      .footer-links {
+        gap: 8px;
+      }
+
+      .footer-links {
+        width: 100%;
+        flex-direction: column;
+      }
+
+      .footer-links a {
+        width: 100%;
+        justify-content: center;
       }
 
       .mini-grid {
