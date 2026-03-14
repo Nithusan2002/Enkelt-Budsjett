@@ -227,12 +227,10 @@ struct SettingsView: View {
             }
             .confirmationDialog("Importer data", isPresented: $showImportModeDialog, titleVisibility: .visible) {
             Button("Slå sammen med eksisterende data") {
-                pendingImportMode = .merge
-                showImportPicker = true
+                beginImportSelection(mode: .merge)
             }
             Button("Erstatt all data", role: .destructive) {
-                pendingImportMode = .replace
-                showImportPicker = true
+                beginImportSelection(mode: .replace)
             }
             Button("Avbryt", role: .cancel) { }
             } message: {
@@ -800,6 +798,14 @@ struct SettingsView: View {
         pendingImportURL = url
         importPassword = ""
         showImportPasswordSheet = true
+    }
+
+    private func beginImportSelection(mode: DataImportMode) {
+        pendingImportMode = mode
+        showImportModeDialog = false
+        DispatchQueue.main.async {
+            showImportPicker = true
+        }
     }
 
     private func performImport() {
