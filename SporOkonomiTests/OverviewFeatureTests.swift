@@ -17,12 +17,65 @@ struct OverviewFeatureTests {
         let shouldShowEmptyState = viewModel.shouldShowEmptyState(
             transactions: [],
             snapshots: [],
-            plans: [],
+            groupPlans: [],
             accounts: [],
             activeGoal: goal
         )
 
         #expect(shouldShowEmptyState == false)
+    }
+
+    @Test
+    @MainActor
+    func overviewDoesNotShowEmptyStateWhenBudgetGroupPlanExists() {
+        let viewModel = OverviewViewModel()
+        let groupPlan = BudgetGroupPlan(
+            monthPeriodKey: "2026-03",
+            groupKey: BudgetGroup.bolig.rawValue,
+            plannedAmount: 8_000
+        )
+
+        let shouldShowEmptyState = viewModel.shouldShowEmptyState(
+            transactions: [],
+            snapshots: [],
+            groupPlans: [groupPlan],
+            accounts: [],
+            activeGoal: nil
+        )
+
+        #expect(shouldShowEmptyState == false)
+    }
+
+    @Test
+    @MainActor
+    func overviewBudgetStatusCountsManualSavingLikeBudgetFlow() {
+        let viewModel = OverviewViewModel()
+        let now = Calendar.current.date(from: DateComponents(year: 2026, month: 3, day: 10)) ?? .now
+        let periodKey = DateService.periodKey(from: now)
+        let groupPlans = [
+            BudgetGroupPlan(
+                monthPeriodKey: periodKey,
+                groupKey: BudgetGroup.fast.rawValue,
+                plannedAmount: 10_000
+            )
+        ]
+        let transactions = [
+            Transaction(date: now, amount: 20_000, kind: .income),
+            Transaction(date: now, amount: 1_500, kind: .manualSaving),
+            Transaction(date: now, amount: 3_000, kind: .expense)
+        ]
+
+        let status = viewModel.budgetStatus(
+            groupPlans: groupPlans,
+            transactions: transactions,
+            now: now
+        )
+
+        #expect(status.hasPlan == true)
+        #expect(status.planned == 10_000)
+        #expect(status.spent == 4_500)
+        #expect(status.net == 15_500)
+        #expect(status.remaining == 5_500)
     }
 
     @Test

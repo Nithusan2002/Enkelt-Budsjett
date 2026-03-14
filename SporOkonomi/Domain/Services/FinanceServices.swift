@@ -89,6 +89,12 @@ enum BudgetService {
             .reduce(0) { $0 + $1.plannedAmount }
     }
 
+    static func plannedGroupTotal(for periodKey: String, groupPlans: [BudgetGroupPlan]) -> Double {
+        groupPlans
+            .filter { $0.monthPeriodKey == periodKey }
+            .reduce(0) { $0 + $1.plannedAmount }
+    }
+
     static func actualExpenseTotal(for periodKey: String, transactions: [Transaction]) -> Double {
         transactions
             .filter { DateService.periodKey(from: $0.date) == periodKey }

@@ -7,7 +7,7 @@ struct OverviewView: View {
     @Query(sort: \Goal.createdAt, order: .reverse) private var goals: [Goal]
     @Query(sort: \InvestmentSnapshot.periodKey) private var snapshots: [InvestmentSnapshot]
     @Query(sort: \InvestmentBucket.sortOrder) private var buckets: [InvestmentBucket]
-    @Query private var budgetPlans: [BudgetPlan]
+    @Query private var budgetGroupPlans: [BudgetGroupPlan]
     @Query private var accounts: [Account]
     @Query private var transactions: [Transaction]
     @Query(sort: \Category.sortOrder) private var categories: [Category]
@@ -24,13 +24,13 @@ struct OverviewView: View {
     private var preference: UserPreference? { preferences.first }
     private var overviewTitle: String { viewModel.overviewTitle(firstName: preference?.firstName) }
     private var budgetStatus: OverviewBudgetStatus {
-        viewModel.budgetStatus(plans: budgetPlans, transactions: transactions)
+        viewModel.budgetStatus(groupPlans: budgetGroupPlans, transactions: transactions)
     }
     private var shouldShowEmptyState: Bool {
         viewModel.shouldShowEmptyState(
             transactions: transactions,
             snapshots: snapshots,
-            plans: budgetPlans,
+            groupPlans: budgetGroupPlans,
             accounts: accounts,
             activeGoal: activeGoal
         )

@@ -78,11 +78,11 @@ final class OverviewViewModel: ObservableObject {
     func shouldShowEmptyState(
         transactions: [Transaction],
         snapshots: [InvestmentSnapshot],
-        plans: [BudgetPlan],
+        groupPlans: [BudgetGroupPlan],
         accounts: [Account],
         activeGoal: Goal?
     ) -> Bool {
-        transactions.isEmpty && snapshots.isEmpty && plans.isEmpty && accounts.isEmpty && activeGoal == nil
+        transactions.isEmpty && snapshots.isEmpty && groupPlans.isEmpty && accounts.isEmpty && activeGoal == nil
     }
 
     func goalSummary(activeGoal: Goal?, currentWealth: Double) -> GoalSummary {
@@ -107,16 +107,16 @@ final class OverviewViewModel: ObservableObject {
     }
 
     func budgetStatus(
-        plans: [BudgetPlan],
+        groupPlans: [BudgetGroupPlan],
         transactions: [Transaction],
         now: Date = .now
     ) -> OverviewBudgetStatus {
         let monthKey = DateService.periodKey(from: now)
-        let hasPlan = plans.contains { $0.monthPeriodKey == monthKey && $0.plannedAmount > 0 }
-        let planned = plans
-            .filter { $0.monthPeriodKey == monthKey }
-            .reduce(0) { $0 + $1.plannedAmount }
-        let actual = BudgetService.actualExpenseTotal(for: monthKey, transactions: transactions)
+        let hasPlan = groupPlans.contains { $0.monthPeriodKey == monthKey && $0.plannedAmount > 0 }
+        let planned = BudgetService.plannedGroupTotal(for: monthKey, groupPlans: groupPlans)
+        let actual = transactions
+            .filter { DateService.periodKey(from: $0.date) == monthKey }
+            .reduce(0) { $0 + BudgetService.trackedBudgetImpact($1) }
         let income = BudgetService.actualIncomeTotal(for: monthKey, transactions: transactions)
         let net = income - actual
         let remaining = planned - actual
