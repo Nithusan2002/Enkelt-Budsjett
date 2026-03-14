@@ -63,6 +63,12 @@ final class SettingsViewModel {
     private var didResolveDemoToolsVisibility = false
     private(set) var showsDemoToolsOutsideDebug = false
 
+    private struct PreservedOnboardingState {
+        let completed: Bool
+        let currentStep: Int
+        let focus: OnboardingFocus
+    }
+
     func shouldShowDemoTools() -> Bool {
 #if DEBUG
         return true
@@ -103,10 +109,18 @@ final class SettingsViewModel {
         if PersistenceGate.isReadOnlyMode {
             throw PersistenceWriteError.readOnlyMode
         }
+        let preservedOnboardingState = try context.fetch(FetchDescriptor<UserPreference>()).first.map {
+            PreservedOnboardingState(
+                completed: $0.onboardingCompleted,
+                currentStep: $0.onboardingCurrentStep,
+                focus: $0.onboardingFocus
+            )
+        }
         try DemoDataSeeder.wipeAllData(context: context)
         try BootstrapService.ensurePreference(context: context)
         try BootstrapService.ensureCurrentBudgetMonthAndRecurring(context: context)
         try ensureLocalAuthPreference(context: context)
+        try restoreOnboardingStateIfNeeded(preservedOnboardingState, context: context)
     }
 
     func preference(from preferences: [UserPreference], context: ModelContext) -> UserPreference {
@@ -171,6 +185,24 @@ final class SettingsViewModel {
         preference.authEmail = nil
         preference.authDisplayName = nil
         try context.guardedSave(feature: "Settings", operation: "normalize_demo_auth", enforceReadOnly: false)
+    }
+
+    private func restoreOnboardingStateIfNeeded(
+        _ preservedState: PreservedOnboardingState?,
+        context: ModelContext
+    ) throws {
+        guard let preservedState else { return }
+        guard let preference = try context.fetch(FetchDescriptor<UserPreference>()).first else { return }
+
+        let resolvedStep = preservedState.completed ? 0 : preservedState.currentStep
+        guard preference.onboardingCompleted != preservedState.completed ||
+                preference.onboardingCurrentStep != resolvedStep ||
+                preference.onboardingFocus != preservedState.focus else { return }
+
+        preference.onboardingCompleted = preservedState.completed
+        preference.onboardingCurrentStep = resolvedStep
+        preference.onboardingFocus = preservedState.focus
+        try context.guardedSave(feature: "Settings", operation: "restore_demo_onboarding_state", enforceReadOnly: false)
     }
 
     func importData(

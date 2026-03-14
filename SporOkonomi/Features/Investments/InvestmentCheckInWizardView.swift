@@ -34,7 +34,6 @@ struct InvestmentCheckInWizardView: View {
                         periodText: formattedMonth(viewModel.selectedMonthDate),
                         isEditingExistingPeriod: viewModel.isEditingExistingPeriod,
                         hasPreviousData: !viewModel.previousValues.isEmpty,
-                        onPrefill: { viewModel.copyPreviousToChanged() },
                         onStart: { viewModel.start() },
                         onCancel: { dismiss() }
                     )
@@ -75,7 +74,7 @@ struct InvestmentCheckInWizardView: View {
                         onAddPreset: { viewModel.addToInput($0, for: bucket.id) },
                         onBack: { viewModel.goBack() },
                         onNext: { viewModel.goNext() },
-                        showAddNewType: viewModel.isLastBucketStep,
+                        showAddNewType: true,
                         onAddNewType: {
                             addTypeName = ""
                             addTypeColorHex = AppTheme.customBucketPalette[0]
@@ -182,7 +181,6 @@ private struct WizardIntroView: View {
     let periodText: String
     let isEditingExistingPeriod: Bool
     let hasPreviousData: Bool
-    let onPrefill: () -> Void
     let onStart: () -> Void
     let onCancel: () -> Void
     @State private var showMonthPicker = false
@@ -253,13 +251,6 @@ private struct WizardIntroView: View {
                     onCancel()
                 }
                 .buttonStyle(.bordered)
-
-                if hasPreviousData {
-                    Button("Kopier forrige måned") {
-                        onPrefill()
-                    }
-                    .buttonStyle(.bordered)
-                }
 
                 Button("Start") {
                     onStart()
@@ -669,60 +660,63 @@ private struct WizardSummaryView: View {
                 Text("Oppsummering")
                     .font(.title3.weight(.semibold))
 
-                Text("Gjelder: \(periodText)")
-                    .appSecondaryStyle()
-                if let lastSavedAt {
-                    Text("Sist lagret: \(formatDateTime(lastSavedAt))")
-                        .font(.footnote)
-                        .foregroundStyle(AppTheme.textSecondary)
-                }
-
-                row("Forrige total", value: formatNOK(previousTotal))
-                row("Ny total", value: formatNOK(newTotal))
-                row("Total endring fra forrige måned", value: deltaText)
-
-                if changedCount == 0 {
-                    Text("Ingen endringer – total forblir \(formatNOK(newTotal)).")
-                        .appBodyStyle()
-                        .foregroundStyle(AppTheme.textSecondary)
-                } else {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Endret i \(changedCount) typer")
-                            .font(.footnote.weight(.semibold))
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Gjelder: \(periodText)")
+                        .appSecondaryStyle()
+                    if let lastSavedAt {
+                        Text("Sist lagret: \(formatDateTime(lastSavedAt))")
+                            .font(.footnote)
                             .foregroundStyle(AppTheme.textSecondary)
-                        ForEach(changedRows) { row in
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(row.bucketName)
-                                    .font(.footnote.weight(.semibold))
-                                HStack {
-                                    Text("Ny verdi")
-                                        .font(.caption)
-                                        .foregroundStyle(AppTheme.textSecondary)
-                                    Spacer()
-                                    Text(formatNOK(row.newValue))
-                                        .font(.footnote)
-                                        .monospacedDigit()
-                                }
-                                HStack {
-                                    Text("Endring")
-                                        .font(.caption)
-                                        .foregroundStyle(AppTheme.textSecondary)
-                                    Spacer()
-                                    Text(signedAmountText(row.delta))
+                    }
+
+                    row("Forrige total", value: formatNOK(previousTotal))
+                    row("Ny total", value: formatNOK(newTotal))
+                    row("Total endring fra forrige måned", value: deltaText)
+
+                    if changedCount == 0 {
+                        Text("Ingen endringer – total forblir \(formatNOK(newTotal)).")
+                            .appBodyStyle()
+                            .foregroundStyle(AppTheme.textSecondary)
+                    } else {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Endret i \(changedCount) typer")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(AppTheme.textSecondary)
+                            ForEach(changedRows) { row in
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(row.bucketName)
                                         .font(.footnote.weight(.semibold))
-                                        .monospacedDigit()
-                                        .foregroundStyle(row.delta >= 0 ? AppTheme.positive : AppTheme.negative)
+                                    HStack {
+                                        Text("Ny verdi")
+                                            .font(.caption)
+                                            .foregroundStyle(AppTheme.textSecondary)
+                                        Spacer()
+                                        Text(formatNOK(row.newValue))
+                                            .font(.footnote)
+                                            .monospacedDigit()
+                                    }
+                                    HStack {
+                                        Text("Endring")
+                                            .font(.caption)
+                                            .foregroundStyle(AppTheme.textSecondary)
+                                        Spacer()
+                                        Text(signedAmountText(row.delta))
+                                            .font(.footnote.weight(.semibold))
+                                            .monospacedDigit()
+                                            .foregroundStyle(row.delta >= 0 ? AppTheme.positive : AppTheme.negative)
+                                    }
                                 }
+                                .accessibilityElement(children: .ignore)
+                                .accessibilityLabel("\(row.bucketName). Ny verdi \(formatNOK(row.newValue)). Endring \(signedAmountText(row.delta)).")
                             }
-                            .accessibilityElement(children: .ignore)
-                            .accessibilityLabel("\(row.bucketName). Ny verdi \(formatNOK(row.newValue)). Endring \(signedAmountText(row.delta)).")
                         }
                     }
-                    .padding(10)
-                    .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.divider, lineWidth: 1))
                 }
+                .padding(12)
+                .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.divider, lineWidth: 1))
             }
+            .padding(.horizontal)
         }
         .safeAreaInset(edge: .bottom) {
             HStack(spacing: 10) {

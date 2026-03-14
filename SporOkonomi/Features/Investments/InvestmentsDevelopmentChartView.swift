@@ -314,11 +314,11 @@ struct InvestmentsDevelopmentChartView: View {
     }
 
     private var totalLineColor: Color {
-        Color(light: "#163F38", dark: "#E8F0EC")
+        AppTheme.textPrimary
     }
 
     private var totalLineLiftColor: Color {
-        Color(light: "#163F38", dark: "#DDE8E2").opacity(colorScheme == .dark ? 0.18 : 0.12)
+        AppTheme.textPrimary.opacity(colorScheme == .dark ? 0.18 : 0.12)
     }
 
     private var latestPointRingColor: Color {

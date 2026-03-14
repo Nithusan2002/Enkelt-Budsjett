@@ -257,10 +257,10 @@ enum DemoDataSeeder {
 
     private static func createMarketingInvestmentBuckets(context: ModelContext) throws {
         let buckets: [(String, String, Int, String)] = [
-            ("bucket_marketing_funds", "Indeksfond", 1, "#2C8C7A"),
-            ("bucket_marketing_stocks", "Aksjer", 2, "#5F7CF6"),
-            ("bucket_marketing_crypto", "Krypto", 3, "#D08A2E"),
-            ("bucket_marketing_buffer", "Buffer", 4, "#8BA7A1")
+            ("bucket_marketing_funds", "Fond", 1, "#1F9BD3"),
+            ("bucket_marketing_stocks", "Aksjer", 2, "#7A5AD6"),
+            ("bucket_marketing_crypto", "Krypto", 3, "#D9671E"),
+            ("bucket_marketing_buffer", "Buffer", 4, "#D9951F")
         ]
 
         for bucket in buckets {
