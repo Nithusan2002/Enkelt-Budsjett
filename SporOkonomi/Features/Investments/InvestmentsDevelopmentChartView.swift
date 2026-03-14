@@ -3,12 +3,15 @@ import Charts
 import UIKit
 
 enum InvestmentsDevelopmentPeriod: String, CaseIterable {
+    case oneMonth
     case sixMonths
     case last12Months
     case total
 
     var title: String {
         switch self {
+        case .oneMonth:
+            return "1 mnd"
         case .sixMonths:
             return "6 mnd"
         case .last12Months:
@@ -53,6 +56,8 @@ enum InvestmentsDevelopmentChartDataBuilder {
     ) -> [InvestmentsDevelopmentChartPoint] {
         let filteredSnapshots: [InvestmentSnapshot]
         switch period {
+        case .oneMonth:
+            filteredSnapshots = rollingSnapshots(months: 1, snapshots: snapshots, now: now)
         case .sixMonths:
             filteredSnapshots = rollingSnapshots(months: 6, snapshots: snapshots, now: now)
         case .last12Months:
@@ -109,6 +114,8 @@ enum InvestmentsDevelopmentChartDataBuilder {
         guard !dates.isEmpty else { return [] }
         let targetCount: Int
         switch period {
+        case .oneMonth:
+            targetCount = 3
         case .sixMonths:
             targetCount = 4
         case .last12Months:
@@ -303,11 +310,19 @@ struct InvestmentsDevelopmentChartView: View {
     }
 
     private var areaOpacity: Double {
-        colorScheme == .dark ? 0.42 : 0.24
+        1
+    }
+
+    private var totalLineOutlineColor: Color {
+        colorScheme == .dark ? AppTheme.surface.opacity(0.94) : AppTheme.background
     }
 
     private var totalLineColor: Color {
-        colorScheme == .dark ? AppTheme.primary.opacity(0.98) : AppTheme.primary.opacity(0.94)
+        colorScheme == .dark ? AppTheme.textPrimary : .black
+    }
+
+    private var latestVisibleBuckets: [InvestmentsDevelopmentBucketPoint] {
+        latest.buckets.filter { $0.amount > 0 }
     }
 
     private var periodDelta: Double {
@@ -427,9 +442,34 @@ struct InvestmentsDevelopmentChartView: View {
                     x: .value("Måned", point.date),
                     y: .value("Total", point.total)
                 )
-                .lineStyle(StrokeStyle(lineWidth: 3.6, lineCap: .round, lineJoin: .round))
+                .lineStyle(StrokeStyle(lineWidth: 7.6, lineCap: .round, lineJoin: .round))
+                .foregroundStyle(totalLineOutlineColor)
+                .offset(y: -1)
+
+                LineMark(
+                    x: .value("Måned", point.date),
+                    y: .value("Total", point.total)
+                )
+                .lineStyle(StrokeStyle(lineWidth: 4.8, lineCap: .round, lineJoin: .round))
                 .foregroundStyle(totalLineColor)
+                .offset(y: -1)
             }
+
+            PointMark(
+                x: .value("Siste måned", latest.date),
+                y: .value("Siste total", latest.total)
+            )
+            .symbolSize(92)
+            .foregroundStyle(totalLineOutlineColor)
+            .offset(y: -1)
+
+            PointMark(
+                x: .value("Siste måned", latest.date),
+                y: .value("Siste total", latest.total)
+            )
+            .symbolSize(30)
+            .foregroundStyle(totalLineColor)
+            .offset(y: -1)
 
             if let selectedPoint {
                 RuleMark(x: .value("Valgt", selectedPoint.date))
@@ -447,21 +487,22 @@ struct InvestmentsDevelopmentChartView: View {
         }
         .frame(height: 260)
         .chartForegroundStyleScale(domain: stackedColorDomain, range: stackedColorRange)
-        .chartLegend(position: .bottom, spacing: 6) {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 86), alignment: .leading)], alignment: .leading, spacing: 6) {
-                ForEach(latest.buckets) { bucket in
+        .chartLegend(position: .bottom, spacing: 2) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), alignment: .leading)], alignment: .leading, spacing: 2) {
+                ForEach(latestVisibleBuckets) { bucket in
                     HStack(spacing: 5) {
                         Circle()
-                            .fill(bucket.color)
-                            .frame(width: 8, height: 8)
+                            .fill(areaFillColor(for: bucket))
+                            .frame(width: 5, height: 5)
                         Text(bucket.name)
-                            .font(.caption)
-                            .foregroundStyle(AppTheme.textSecondary)
+                            .font(.caption2)
+                            .foregroundStyle(AppTheme.textSecondary.opacity(0.78))
                             .lineLimit(1)
                     }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 2)
         }
         .chartXScale(domain: chartDateDomain())
         .chartXAxis {
@@ -473,19 +514,19 @@ struct InvestmentsDevelopmentChartView: View {
                             .lineLimit(1)
                     }
                 }
-                .foregroundStyle(AppTheme.textSecondary)
+                .foregroundStyle(AppTheme.textSecondary.opacity(0.8))
             }
         }
         .chartYAxis {
             AxisMarks(position: .leading, values: yTicks) { value in
                 AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
-                    .foregroundStyle(AppTheme.divider.opacity(0.22))
+                    .foregroundStyle(AppTheme.divider.opacity(0.12))
                 AxisValueLabel {
                     if let amount = value.as(Double.self) {
                         Text(formatAxisNOK(amount))
                     }
                 }
-                .foregroundStyle(AppTheme.textSecondary)
+                .foregroundStyle(AppTheme.textSecondary.opacity(0.76))
             }
         }
         .overlay(alignment: .topLeading) {
@@ -539,7 +580,7 @@ struct InvestmentsDevelopmentChartView: View {
 
     private func areaFillColor(for bucket: InvestmentsDevelopmentBucketPoint) -> Color {
         let base = bucket.color
-        let opacity = colorScheme == .dark ? 0.72 : 0.52
+        let opacity = colorScheme == .dark ? 0.34 : 0.22
         return base.opacity(opacity)
     }
 

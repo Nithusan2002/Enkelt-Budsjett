@@ -23,6 +23,14 @@ struct InvestmentBucketRowData: Identifiable {
     let lastUpdated: Date?
 }
 
+struct InvestmentDistributionRowData: Identifiable {
+    let id: String
+    let bucketID: String
+    let bucketName: String
+    let amount: Double
+    let percent: Double
+}
+
 struct InvestmentInsightData {
     let title: String
     let detail: String
@@ -187,8 +195,19 @@ final class InvestmentsViewModel: ObservableObject {
             .sorted { $0.amount > $1.amount }
     }
 
-    func shouldShowDonut(distributionData: [(bucketID: String, bucketName: String, amount: Double, percent: Double)]) -> Bool {
-        distributionData.count >= 2
+    func distributionRows(
+        latestSnapshot: InvestmentSnapshot?,
+        buckets: [InvestmentBucket]
+    ) -> [InvestmentDistributionRowData] {
+        distributionData(latestSnapshot: latestSnapshot, buckets: buckets).map { item in
+            InvestmentDistributionRowData(
+                id: item.bucketID,
+                bucketID: item.bucketID,
+                bucketName: item.bucketName,
+                amount: item.amount,
+                percent: item.percent
+            )
+        }
     }
 
     func latestHistory(_ snapshots: [InvestmentSnapshot], limit: Int = 6) -> [InvestmentSnapshot] {

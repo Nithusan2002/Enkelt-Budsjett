@@ -332,6 +332,28 @@ struct InvestmentsFeatureTests {
 
     @Test
     @MainActor
+    func developmentChartBuilderFiltersToOneMonthWindow() {
+        let bucket = InvestmentBucket(id: "funds", name: "Fond", isDefault: true, sortOrder: 1)
+        let now = Calendar.current.date(from: DateComponents(year: 2026, month: 3, day: 14)) ?? .now
+        let snapshots: [InvestmentSnapshot] = [
+            makeSnapshot(bucketID: bucket.id, date: Calendar.current.date(from: DateComponents(year: 2026, month: 1, day: 1)) ?? now, total: 90_000),
+            makeSnapshot(bucketID: bucket.id, date: Calendar.current.date(from: DateComponents(year: 2026, month: 2, day: 1)) ?? now, total: 95_000),
+            makeSnapshot(bucketID: bucket.id, date: Calendar.current.date(from: DateComponents(year: 2026, month: 3, day: 1)) ?? now, total: 100_000)
+        ]
+
+        let points = InvestmentsDevelopmentChartDataBuilder.points(
+            snapshots: snapshots,
+            buckets: [bucket],
+            period: .oneMonth,
+            now: now
+        )
+
+        #expect(points.count == 1)
+        #expect(points.first?.periodKey == "2026-03")
+    }
+
+    @Test
+    @MainActor
     func developmentChartBuilderFillsMissingBucketValuesWithZero() {
         let fund = InvestmentBucket(id: "funds", name: "Fond", isDefault: true, sortOrder: 1)
         let stock = InvestmentBucket(id: "stocks", name: "Aksjer", isDefault: true, sortOrder: 2)
@@ -379,6 +401,31 @@ struct InvestmentsFeatureTests {
 
     @Test
     @MainActor
+    func distributionDataSortsRowsByLargestShare() {
+        let viewModel = InvestmentsViewModel()
+        let buckets = [
+            InvestmentBucket(id: "funds", name: "Fond", isDefault: true, sortOrder: 1),
+            InvestmentBucket(id: "cash", name: "Kontanter", isDefault: true, sortOrder: 2),
+            InvestmentBucket(id: "stocks", name: "Aksjer", isDefault: true, sortOrder: 3)
+        ]
+        let snapshot = makeSnapshot(
+            bucketValues: [
+                ("funds", 120_000),
+                ("cash", 40_000),
+                ("stocks", 80_000)
+            ],
+            date: Calendar.current.date(from: DateComponents(year: 2026, month: 3, day: 1)) ?? .now
+        )
+
+        let rows = viewModel.distributionRows(latestSnapshot: snapshot, buckets: buckets)
+
+        #expect(rows.map(\.bucketID) == ["funds", "stocks", "cash"])
+        #expect(rows.first?.percent == 0.5)
+        #expect(rows.first?.amount == 120_000)
+    }
+
+    @Test
+    @MainActor
     func investmentsHeroUsesReminderClockTimeForSameDayCheckInText() {
         let viewModel = InvestmentsViewModel()
         let preference = UserPreference(
@@ -417,5 +464,21 @@ struct InvestmentsFeatureTests {
         )
 
         #expect(hero.nextCheckInText == "Neste: om 31 dager")
+    }
+
+    private func makeSnapshot(bucketID: String, date: Date, total: Double) -> InvestmentSnapshot {
+        let key = DateService.periodKey(from: date)
+        let value = InvestmentSnapshotValue(periodKey: key, bucketID: bucketID, amount: total)
+        return InvestmentSnapshot(periodKey: key, capturedAt: date, totalValue: total, bucketValues: [value])
+    }
+
+    private func makeSnapshot(
+        bucketValues: [(bucketID: String, amount: Double)],
+        date: Date
+    ) -> InvestmentSnapshot {
+        let key = DateService.periodKey(from: date)
+        let values = bucketValues.map { InvestmentSnapshotValue(periodKey: key, bucketID: $0.bucketID, amount: $0.amount) }
+        let total = bucketValues.reduce(0) { $0 + $1.amount }
+        return InvestmentSnapshot(periodKey: key, capturedAt: date, totalValue: total, bucketValues: values)
     }
 }
