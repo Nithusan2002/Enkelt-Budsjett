@@ -216,7 +216,7 @@ struct BudgetHeroCardView: View {
                     )
                 }
             } else {
-                Text("Ingen grenser satt")
+                Text("Ingen grenser satt ennå")
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(AppTheme.textSecondary)
 
@@ -226,7 +226,7 @@ struct BudgetHeroCardView: View {
                     .lineLimit(2)
                     .minimumScaleFactor(0.8)
 
-                Text("Sett grenser når du vil ha mer oversikt over hva som er igjen.")
+                Text("Sett en enkel grense når du vil følge med på hva som er igjen.")
                     .appSecondaryStyle()
 
                 Button("Sett grenser") {
@@ -325,14 +325,14 @@ struct GroupListView: View {
 
             if rows.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text(hasPlannedBudget ? "Ingen grupper å vise ennå" : "Ingen grenser satt")
+                    Text(hasPlannedBudget ? "Ingen grupper å vise ennå" : "Ingen grenser satt ennå")
                         .font(.headline.weight(.semibold))
                         .foregroundStyle(AppTheme.textPrimary)
 
                     Text(
                         hasPlannedBudget
-                            ? "Ingen føringer denne måneden"
-                            : "Du kan fortsatt føre som vanlig. Sett grenser når du vil ha mer oversikt."
+                            ? "Ingen transaksjoner i grupper denne måneden."
+                            : "Du kan føre som vanlig. Sett grenser når du vil følge med på forbruket."
                     )
                     .appSecondaryStyle()
 
@@ -399,12 +399,16 @@ struct BudgetDetailsView: View {
                 }
 
                 if incomeRows.isEmpty && savingsRows.isEmpty && fixedTotalThisMonth <= 0 {
-                    Text("Ingen ekstra detaljer ennå.")
-                        .appSecondaryStyle()
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding()
-                        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
-                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.divider, lineWidth: 1))
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Ingen detaljer å vise ennå")
+                            .appCardTitleStyle()
+                        Text("Faste poster, inntekt og sparing vises her når du har lagt dem inn.")
+                            .appSecondaryStyle()
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
+                    .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.divider, lineWidth: 1))
                 }
             }
             .padding()
@@ -1620,7 +1624,7 @@ struct BudgetGroupDetailView: View {
         case .all:
             return "Ingen transaksjoner i \(group.title.lowercased()) ennå."
         case .spending:
-            return "Ingen forbrukstransaksjoner i denne gruppen ennå."
+            return "Ingen forbruk registrert i denne gruppen ennå."
         case .saving:
             return "Ingen sparing registrert i denne gruppen ennå."
         case .fixed:

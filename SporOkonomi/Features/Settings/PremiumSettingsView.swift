@@ -30,13 +30,13 @@ struct PremiumSettingsView: View {
             id: "goals",
             icon: "target",
             title: "Flere mål",
-            detail: "Folg malene dine med tydeligere progresjon."
+            detail: "Følg målene dine med tydeligere progresjon."
         ),
         .init(
             id: "insights",
             icon: "text.alignleft",
             title: "Dypere innsikt",
-            detail: "Fa mer kontekst rundt okonomien din uten unodvendig stoy."
+            detail: "Få mer kontekst rundt økonomien din uten unødvendig støy."
         ),
         .init(
             id: "investments",

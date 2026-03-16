@@ -342,10 +342,10 @@ struct OverviewView: View {
 
     private var emptyStateModule: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Ingen føringer ennå")
+            Text("Ingen registreringer ennå")
                 .appCardTitleStyle()
 
-            Text("Legg til en inntekt eller utgift for å få oversikt over måneden.")
+            Text("Legg til en inntekt eller utgift for å få en enkel oversikt over denne måneden.")
                 .appBodyStyle()
                 .foregroundStyle(AppTheme.textSecondary)
 

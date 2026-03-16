@@ -336,11 +336,11 @@ final class OverviewViewModel: ObservableObject {
     }
 
     func registeredSavingsSupportText() -> String {
-        "Penger du har registrert til sparing."
+        "Penger du har registrert som sparing så langt i år."
     }
 
     func goalEmptySupportText() -> String {
-        "Et enkelt mål gjør fremgangen lettere å følge."
+        "Et enkelt mål gjør det lettere å se hvordan sparingen din utvikler seg."
     }
 
     func goalProgressTitle() -> String {

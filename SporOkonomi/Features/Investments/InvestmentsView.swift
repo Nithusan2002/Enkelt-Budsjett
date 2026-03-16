@@ -267,8 +267,10 @@ struct InvestmentsView: View {
     private var holdingsSection: some View {
         Section {
             if bucketRows.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Ingen aktive beholdninger ennå.")
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Ingen beholdning registrert ennå")
+                        .appCardTitleStyle()
+                    Text("Legg til en beholdningstype og registrer verdi for å se utviklingen over tid.")
                         .appSecondaryStyle()
                 }
                 .padding(18)
@@ -332,7 +334,7 @@ struct InvestmentsView: View {
                     .appCardTitleStyle()
 
                 if distributionRows.isEmpty {
-                    Text("Fordeling vises når du har lagt til første innsjekk.")
+                    Text("Fordelingen vises når du har lagret din første innsjekk.")
                         .appSecondaryStyle()
                 } else {
                     ForEach(Array(distributionRows.enumerated()), id: \.element.id) { index, row in
