@@ -410,11 +410,6 @@ struct InvestmentsView: View {
                                 .appCardTitleStyle()
                             Text("Oppdater verdien når du vil følge utviklingen over tid.")
                                 .appSecondaryStyle()
-                            Button("Oppdater verdi") {
-                                openCheckIn()
-                            }
-                            .appProminentCTAStyle()
-                            .disabled(isReadOnlyMode)
                         }
                     } else {
                         VStack(alignment: .leading, spacing: 12) {
