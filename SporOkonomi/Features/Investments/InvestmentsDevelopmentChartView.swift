@@ -647,10 +647,6 @@ struct InvestmentsDevelopmentChartView: View {
                 .appCardTitleStyle()
             Text(body)
                 .appSecondaryStyle()
-            Button("Oppdater verdi") {
-                onUpdateValues()
-            }
-            .appProminentCTAStyle()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 6)
