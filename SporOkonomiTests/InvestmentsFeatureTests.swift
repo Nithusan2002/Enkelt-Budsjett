@@ -59,6 +59,23 @@ struct InvestmentsFeatureTests {
 
     @Test
     @MainActor
+    func ensureDefaultBucketsDoesNotBackfillStarterTypesWhenUserAlreadyHasChosenType() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+        let viewModel = InvestmentsViewModel()
+
+        context.insert(InvestmentBucket(id: "bucket_bsu", name: "BSU", isDefault: true, sortOrder: 1))
+        try context.save()
+
+        viewModel.ensureDefaultBuckets(context: context, existingBuckets: [])
+
+        let buckets = try context.fetch(FetchDescriptor<InvestmentBucket>())
+
+        #expect(buckets.map(\.name) == ["BSU"])
+    }
+
+    @Test
+    @MainActor
     func investmentWizardEffectiveValuesAndTotalsFollowRules() throws {
         let container = try TestModelContainerFactory.makeInMemoryContainer()
         let context = container.mainContext

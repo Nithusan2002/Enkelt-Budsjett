@@ -453,8 +453,11 @@ final class InvestmentsViewModel: ObservableObject {
             didChange = true
         }
 
+        let bucketsAfterReconcile = (try? context.fetch(FetchDescriptor<InvestmentBucket>())) ?? allBuckets
+        let shouldInsertMissingDefaults = bucketsAfterReconcile.isEmpty
+
         for item in defaults {
-            let currentBuckets = (try? context.fetch(FetchDescriptor<InvestmentBucket>())) ?? allBuckets
+            let currentBuckets = (try? context.fetch(FetchDescriptor<InvestmentBucket>())) ?? bucketsAfterReconcile
             if let existing = currentBuckets.first(where: {
                 $0.id == item.id ||
                 $0.name.compare(item.name, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
@@ -466,6 +469,8 @@ final class InvestmentsViewModel: ObservableObject {
                 }
                 continue
             }
+
+            guard shouldInsertMissingDefaults else { continue }
 
             context.insert(
                 InvestmentBucket(
