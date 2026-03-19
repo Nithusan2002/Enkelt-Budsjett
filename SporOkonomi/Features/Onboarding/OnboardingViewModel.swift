@@ -118,7 +118,7 @@ final class OnboardingViewModel: ObservableObject {
     @Published var selectedGoals: Set<OnboardingGoalOption> = []
     @Published var monthlyIncomeText = ""
     @Published var selectedFixedCosts: Set<OnboardingFixedCostOption> = []
-    @Published var selectedInvestmentTypes: Set<OnboardingInvestmentTypeOption> = [.funds, .stocks]
+    @Published var selectedInvestmentTypes: Set<OnboardingInvestmentTypeOption> = []
     @Published var customInvestmentTypeName = ""
     @Published var isCustomInvestmentTypeSelected = false
     @Published var errorMessage: String?
@@ -283,10 +283,7 @@ final class OnboardingViewModel: ObservableObject {
 
     var resolvedInvestmentTypeNamesForCompletion: [String] {
         guard shouldShowInvestmentTypesStep else { return [] }
-
-        let explicitNames = selectedInvestmentTypeNames
-        guard !explicitNames.isEmpty else { return [OnboardingInvestmentTypeOption.funds.title] }
-        return explicitNames
+        return selectedInvestmentTypeNames
     }
 
     var monthlyIncome: Double? {

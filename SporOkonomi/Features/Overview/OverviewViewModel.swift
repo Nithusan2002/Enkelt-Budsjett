@@ -172,7 +172,9 @@ final class OverviewViewModel: ObservableObject {
         .map { title, rows in
             AIInsightCategorySummary(
                 title: title,
-                amount: rows.reduce(0) { $0 + BudgetService.trackedBudgetImpact($1) }
+                amount: rows.reduce(0) { partialResult, transaction in
+                    partialResult + BudgetService.trackedBudgetImpact(transaction)
+                }
             )
         }
         .sorted { lhs, rhs in

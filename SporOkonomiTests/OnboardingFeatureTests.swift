@@ -286,7 +286,7 @@ struct OnboardingFeatureTests {
 
     @Test
     @MainActor
-    func onboardingFinishWithInvestmentGoalFallsBackToOneStarterType() throws {
+    func onboardingFinishWithInvestmentGoalCreatesNoTypesWhenNothingIsChosen() throws {
         let container = try TestModelContainerFactory.makeInMemoryContainer()
         let context = container.mainContext
         let preference = UserPreference(onboardingCompleted: false)
@@ -301,7 +301,7 @@ struct OnboardingFeatureTests {
         viewModel.primaryAction(preference: preference, context: context)
 
         let buckets = try context.fetch(FetchDescriptor<InvestmentBucket>())
-        #expect(Set(buckets.map(\.name)) == ["Fond"])
+        #expect(buckets.isEmpty)
     }
 
     @Test
@@ -324,5 +324,14 @@ struct OnboardingFeatureTests {
 
         let buckets = try context.fetch(FetchDescriptor<InvestmentBucket>())
         #expect(Set(buckets.map(\.name)) == ["Fond", "BSU", "Eiendom"])
+    }
+
+    @Test
+    @MainActor
+    func onboardingInvestmentTypesStartWithoutPreselectedChoices() {
+        let preference = UserPreference(onboardingCompleted: false)
+        let viewModel = OnboardingViewModel(preference: preference)
+
+        #expect(viewModel.selectedInvestmentTypes.isEmpty)
     }
 }
