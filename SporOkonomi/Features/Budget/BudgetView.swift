@@ -53,6 +53,12 @@ struct BudgetView: View {
     private var groupsWithoutLimitWithSpendCount: Int {
         viewModel.groupsWithoutLimitWithSpendCount(groupRows: groupRows)
     }
+    private var isCompletelyEmpty: Bool {
+        !hasPlannedBudget && monthTransactions.isEmpty
+    }
+    private var hasDetailContent: Bool {
+        fixedTotalThisMonth > 0 || !incomeRows.isEmpty || !savingsRows.isEmpty
+    }
 
     var body: some View {
         ScrollView {
@@ -74,6 +80,7 @@ struct BudgetView: View {
                     overBudgetCount: overBudgetCount,
                     groupsWithoutLimitWithSpendCount: groupsWithoutLimitWithSpendCount,
                     hasTransactions: !monthTransactions.isEmpty,
+                    isReadOnlyMode: isReadOnlyMode,
                     onSetLimits: {
                         if isReadOnlyMode {
                             viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
@@ -84,40 +91,44 @@ struct BudgetView: View {
                     summary: summary
                 )
 
-                GroupListView(
-                    rows: groupRows,
-                    fixedByGroup: fixedByGroup,
-                    isAmountsHidden: areAmountsHidden,
-                    hasPlannedBudget: hasPlannedBudget,
-                    hasTransactions: !monthTransactions.isEmpty,
-                    isReadOnlyMode: isReadOnlyMode,
-                    onSetLimits: {
-                        if isReadOnlyMode {
-                            viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
-                        } else {
-                            viewModel.showGroupLimitsSheet = true
+                if !isCompletelyEmpty {
+                    GroupListView(
+                        rows: groupRows,
+                        fixedByGroup: fixedByGroup,
+                        isAmountsHidden: areAmountsHidden,
+                        hasPlannedBudget: hasPlannedBudget,
+                        hasTransactions: !monthTransactions.isEmpty,
+                        isReadOnlyMode: isReadOnlyMode,
+                        onSetLimits: {
+                            if isReadOnlyMode {
+                                viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
+                            } else {
+                                viewModel.showGroupLimitsSheet = true
+                            }
                         }
-                    }
-                )
-
-                NavigationLink {
-                    BudgetDetailsView(
-                        fixedTotalThisMonth: fixedTotalThisMonth,
-                        incomeRows: incomeRows,
-                        savingsRows: savingsRows
                     )
-                } label: {
-                    HStack {
-                        Text("Se detaljer")
-                            .appSecondaryStyle()
-                        Spacer()
-                    }
-                    .padding()
-                    .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
-                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.divider, lineWidth: 1))
-                    .opacity(0.82)
                 }
-                .buttonStyle(.plain)
+
+                if hasDetailContent {
+                    NavigationLink {
+                        BudgetDetailsView(
+                            fixedTotalThisMonth: fixedTotalThisMonth,
+                            incomeRows: incomeRows,
+                            savingsRows: savingsRows
+                        )
+                    } label: {
+                        HStack {
+                            Text("Se detaljer")
+                                .appSecondaryStyle()
+                            Spacer()
+                        }
+                        .padding()
+                        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
+                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.divider, lineWidth: 1))
+                        .opacity(0.82)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
             .padding()
         }

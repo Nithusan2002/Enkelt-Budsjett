@@ -173,6 +173,7 @@ struct BudgetHeroCardView: View {
     let overBudgetCount: Int
     let groupsWithoutLimitWithSpendCount: Int
     let hasTransactions: Bool
+    let isReadOnlyMode: Bool
     let onSetLimits: () -> Void
     let summary: BudgetSummaryData
 
@@ -220,20 +221,27 @@ struct BudgetHeroCardView: View {
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(AppTheme.textSecondary)
 
-                Text("Før som vanlig denne måneden")
+                Text(hasTransactions ? "Du er i gang denne måneden" : "Legg til første transaksjon")
                     .font(.system(size: 34, weight: .bold, design: .rounded))
                     .foregroundStyle(AppTheme.textPrimary)
                     .lineLimit(2)
                     .minimumScaleFactor(0.8)
 
-                Text("Sett en enkel grense når du vil følge med på hva som er igjen.")
-                    .appSecondaryStyle()
+                Text(
+                    hasTransactions
+                        ? "Du kan sette grenser når du vil se hva som er igjen i hver gruppe."
+                        : "Legg til inntekt eller utgift først. Sett grenser senere hvis du vil følge budsjettet tettere."
+                )
+                .appSecondaryStyle()
 
-                Button("Sett grenser") {
-                    onSetLimits()
+                if hasTransactions {
+                    Button("Sett grenser") {
+                        onSetLimits()
+                    }
+                    .buttonStyle(.bordered)
+                    .font(.subheadline.weight(.semibold))
+                    .disabled(isReadOnlyMode)
                 }
-                .appProminentCTAStyle()
-                .controlSize(.large)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -332,16 +340,18 @@ struct GroupListView: View {
                     Text(
                         hasPlannedBudget
                             ? "Ingen transaksjoner i grupper denne måneden."
-                            : "Du kan føre som vanlig. Sett grenser når du vil følge med på forbruket."
+                            : hasTransactions
+                                ? "Du har registrert transaksjoner. Sett grenser når du vil følge forbruket per gruppe."
+                                : "Legg til transaksjoner først. Sett grenser senere hvis du vil følge budsjettet."
                     )
                     .appSecondaryStyle()
 
-                    if !hasPlannedBudget {
+                    if !hasPlannedBudget && hasTransactions {
                         Button("Sett grenser") {
                             onSetLimits()
                         }
-                        .appProminentCTAStyle()
-                        .controlSize(.large)
+                        .buttonStyle(.bordered)
+                        .font(.subheadline.weight(.semibold))
                         .disabled(isReadOnlyMode)
                     }
                 }
