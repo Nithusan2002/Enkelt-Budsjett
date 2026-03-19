@@ -114,9 +114,6 @@ struct InvestmentsView: View {
                 }
             }
             .onAppear {
-                if !isReadOnlyMode {
-                    viewModel.ensureDefaultBuckets(context: modelContext, existingBuckets: buckets)
-                }
                 viewModel.onAppear(preference: preferences.first, snapshots: snapshots)
             }
             .onChange(of: snapshotToken) { _, _ in

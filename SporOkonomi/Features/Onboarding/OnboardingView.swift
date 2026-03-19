@@ -8,6 +8,8 @@ struct OnboardingView: View {
     @StateObject private var viewModel: OnboardingViewModel
     @FocusState private var focusedField: OnboardingInputField?
     @State private var introPage = 0
+    @State private var showCustomInvestmentTypeSheet = false
+    @State private var customInvestmentTypeDraft = ""
 
     private enum OnboardingInputField {
         case income
@@ -186,6 +188,8 @@ struct OnboardingView: View {
             incomeStep
         case .fixedCosts:
             fixedCostsStep
+        case .investmentTypes:
+            investmentTypesStep
         }
     }
 
@@ -330,6 +334,72 @@ struct OnboardingView: View {
         .frame(maxWidth: 460, alignment: .center)
         .padding(.top, 12)
         .accessibilityIdentifier("onboarding.step.fixed_costs")
+    }
+
+    private var investmentTypesStep: some View {
+        VStack(spacing: 16) {
+            headerBlock(
+                title: viewModel.investmentTypesTitle,
+                body: viewModel.investmentTypesBodyText
+            )
+
+            VStack(spacing: 10) {
+                ForEach(viewModel.orderedInvestmentTypeOptions) { option in
+                    selectionCard(
+                        title: option.title,
+                        subtitle: nil,
+                        isSelected: viewModel.selectedInvestmentTypes.contains(option)
+                    ) {
+                        withAnimation(.easeInOut(duration: 0.18)) {
+                            viewModel.toggleInvestmentType(option)
+                        }
+                    }
+                }
+
+                if viewModel.hasCustomInvestmentType {
+                    selectionCard(
+                        title: viewModel.customInvestmentTypeName,
+                        subtitle: "Egen type",
+                        isSelected: viewModel.isCustomInvestmentTypeSelected
+                    ) {
+                        withAnimation(.easeInOut(duration: 0.18)) {
+                            viewModel.toggleCustomInvestmentTypeSelection()
+                        }
+                    }
+
+                    Button("Fjern egen type") {
+                        withAnimation(.easeInOut(duration: 0.18)) {
+                            viewModel.removeCustomInvestmentType()
+                        }
+                    }
+                    .appSecondaryStyle()
+                }
+            }
+
+            Button(viewModel.hasCustomInvestmentType ? "Endre egen type" : "Legg til egen type") {
+                customInvestmentTypeDraft = viewModel.customInvestmentTypeName
+                showCustomInvestmentTypeSheet = true
+            }
+            .buttonStyle(.bordered)
+            .font(.subheadline.weight(.semibold))
+        }
+        .frame(maxWidth: 460, alignment: .center)
+        .padding(.top, 12)
+        .accessibilityIdentifier("onboarding.step.investment_types")
+        .sheet(isPresented: $showCustomInvestmentTypeSheet) {
+            AddCustomInvestmentTypeSheet(
+                name: $customInvestmentTypeDraft,
+                onSave: {
+                    viewModel.customInvestmentTypeName = customInvestmentTypeDraft
+                    if viewModel.saveCustomInvestmentType() {
+                        showCustomInvestmentTypeSheet = false
+                    }
+                },
+                onCancel: {
+                    viewModel.clearError()
+                }
+            )
+        }
     }
 
     private var footerButtons: some View {
@@ -782,6 +852,47 @@ private extension OnboardingView {
                 illustration: .progress
             )
         ]
+    }
+}
+
+private struct AddCustomInvestmentTypeSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var name: String
+    let onSave: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Legg til typen du vil følge.")
+                    .appSecondaryStyle()
+
+                TextField("F.eks. Eiendom", text: $name)
+                    .textFieldStyle(.appInput)
+
+                Spacer()
+            }
+            .padding()
+            .background(AppTheme.background)
+            .navigationTitle("Egen type")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(AppTheme.background, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Avbryt") {
+                        onCancel()
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Lagre") {
+                        onSave()
+                    }
+                    .appCTAStyle()
+                }
+            }
+        }
     }
 }
 

@@ -7,6 +7,7 @@ enum OnboardingStep: Int, CaseIterable {
     case goals
     case income
     case fixedCosts
+    case investmentTypes
 
     static func fromStoredValue(_ rawValue: Int) -> OnboardingStep {
         switch rawValue {
@@ -18,6 +19,8 @@ enum OnboardingStep: Int, CaseIterable {
             return .income
         case fixedCosts.rawValue:
             return .fixedCosts
+        case investmentTypes.rawValue:
+            return .investmentTypes
         default:
             return .fixedCosts
         }
@@ -81,6 +84,31 @@ enum OnboardingFixedCostOption: String, CaseIterable, Identifiable {
     }
 }
 
+enum OnboardingInvestmentTypeOption: String, CaseIterable, Identifiable {
+    case funds
+    case stocks
+    case crypto
+    case cash
+    case bsu
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .funds:
+            return "Fond"
+        case .stocks:
+            return "Aksjer"
+        case .crypto:
+            return "Krypto"
+        case .cash:
+            return "Kontanter"
+        case .bsu:
+            return "BSU"
+        }
+    }
+}
+
 @MainActor
 final class OnboardingViewModel: ObservableObject {
     @Published var currentStep: OnboardingStep
@@ -90,6 +118,9 @@ final class OnboardingViewModel: ObservableObject {
     @Published var selectedGoals: Set<OnboardingGoalOption> = []
     @Published var monthlyIncomeText = ""
     @Published var selectedFixedCosts: Set<OnboardingFixedCostOption> = []
+    @Published var selectedInvestmentTypes: Set<OnboardingInvestmentTypeOption> = [.funds, .stocks]
+    @Published var customInvestmentTypeName = ""
+    @Published var isCustomInvestmentTypeSelected = false
     @Published var errorMessage: String?
 
     private var hasLoggedStart = false
@@ -102,7 +133,11 @@ final class OnboardingViewModel: ObservableObject {
     }
 
     var orderedSteps: [OnboardingStep] {
-        OnboardingStep.allCases
+        var steps: [OnboardingStep] = [.intro, .goals, .income, .fixedCosts]
+        if shouldShowInvestmentTypesStep {
+            steps.append(.investmentTypes)
+        }
+        return steps
     }
 
     var currentStepIndex: Int {
@@ -135,7 +170,9 @@ final class OnboardingViewModel: ObservableObject {
         case .income:
             return "Neste"
         case .fixedCosts:
-            return "Ferdig"
+            return shouldShowInvestmentTypesStep ? "Neste" : "Ferdig"
+        case .investmentTypes:
+            return "Fortsett"
         }
     }
 
@@ -149,6 +186,8 @@ final class OnboardingViewModel: ObservableObject {
             return "Ikke nå"
         case .fixedCosts:
             return "Ikke nå"
+        case .investmentTypes:
+            return nil
         }
     }
 
@@ -210,6 +249,46 @@ final class OnboardingViewModel: ObservableObject {
         "Du kan justere dette senere."
     }
 
+    var shouldShowInvestmentTypesStep: Bool {
+        selectedGoals.contains(.followInvestments) || focus == .investments || currentStep == .investmentTypes
+    }
+
+    var investmentTypesTitle: String {
+        "Hvilke investeringer vil du følge?"
+    }
+
+    var investmentTypesBodyText: String {
+        "Velg typene som passer for deg. Du kan endre dette senere."
+    }
+
+    var orderedInvestmentTypeOptions: [OnboardingInvestmentTypeOption] {
+        OnboardingInvestmentTypeOption.allCases
+    }
+
+    var hasCustomInvestmentType: Bool {
+        !customInvestmentTypeName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var selectedInvestmentTypeNames: [String] {
+        let suggested = orderedInvestmentTypeOptions
+            .filter { selectedInvestmentTypes.contains($0) }
+            .map(\.title)
+
+        let trimmedCustom = customInvestmentTypeName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if isCustomInvestmentTypeSelected && !trimmedCustom.isEmpty {
+            return suggested + [trimmedCustom]
+        }
+        return suggested
+    }
+
+    var resolvedInvestmentTypeNamesForCompletion: [String] {
+        guard shouldShowInvestmentTypesStep else { return [] }
+
+        let explicitNames = selectedInvestmentTypeNames
+        guard !explicitNames.isEmpty else { return [OnboardingInvestmentTypeOption.funds.title] }
+        return explicitNames
+    }
+
     var monthlyIncome: Double? {
         parseDouble(monthlyIncomeText)
     }
@@ -235,6 +314,43 @@ final class OnboardingViewModel: ObservableObject {
         }
     }
 
+    func toggleInvestmentType(_ option: OnboardingInvestmentTypeOption) {
+        if selectedInvestmentTypes.contains(option) {
+            selectedInvestmentTypes.remove(option)
+        } else {
+            selectedInvestmentTypes.insert(option)
+        }
+    }
+
+    func saveCustomInvestmentType() -> Bool {
+        let trimmed = customInvestmentTypeName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            setError("Skriv inn et navn på investeringstypen.")
+            return false
+        }
+
+        let suggestedNames = Set(orderedInvestmentTypeOptions.map { $0.title.lowercased() })
+        if suggestedNames.contains(trimmed.lowercased()) {
+            setError("Denne investeringstypen finnes allerede i forslagene.")
+            return false
+        }
+
+        customInvestmentTypeName = trimmed
+        isCustomInvestmentTypeSelected = true
+        clearError()
+        return true
+    }
+
+    func removeCustomInvestmentType() {
+        customInvestmentTypeName = ""
+        isCustomInvestmentTypeSelected = false
+    }
+
+    func toggleCustomInvestmentTypeSelection() {
+        guard hasCustomInvestmentType else { return }
+        isCustomInvestmentTypeSelected.toggle()
+    }
+
     func markCurrentStepSeen() {
         if !hasLoggedStart {
             logEvent("onboarding_started")
@@ -244,7 +360,9 @@ final class OnboardingViewModel: ObservableObject {
         guard !viewedSteps.contains(currentStep) else { return }
         viewedSteps.insert(currentStep)
         logEvent("onboarding_step_viewed_\(eventName(for: currentStep))")
-        if currentStep == .fixedCosts {
+        if currentStep == .fixedCosts && !shouldShowInvestmentTypesStep {
+            logEvent("onboarding_aha_seen")
+        } else if currentStep == .investmentTypes {
             logEvent("onboarding_aha_seen")
         }
     }
@@ -265,7 +383,7 @@ final class OnboardingViewModel: ObservableObject {
     }
 
     func primaryAction(preference: UserPreference, context: ModelContext) {
-        if currentStep == .fixedCosts {
+        if currentStep == .investmentTypes || (currentStep == .fixedCosts && !shouldShowInvestmentTypesStep) {
             finish(preference: preference, context: context)
         } else {
             next(preference: preference, context: context)
@@ -283,6 +401,12 @@ final class OnboardingViewModel: ObservableObject {
             next(preference: preference, context: context)
         case .fixedCosts:
             selectedFixedCosts.removeAll()
+            if shouldShowInvestmentTypesStep {
+                next(preference: preference, context: context)
+            } else {
+                finish(preference: preference, context: context)
+            }
+        case .investmentTypes:
             finish(preference: preference, context: context)
         case .intro:
             next(preference: preference, context: context)
@@ -336,7 +460,7 @@ final class OnboardingViewModel: ObservableObject {
                 reminderHour: 18,
                 reminderMinute: 0,
                 faceIDEnabled: false,
-                selectedBuckets: ["Fond", "Aksjer", "Krypto", "Kontanter"],
+                selectedBuckets: resolvedInvestmentTypeNamesForCompletion,
                 customBucketName: nil
             )
             logEvent("onboarding_completed")
@@ -385,6 +509,8 @@ final class OnboardingViewModel: ObservableObject {
             return "income"
         case .fixedCosts:
             return "fixed_costs"
+        case .investmentTypes:
+            return "investment_types"
         }
     }
 

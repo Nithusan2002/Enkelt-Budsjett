@@ -32,7 +32,7 @@ struct OnboardingFeatureTests {
 
     @Test
     @MainActor
-    func onboardingFlowHasExactlyFourSteps() {
+    func onboardingFlowHasFourStepsWithoutInvestmentsSelected() {
         let preference = UserPreference(onboardingCompleted: false, onboardingFocus: .budget)
         let viewModel = OnboardingViewModel(preference: preference)
 
@@ -42,6 +42,19 @@ struct OnboardingFeatureTests {
         #expect(order[1] == .goals)
         #expect(order[2] == .income)
         #expect(order.last == .fixedCosts)
+    }
+
+    @Test
+    @MainActor
+    func onboardingFlowAddsInvestmentTypeStepWhenInvestmentsAreRelevant() {
+        let preference = UserPreference(onboardingCompleted: false)
+        let viewModel = OnboardingViewModel(preference: preference)
+
+        viewModel.toggleGoal(.followInvestments)
+
+        let order = viewModel.orderedSteps
+        #expect(order.count == 5)
+        #expect(order.last == .investmentTypes)
     }
 
     @Test
@@ -73,6 +86,10 @@ struct OnboardingFeatureTests {
         viewModel.currentStep = .fixedCosts
         #expect(viewModel.primaryButtonTitle == "Ferdig")
         #expect(viewModel.secondaryButtonTitle == "Ikke nå")
+
+        viewModel.currentStep = .investmentTypes
+        #expect(viewModel.primaryButtonTitle == "Fortsett")
+        #expect(viewModel.secondaryButtonTitle == nil)
     }
 
     @Test
@@ -134,6 +151,25 @@ struct OnboardingFeatureTests {
 
         #expect(viewModel.currentStep == .fixedCosts)
         #expect(preference.onboardingCurrentStep == OnboardingStep.fixedCosts.rawValue)
+    }
+
+    @Test
+    @MainActor
+    func onboardingSecondaryActionFromFixedCostsAdvancesToInvestmentTypesWhenRelevant() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+        let preference = UserPreference(onboardingCompleted: false)
+        context.insert(preference)
+        try context.save()
+
+        let viewModel = OnboardingViewModel(preference: preference)
+        viewModel.toggleGoal(.followInvestments)
+        viewModel.currentStep = .fixedCosts
+
+        viewModel.secondaryAction(preference: preference, context: context)
+
+        #expect(viewModel.currentStep == .investmentTypes)
+        #expect(preference.onboardingCurrentStep == OnboardingStep.investmentTypes.rawValue)
     }
 
     @Test
@@ -206,7 +242,7 @@ struct OnboardingFeatureTests {
         let preference = UserPreference(onboardingCompleted: false, onboardingCurrentStep: 4)
         let viewModel = OnboardingViewModel(preference: preference)
 
-        #expect(viewModel.currentStep == .fixedCosts)
+        #expect(viewModel.currentStep == .investmentTypes)
     }
 
     @Test
@@ -246,5 +282,47 @@ struct OnboardingFeatureTests {
         viewModel.primaryAction(preference: preference, context: context)
 
         #expect(preference.onboardingCompleted)
+    }
+
+    @Test
+    @MainActor
+    func onboardingFinishWithInvestmentGoalFallsBackToOneStarterType() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+        let preference = UserPreference(onboardingCompleted: false)
+        context.insert(preference)
+        try context.save()
+
+        let viewModel = OnboardingViewModel(preference: preference)
+        viewModel.toggleGoal(.followInvestments)
+        viewModel.selectedInvestmentTypes.removeAll()
+        viewModel.currentStep = .investmentTypes
+
+        viewModel.primaryAction(preference: preference, context: context)
+
+        let buckets = try context.fetch(FetchDescriptor<InvestmentBucket>())
+        #expect(Set(buckets.map(\.name)) == ["Fond"])
+    }
+
+    @Test
+    @MainActor
+    func onboardingFinishCreatesOnlyChosenInvestmentTypes() throws {
+        let container = try TestModelContainerFactory.makeInMemoryContainer()
+        let context = container.mainContext
+        let preference = UserPreference(onboardingCompleted: false)
+        context.insert(preference)
+        try context.save()
+
+        let viewModel = OnboardingViewModel(preference: preference)
+        viewModel.toggleGoal(.followInvestments)
+        viewModel.selectedInvestmentTypes = [.funds, .bsu]
+        viewModel.customInvestmentTypeName = "Eiendom"
+        #expect(viewModel.saveCustomInvestmentType())
+        viewModel.currentStep = .investmentTypes
+
+        viewModel.primaryAction(preference: preference, context: context)
+
+        let buckets = try context.fetch(FetchDescriptor<InvestmentBucket>())
+        #expect(Set(buckets.map(\.name)) == ["Fond", "BSU", "Eiendom"])
     }
 }
