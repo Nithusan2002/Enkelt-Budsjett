@@ -733,6 +733,7 @@ enum BootstrapService {
     @discardableResult
     private static func ensureDefaultInvestmentBuckets(context: ModelContext) -> Bool {
         let existing = (try? context.fetch(FetchDescriptor<InvestmentBucket>())) ?? []
+        guard !existing.isEmpty else { return false }
         let defaults: [(String, String, Int)] = [
             ("bucket_fond", "Fond", 1),
             ("bucket_aksjer", "Aksjer", 2),
@@ -785,19 +786,6 @@ enum BootstrapService {
 
         for bucket in duplicatesToDelete {
             context.delete(bucket)
-        }
-
-        for item in defaults where bucketsByCanonicalID[item.0] == nil {
-            context.insert(
-                InvestmentBucket(
-                    id: item.0,
-                    name: item.1,
-                    isDefault: true,
-                    isActive: true,
-                    sortOrder: item.2
-                )
-            )
-            didChange = true
         }
         return didChange
     }
