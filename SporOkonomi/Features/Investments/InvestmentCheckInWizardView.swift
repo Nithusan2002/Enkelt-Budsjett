@@ -7,7 +7,6 @@ struct InvestmentCheckInWizardView: View {
 
     let buckets: [InvestmentBucket]
     let snapshots: [InvestmentSnapshot]
-    var onRequestNewType: (() -> Void)?
     var onSaved: ((Bool, String) -> Void)?
 
     @StateObject private var viewModel = InvestmentCheckInWizardViewModel()
@@ -18,7 +17,6 @@ struct InvestmentCheckInWizardView: View {
     @State private var addTypeName = ""
     @State private var addTypeColorHex = AppTheme.customBucketPalette[0]
     @State private var addTypeErrorMessage: String?
-    @State private var selectedSuggestedTypes: Set<InvestmentSuggestedBucketOption> = []
     private var isReadOnlyMode: Bool { PersistenceGate.isReadOnlyMode }
 
     var body: some View {
@@ -192,88 +190,27 @@ struct InvestmentCheckInWizardView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Velg typene du vil oppdatere")
+                    Text("Opprett en beholdningstype først")
                         .font(.title3.weight(.semibold))
                         .foregroundStyle(AppTheme.textPrimary)
 
-                    Text("Legg til minst én beholdning for å starte innsjekken.")
+                    Text("Du trenger minst én aktiv beholdning for å oppdatere verdier.")
                         .appBodyStyle()
                         .foregroundStyle(AppTheme.textSecondary)
                 }
 
-                VStack(spacing: 10) {
-                    ForEach(InvestmentSuggestedBucketOption.allCases) { option in
-                        suggestionCard(for: option)
-                    }
-                }
-
-                Button {
-                    do {
-                        try viewModel.addSuggestedBucketsDuringCheckIn(
-                            context: modelContext,
-                            selections: InvestmentSuggestedBucketOption.allCases.filter { selectedSuggestedTypes.contains($0) }
-                        )
-                        selectedSuggestedTypes = []
-                    } catch {
-                        errorMessage = (error as? LocalizedError)?.errorDescription ?? "Kunne ikke legge til beholdningstyper nå."
-                    }
-                } label: {
-                    Text("Legg til valgte typer")
-                        .frame(maxWidth: .infinity)
-                }
-                .appProminentCTAStyle()
-                .disabled(selectedSuggestedTypes.isEmpty || isReadOnlyMode)
-
-                Button("Legg til egen type") {
+                Button("Legg til type") {
                     addTypeName = ""
                     addTypeColorHex = AppTheme.customBucketPalette[0]
                     addTypeErrorMessage = nil
                     showAddTypeSheet = true
                 }
-                .buttonStyle(.bordered)
-                .font(.subheadline.weight(.semibold))
+                .appProminentCTAStyle()
+                .disabled(isReadOnlyMode)
             }
             .padding()
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-    }
-
-    private func suggestionCard(for option: InvestmentSuggestedBucketOption) -> some View {
-        let isSelected = selectedSuggestedTypes.contains(option)
-
-        return Button {
-            if isSelected {
-                selectedSuggestedTypes.remove(option)
-            } else {
-                selectedSuggestedTypes.insert(option)
-            }
-        } label: {
-            HStack(alignment: .top, spacing: 12) {
-                Circle()
-                    .fill(Color(hex: option.colorHex))
-                    .frame(width: 12, height: 12)
-                    .padding(.top, 5)
-
-                Text(option.title)
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(AppTheme.textPrimary)
-
-                Spacer(minLength: 8)
-
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(isSelected ? AppTheme.primary : AppTheme.textSecondary)
-            }
-            .padding(14)
-            .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
-            .background(isSelected ? AppTheme.primary.opacity(0.08) : AppTheme.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 18))
-            .overlay(
-                RoundedRectangle(cornerRadius: 18)
-                    .stroke(isSelected ? AppTheme.primary : AppTheme.divider, lineWidth: isSelected ? 2 : 1)
-            )
-        }
-        .buttonStyle(.plain)
     }
 
     private func previousValueText(for bucketID: String) -> String {

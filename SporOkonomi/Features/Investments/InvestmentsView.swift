@@ -84,10 +84,6 @@ struct InvestmentsView: View {
                 InvestmentCheckInWizardView(
                     buckets: buckets,
                     snapshots: snapshots,
-                    onRequestNewType: {
-                        viewModel.resetAddBucketState()
-                        viewModel.showAddBucketSheet = true
-                    },
                     onSaved: { _, periodKey in
                         showCheckInToast(checkInToastMessage(for: periodKey))
                     }

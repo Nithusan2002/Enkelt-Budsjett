@@ -2,46 +2,6 @@ import Foundation
 import Combine
 import SwiftData
 
-enum InvestmentSuggestedBucketOption: String, CaseIterable, Identifiable {
-    case funds
-    case stocks
-    case crypto
-    case cash
-    case bsu
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .funds:
-            return "Fond"
-        case .stocks:
-            return "Aksjer"
-        case .crypto:
-            return "Krypto"
-        case .cash:
-            return "Kontanter"
-        case .bsu:
-            return "BSU"
-        }
-    }
-
-    var colorHex: String {
-        switch self {
-        case .funds:
-            return AppTheme.customBucketPalette[0]
-        case .stocks:
-            return AppTheme.customBucketPalette[1]
-        case .crypto:
-            return AppTheme.customBucketPalette[11]
-        case .cash:
-            return AppTheme.customBucketPalette[4]
-        case .bsu:
-            return AppTheme.customBucketPalette[2]
-        }
-    }
-}
-
 enum InvestmentWizardInputMode: String {
     case unchanged
     case changed
@@ -351,19 +311,6 @@ final class InvestmentCheckInWizardViewModel: ObservableObject {
         }
 
         appendBucketToWizard(bucket)
-    }
-
-    func addSuggestedBucketsDuringCheckIn(
-        context: ModelContext,
-        selections: [InvestmentSuggestedBucketOption]
-    ) throws {
-        for option in selections {
-            try addBucketDuringCheckIn(
-                context: context,
-                name: option.title,
-                colorHex: option.colorHex
-            )
-        }
     }
 
     func isNewType(_ bucketID: String) -> Bool {

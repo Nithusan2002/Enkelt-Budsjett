@@ -284,33 +284,6 @@ struct InvestmentsFeatureTests {
 
     @Test
     @MainActor
-    func investmentWizardCanAddSuggestedBucketsFromEmptyState() throws {
-        let container = try TestModelContainerFactory.makeInMemoryContainer()
-        let context = container.mainContext
-        let viewModel = InvestmentCheckInWizardViewModel()
-
-        viewModel.loadInitialState(
-            buckets: [],
-            snapshots: [],
-            selectedMonth: .now
-        )
-
-        try viewModel.addSuggestedBucketsDuringCheckIn(
-            context: context,
-            selections: [.bsu, .funds]
-        )
-
-        #expect(viewModel.buckets.map(\.name) == ["Fond", "BSU"])
-        #expect(viewModel.hasBuckets)
-        #expect(viewModel.currentBucket?.name == "BSU")
-
-        let storedBuckets = try context.fetch(FetchDescriptor<InvestmentBucket>())
-            .sorted { $0.sortOrder < $1.sortOrder }
-        #expect(storedBuckets.map(\.name) == ["Fond", "BSU"])
-    }
-
-    @Test
-    @MainActor
     func developmentChartBuilderFiltersYearToDateAndLast12() {
         let bucket = InvestmentBucket(id: "funds", name: "Fond", isDefault: true, sortOrder: 1)
         let now = Date()
