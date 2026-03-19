@@ -32,6 +32,17 @@ struct InvestmentsView: View {
     private var activeBuckets: [InvestmentBucket] {
         buckets.filter(\.isActive)
     }
+    private var isCompletelyEmpty: Bool {
+        activeBuckets.isEmpty && !hasSnapshots
+    }
+    private var isReadyForFirstCheckIn: Bool {
+        !activeBuckets.isEmpty && !hasSnapshots
+    }
+    private var primaryCTAButtonTitle: String {
+        if isCompletelyEmpty { return "Kom i gang" }
+        if isReadyForFirstCheckIn { return "Registrer første verdi" }
+        return "Oppdater formue"
+    }
     private var distributionRows: [InvestmentDistributionRowData] {
         viewModel.distributionRows(latestSnapshot: latest, buckets: buckets)
     }
@@ -46,11 +57,19 @@ struct InvestmentsView: View {
             List {
                 heroSection
                     .id(SectionAnchor.development.rawValue)
-                chartSection
-                distributionSection
-                    .id(SectionAnchor.distribution.rawValue)
-                holdingsSection
-                historySection
+                if hasSnapshots {
+                    chartSection
+                    distributionSection
+                        .id(SectionAnchor.distribution.rawValue)
+                } else {
+                    firstCheckInSection
+                }
+                if !isCompletelyEmpty {
+                    holdingsSection
+                }
+                if hasSnapshots {
+                    historySection
+                }
                 administrationSection
             }
             .listStyle(.insetGrouped)
@@ -139,7 +158,7 @@ struct InvestmentsView: View {
             }
             .safeAreaInset(edge: .bottom) {
                 VStack(spacing: 8) {
-                    InvestmentsBottomCTAButton {
+                    InvestmentsBottomCTAButton(title: primaryCTAButtonTitle) {
                         openCheckIn()
                     }
                     .padding(.horizontal, 16)
@@ -201,11 +220,6 @@ struct InvestmentsView: View {
                         .appSecondaryStyle()
                 }
 
-                if latest == nil {
-                    Text("Legg inn første verdi for å følge utviklingen over tid.")
-                        .appBodyStyle()
-                        .foregroundStyle(AppTheme.textSecondary)
-                }
             }
             .padding(20)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -249,6 +263,33 @@ struct InvestmentsView: View {
                     embedded: true,
                     showStatusRow: false
                 )
+            }
+            .padding(18)
+            .cardContainer()
+            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 1, trailing: 0))
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+        }
+    }
+
+    private var firstCheckInSection: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(isCompletelyEmpty ? "Kom i gang med investeringer" : "Klar for første innsjekk")
+                    .appCardTitleStyle()
+
+                Text(
+                    isCompletelyEmpty
+                    ? "Velg beholdningstyper og legg inn første verdi når du vil følge formuen din."
+                    : "Du har lagt til beholdningstyper. Registrer første verdi når du vil se utviklingen."
+                )
+                .appSecondaryStyle()
+
+                if isReadyForFirstCheckIn {
+                    Text("\(activeBuckets.count) typer klare for innsjekk.")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(AppTheme.textPrimary)
+                }
             }
             .padding(18)
             .cardContainer()
@@ -659,6 +700,7 @@ struct InvestmentsView: View {
 }
 
 private struct InvestmentsBottomCTAButton: View {
+    let title: String
     let onTap: () -> Void
 
     var body: some View {
@@ -666,7 +708,7 @@ private struct InvestmentsBottomCTAButton: View {
             HStack(spacing: 10) {
                 Image(systemName: "plus")
                     .font(.title3.weight(.bold))
-                Text("Oppdater formue")
+                Text(title)
                     .font(.title3.weight(.semibold))
                     .lineLimit(1)
             }
@@ -681,7 +723,7 @@ private struct InvestmentsBottomCTAButton: View {
             .shadow(color: .black.opacity(0.22), radius: 12, x: 0, y: 6)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Oppdater formue")
+        .accessibilityLabel(title)
     }
 }
 

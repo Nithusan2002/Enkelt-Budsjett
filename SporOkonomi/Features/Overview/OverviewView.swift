@@ -40,6 +40,10 @@ struct OverviewView: View {
         viewModel.currentWealth(activeGoal: activeGoal, latestSnapshot: latestSnapshot, accounts: accounts)
     }
 
+    private var activeInvestmentBuckets: [InvestmentBucket] {
+        buckets.filter(\.isActive)
+    }
+
     private var goalSummary: GoalSummary {
         viewModel.goalSummary(activeGoal: activeGoal, currentWealth: currentWealth)
     }
@@ -144,23 +148,25 @@ struct OverviewView: View {
             }
         }
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    showAssistantSheet = true
-                } label: {
-                    Image(systemName: "sparkles")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(AppTheme.textPrimary)
-                        .frame(width: 34, height: 34)
-                        .background(AppTheme.surface.opacity(0.92), in: Circle())
-                        .overlay(
-                            Circle()
-                                .stroke(AppTheme.divider.opacity(0.72), lineWidth: 1)
-                        )
+            if !shouldShowEmptyState {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showAssistantSheet = true
+                    } label: {
+                        Image(systemName: "sparkles")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(AppTheme.textPrimary)
+                            .frame(width: 34, height: 34)
+                            .background(AppTheme.surface.opacity(0.92), in: Circle())
+                            .overlay(
+                                Circle()
+                                    .stroke(AppTheme.divider.opacity(0.72), lineWidth: 1)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Åpne AI-assistent")
+                    .padding(.trailing, 2)
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Åpne AI-assistent")
-                .padding(.trailing, 2)
             }
         }
     }
@@ -267,10 +273,6 @@ struct OverviewView: View {
                 )
             }
 
-            if isCheckInDue && latestSnapshot == nil {
-                Text("Du kan legge til snapshot senere i Investeringer.")
-                    .appSecondaryStyle()
-            }
         }
         .padding()
         .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 16))
@@ -322,11 +324,19 @@ struct OverviewView: View {
                                 .foregroundStyle(AppTheme.textPrimary)
                         }
 
-                        Text(viewModel.investmentsEmptyTitle())
-                            .appSecondaryStyle()
-                            .foregroundStyle(AppTheme.textSecondary)
-                        Text(viewModel.investmentsEmptySupportText())
-                            .appSecondaryStyle()
+                        if activeInvestmentBuckets.isEmpty {
+                            Text("Ikke satt opp ennå")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(AppTheme.textSecondary)
+                            Text("Legg til investeringer når du vil følge formuen din.")
+                                .appSecondaryStyle()
+                        } else {
+                            Text("Klar for første innsjekk")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(AppTheme.textSecondary)
+                            Text("\(activeInvestmentBuckets.count) typer klare for første verdi.")
+                                .appSecondaryStyle()
+                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -369,13 +379,18 @@ struct OverviewView: View {
             } label: {
                 VStack(alignment: .leading, spacing: 12) {
                     if activeGoal == nil {
-                        Text("Mål")
-                            .appCardTitleStyle()
-                        Text("Sett et mål")
-                            .appBodyStyle()
-                            .foregroundStyle(AppTheme.textSecondary)
-                        Text(viewModel.goalEmptySupportText())
-                            .appSecondaryStyle()
+                        HStack(alignment: .top, spacing: 12) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Mål")
+                                    .appCardTitleStyle()
+                                Text("Ingen mål ennå. Legg til et mål når du vil følge sparingen.")
+                                    .appSecondaryStyle()
+                            }
+                            Spacer()
+                            Image(systemName: "plus.circle")
+                                .font(.title3.weight(.semibold))
+                                .foregroundStyle(AppTheme.primary)
+                        }
                     } else {
                         let planState = viewModel.goalPlanState(summary: summary)
                         HStack {
