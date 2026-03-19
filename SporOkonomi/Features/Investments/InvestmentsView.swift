@@ -78,6 +78,7 @@ struct InvestmentsView: View {
                 AddInvestmentBucketSheet(
                     name: $viewModel.newBucketName,
                     selectedColorHex: $viewModel.selectedBucketColorHex,
+                    existingBucketNames: Set(buckets.map { $0.name.lowercased() }),
                     errorMessage: viewModel.addBucketError
                 ) {
                     viewModel.addBucket(context: modelContext, existingBuckets: buckets)
@@ -703,9 +704,12 @@ private struct AddInvestmentBucketSheet: View {
 
     @Binding var name: String
     @Binding var selectedColorHex: String
+    let existingBucketNames: Set<String>
     let errorMessage: String?
     let onSave: () -> Bool
     let onCancel: () -> Void
+
+    private let suggestedTypes = ["Fond", "Aksjer", "Krypto", "Kontanter", "BSU"]
 
     var body: some View {
         NavigationStack {
@@ -713,6 +717,46 @@ private struct AddInvestmentBucketSheet: View {
                 Section("Ny beholdningstype") {
                     TextField("F.eks. Eiendom", text: $name)
                         .textFieldStyle(.appInput)
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Forslag")
+                            .appBodyStyle()
+
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 2), spacing: 10) {
+                            ForEach(suggestedTypes, id: \.self) { suggestion in
+                                Button {
+                                    name = suggestion
+                                } label: {
+                                    HStack {
+                                        Text(suggestion)
+                                            .font(.subheadline.weight(.semibold))
+                                            .foregroundStyle(isSuggestionUnavailable(suggestion) ? AppTheme.textSecondary : AppTheme.textPrimary)
+                                        Spacer(minLength: 8)
+                                        if normalizedName == suggestion.lowercased() {
+                                            Image(systemName: "checkmark.circle.fill")
+                                                .foregroundStyle(AppTheme.primary)
+                                        }
+                                    }
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 12)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                            .fill(normalizedName == suggestion.lowercased() ? AppTheme.primary.opacity(0.12) : AppTheme.surface)
+                                    )
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                            .stroke(normalizedName == suggestion.lowercased() ? AppTheme.primary.opacity(0.35) : AppTheme.divider, lineWidth: 1)
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                                .disabled(isSuggestionUnavailable(suggestion))
+                                .opacity(isSuggestionUnavailable(suggestion) ? 0.45 : 1)
+                                .accessibilityLabel(isSuggestionUnavailable(suggestion) ? "\(suggestion), finnes allerede" : suggestion)
+                            }
+                        }
+                    }
+
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Velg farge")
                             .appBodyStyle()
@@ -767,6 +811,15 @@ private struct AddInvestmentBucketSheet: View {
                 }
             }
         }
+    }
+
+    private var normalizedName: String {
+        name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    private func isSuggestionUnavailable(_ suggestion: String) -> Bool {
+        let normalizedSuggestion = suggestion.lowercased()
+        return existingBucketNames.contains(normalizedSuggestion) && normalizedName != normalizedSuggestion
     }
 }
 
