@@ -269,6 +269,8 @@ struct InvestmentsView: View {
                 }
                 .padding(18)
                 .cardContainer()
+                .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 1, trailing: 0))
+                .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
             } else {
                 ForEach(bucketRows) { row in
