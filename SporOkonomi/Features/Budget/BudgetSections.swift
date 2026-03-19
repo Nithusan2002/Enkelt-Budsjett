@@ -272,7 +272,7 @@ struct BudgetHeroCardView: View {
         .accessibilityValue(
             hasPlannedBudget
                 ? "\(isAmountsHidden ? "Beløp skjult" : formatNOK(remaining)). \(summary.statusLine(isAmountsHidden: isAmountsHidden))"
-                : "Sett grenser"
+                : (hasTransactions ? "Sett grenser" : "Legg til første transaksjon")
         )
     }
 

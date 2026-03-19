@@ -97,11 +97,17 @@ final class OverviewViewModel: ObservableObject {
     func shouldShowEmptyState(
         transactions: [Transaction],
         snapshots: [InvestmentSnapshot],
+        activeBuckets: [InvestmentBucket],
         groupPlans: [BudgetGroupPlan],
         accounts: [Account],
         activeGoal: Goal?
     ) -> Bool {
-        transactions.isEmpty && snapshots.isEmpty && groupPlans.isEmpty && accounts.isEmpty && activeGoal == nil
+        transactions.isEmpty &&
+        snapshots.isEmpty &&
+        activeBuckets.isEmpty &&
+        groupPlans.isEmpty &&
+        accounts.isEmpty &&
+        activeGoal == nil
     }
 
     func goalSummary(activeGoal: Goal?, currentWealth: Double) -> GoalSummary {

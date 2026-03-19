@@ -55,8 +55,10 @@ struct InvestmentsView: View {
     var body: some View {
         ScrollViewReader { proxy in
             List {
-                heroSection
-                    .id(SectionAnchor.development.rawValue)
+                if !isCompletelyEmpty {
+                    heroSection
+                        .id(SectionAnchor.development.rawValue)
+                }
                 if hasSnapshots {
                     chartSection
                     distributionSection

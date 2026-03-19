@@ -30,6 +30,7 @@ struct OverviewView: View {
         viewModel.shouldShowEmptyState(
             transactions: transactions,
             snapshots: snapshots,
+            activeBuckets: activeInvestmentBuckets,
             groupPlans: budgetGroupPlans,
             accounts: accounts,
             activeGoal: activeGoal

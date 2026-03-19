@@ -17,6 +17,7 @@ struct OverviewFeatureTests {
         let shouldShowEmptyState = viewModel.shouldShowEmptyState(
             transactions: [],
             snapshots: [],
+            activeBuckets: [],
             groupPlans: [],
             accounts: [],
             activeGoal: goal
@@ -38,7 +39,26 @@ struct OverviewFeatureTests {
         let shouldShowEmptyState = viewModel.shouldShowEmptyState(
             transactions: [],
             snapshots: [],
+            activeBuckets: [],
             groupPlans: [groupPlan],
+            accounts: [],
+            activeGoal: nil
+        )
+
+        #expect(shouldShowEmptyState == false)
+    }
+
+    @Test
+    @MainActor
+    func overviewDoesNotShowEmptyStateWhenActiveInvestmentBucketExistsWithoutSnapshot() {
+        let viewModel = OverviewViewModel()
+        let bucket = InvestmentBucket(id: "bucket_bsu", name: "BSU", isDefault: true, sortOrder: 1)
+
+        let shouldShowEmptyState = viewModel.shouldShowEmptyState(
+            transactions: [],
+            snapshots: [],
+            activeBuckets: [bucket],
+            groupPlans: [],
             accounts: [],
             activeGoal: nil
         )

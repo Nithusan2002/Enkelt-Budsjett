@@ -176,7 +176,7 @@ final class OnboardingViewModel: ObservableObject {
         case .fixedCosts:
             return shouldShowInvestmentTypesStep ? "Neste" : "Ferdig"
         case .investmentTypes:
-            return "Fortsett"
+            return "Ferdig"
         }
     }
 

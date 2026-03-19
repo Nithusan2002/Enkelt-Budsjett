@@ -104,7 +104,7 @@ struct OnboardingFeatureTests {
         #expect(viewModel.secondaryButtonTitle == "Ikke nå")
 
         viewModel.currentStep = .investmentTypes
-        #expect(viewModel.primaryButtonTitle == "Fortsett")
+        #expect(viewModel.primaryButtonTitle == "Ferdig")
         #expect(viewModel.secondaryButtonTitle == nil)
     }
 
