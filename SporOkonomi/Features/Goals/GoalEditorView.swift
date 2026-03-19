@@ -7,15 +7,17 @@ struct GoalEditorView: View {
     let goal: Goal?
     @StateObject private var viewModel = GoalEditorViewModel()
     private var isReadOnlyMode: Bool { PersistenceGate.isReadOnlyMode }
-    private var screenTitle: String { goal == nil ? "Nytt formue-mål" : "Rediger formue-mål" }
+    private var screenTitle: String { goal == nil ? "Lag mål" : "Rediger mål" }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    Text("Sett et mål for total formue og en dato du vil nå det innen.")
-                        .appSecondaryStyle()
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    if goal == nil {
+                        Text("Velg målbeløp og datoen du vil nå det innen.")
+                            .appSecondaryStyle()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
 
                     VStack(alignment: .leading, spacing: 18) {
                         VStack(alignment: .leading, spacing: 8) {

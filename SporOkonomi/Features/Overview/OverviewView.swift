@@ -383,7 +383,7 @@ struct OverviewView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("Mål")
                                     .appCardTitleStyle()
-                                Text("Ingen mål ennå. Legg til et mål når du vil følge sparingen.")
+                                Text("Lag et mål når du vil følge sparingen.")
                                     .appSecondaryStyle()
                             }
                             Spacer()
@@ -397,7 +397,7 @@ struct OverviewView: View {
                             Text(viewModel.goalProgressTitle())
                                 .appCardTitleStyle()
                             Spacer()
-                            Image(systemName: "pencil")
+                            Text("Rediger")
                                 .font(.footnote.weight(.semibold))
                                 .foregroundStyle(AppTheme.primary)
                         }
