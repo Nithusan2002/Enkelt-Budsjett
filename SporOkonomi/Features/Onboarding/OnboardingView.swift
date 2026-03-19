@@ -283,10 +283,6 @@ struct OnboardingView: View {
                 Text("Dette brukes til å vise hva du har igjen.")
                     .appSecondaryStyle()
                     .frame(maxWidth: .infinity, alignment: .leading)
-
-                Text("Du kan endre dette senere.")
-                    .appSecondaryStyle()
-                    .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(16)
             .background(AppTheme.surface)

@@ -46,14 +46,30 @@ struct OnboardingFeatureTests {
 
     @Test
     @MainActor
-    func onboardingFlowAddsInvestmentTypeStepWhenInvestmentsAreRelevant() {
+    func onboardingFlowSkipsBudgetSetupWhenOnlyInvestmentsAreRelevant() {
         let preference = UserPreference(onboardingCompleted: false)
         let viewModel = OnboardingViewModel(preference: preference)
 
         viewModel.toggleGoal(.followInvestments)
 
         let order = viewModel.orderedSteps
+        #expect(order.count == 3)
+        #expect(order == [.intro, .goals, .investmentTypes])
+    }
+
+    @Test
+    @MainActor
+    func onboardingFlowKeepsBudgetSetupWhenBudgetAndInvestmentsAreRelevant() {
+        let preference = UserPreference(onboardingCompleted: false)
+        let viewModel = OnboardingViewModel(preference: preference)
+
+        viewModel.toggleGoal(.followInvestments)
+        viewModel.toggleGoal(.saveMore)
+
+        let order = viewModel.orderedSteps
         #expect(order.count == 5)
+        #expect(order[2] == .income)
+        #expect(order[3] == .fixedCosts)
         #expect(order.last == .investmentTypes)
     }
 

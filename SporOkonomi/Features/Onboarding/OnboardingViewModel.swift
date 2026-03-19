@@ -133,7 +133,11 @@ final class OnboardingViewModel: ObservableObject {
     }
 
     var orderedSteps: [OnboardingStep] {
-        var steps: [OnboardingStep] = [.intro, .goals, .income, .fixedCosts]
+        var steps: [OnboardingStep] = [.intro, .goals]
+        if shouldShowBudgetSetupSteps {
+            steps.append(.income)
+            steps.append(.fixedCosts)
+        }
         if shouldShowInvestmentTypesStep {
             steps.append(.investmentTypes)
         }
@@ -246,7 +250,17 @@ final class OnboardingViewModel: ObservableObject {
     }
 
     var fixedCostsSupportText: String {
-        "Du kan justere dette senere."
+        "Dette kan du justere senere."
+    }
+
+    var shouldShowBudgetSetupSteps: Bool {
+        currentStep == .income ||
+        currentStep == .fixedCosts ||
+        focus != .investments ||
+        selectedGoals.isEmpty ||
+        selectedGoals.contains(.saveMore) ||
+        selectedGoals.contains(.getOverview) ||
+        selectedGoals.contains(.keepBudget)
     }
 
     var shouldShowInvestmentTypesStep: Bool {
@@ -258,7 +272,7 @@ final class OnboardingViewModel: ObservableObject {
     }
 
     var investmentTypesBodyText: String {
-        "Velg typene som passer for deg. Du kan endre dette senere."
+        "Velg typene som passer for deg."
     }
 
     var orderedInvestmentTypeOptions: [OnboardingInvestmentTypeOption] {
