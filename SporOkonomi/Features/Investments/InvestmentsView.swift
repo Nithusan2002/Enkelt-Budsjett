@@ -655,13 +655,6 @@ struct InvestmentsView: View {
             viewModel.persistenceErrorMessage = PersistenceWriteError.readOnlyMode.localizedDescription
             return
         }
-        if activeBuckets.isEmpty {
-            viewModel.ensureDefaultBuckets(context: modelContext, existingBuckets: buckets)
-            DispatchQueue.main.async {
-                viewModel.showCheckIn = true
-            }
-            return
-        }
         viewModel.showCheckIn = true
     }
 
