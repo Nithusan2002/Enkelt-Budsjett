@@ -343,12 +343,18 @@ struct InvestmentsDevelopmentChartView: View {
         return "\(sign)\(formatNOK(abs(periodDelta)))"
     }
 
+    private var shouldShowPeriodPicker: Bool {
+        points.count > 1
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if showStatusRow {
                 statusRow
             }
-            controls
+            if shouldShowPeriodPicker {
+                controls
+            }
             content
         }
         .padding(embedded ? 0 : 14)
