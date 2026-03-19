@@ -236,6 +236,29 @@ final class InvestmentCheckInWizardViewModel: ObservableObject {
         stepStates[bucketID] = state
     }
 
+    func displayedInput(for bucketID: String) -> String {
+        let state = stepStates[bucketID] ?? InvestmentWizardStepState()
+        guard state.mode == .changed else { return "" }
+        return state.inputString
+    }
+
+    func updateDisplayedInput(_ text: String, for bucketID: String) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if trimmed.isEmpty {
+            var state = stepStates[bucketID] ?? InvestmentWizardStepState()
+            state.mode = .unchanged
+            state.inputString = ""
+            stepStates[bucketID] = state
+            return
+        }
+
+        var state = stepStates[bucketID] ?? InvestmentWizardStepState()
+        state.mode = .changed
+        state.inputString = Self.formatAmountInputLive(text)
+        stepStates[bucketID] = state
+    }
+
     func addToInput(_ increment: Double, for bucketID: String) {
         let current = effectiveValue(for: bucketID)
         let updated = max(0, current + increment)
@@ -373,9 +396,14 @@ final class InvestmentCheckInWizardViewModel: ObservableObject {
     private func prepareInitialStepStates() {
         var newStates: [String: InvestmentWizardStepState] = [:]
         for bucket in buckets {
+            let previousValue = previousValue(for: bucket.id)
+            let existingValue = existingPeriodValues[bucket.id]
+            let hasExistingOverride = existingValue.map { abs($0 - previousValue) > 0.0001 } ?? false
             newStates[bucket.id] = InvestmentWizardStepState(
-                mode: .unchanged,
-                inputString: Self.formatInputAmount(previousValue(for: bucket.id))
+                mode: hasExistingOverride ? .changed : .unchanged,
+                inputString: hasExistingOverride
+                    ? Self.formatInputAmount(existingValue ?? previousValue)
+                    : ""
             )
         }
 
@@ -391,7 +419,7 @@ final class InvestmentCheckInWizardViewModel: ObservableObject {
         buckets.sort { $0.sortOrder < $1.sortOrder }
         stepStates[bucket.id] = InvestmentWizardStepState(
             mode: .unchanged,
-            inputString: Self.formatInputAmount(previousValue(for: bucket.id))
+            inputString: ""
         )
         if let newIndex = buckets.firstIndex(where: { $0.id == bucket.id }) {
             index = newIndex

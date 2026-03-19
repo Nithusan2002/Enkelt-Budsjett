@@ -69,12 +69,8 @@ struct InvestmentsView: View {
                         viewModel.resetAddBucketState()
                         viewModel.showAddBucketSheet = true
                     },
-                    onSaved: { wasNewSnapshot, periodKey in
-                        showCheckInToast(
-                            wasNewSnapshot
-                                ? "Innsjekk lagret for \(periodKey) ✓"
-                                : "Innsjekk oppdatert for \(periodKey) ✓"
-                        )
+                    onSaved: { _, periodKey in
+                        showCheckInToast(checkInToastMessage(for: periodKey))
                     }
                 )
             }
@@ -466,6 +462,17 @@ struct InvestmentsView: View {
                 checkInToastMessage = nil
             }
         }
+    }
+
+    private func checkInToastMessage(for periodKey: String) -> String {
+        guard let monthDate = DateService.monthStart(from: periodKey) else {
+            return "Verdier lagret"
+        }
+
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "nb_NO")
+        formatter.dateFormat = "LLLL"
+        return "Verdier lagret for \(formatter.string(from: monthDate).lowercased())"
     }
 
     private func changeSummaryText(changeKr: Double, changePct: Double?) -> String {
