@@ -1438,9 +1438,6 @@ private struct BucketTypesSettingsSheet: View {
                 }
             }
             .environment(\.editMode, $editMode)
-            .onAppear {
-                viewModel.ensureDefaultBuckets(context: modelContext, existingBuckets: buckets)
-            }
             .alert(
                 "Kunne ikke lagre",
                 isPresented: Binding(

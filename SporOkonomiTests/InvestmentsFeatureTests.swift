@@ -7,67 +7,34 @@ struct InvestmentsFeatureTests {
 
     @Test
     @MainActor
-    func ensureDefaultBucketsCreatesOnlyFourStarterTypes() throws {
+    func investmentBucketsAreNotCreatedAutomaticallyWhenEmpty() throws {
         let container = try TestModelContainerFactory.makeInMemoryContainer()
         let context = container.mainContext
-        let viewModel = InvestmentsViewModel()
-
-        viewModel.ensureDefaultBuckets(context: context, existingBuckets: [])
 
         let buckets = try context.fetch(FetchDescriptor<InvestmentBucket>())
-        let names = Set(buckets.map(\.name))
 
-        #expect(names == ["Fond", "Aksjer", "Krypto", "Kontanter"])
+        #expect(buckets.isEmpty)
     }
 
     @Test
     @MainActor
-    func ensureDefaultBucketsIsIdempotentWhenCalledRepeatedlyBeforeQueryRefresh() throws {
+    func investmentBucketsStayEmptyUntilUserAddsOrChoosesThem() throws {
         let container = try TestModelContainerFactory.makeInMemoryContainer()
         let context = container.mainContext
-        let viewModel = InvestmentsViewModel()
-
-        viewModel.ensureDefaultBuckets(context: context, existingBuckets: [])
-        viewModel.ensureDefaultBuckets(context: context, existingBuckets: [])
 
         let buckets = try context.fetch(FetchDescriptor<InvestmentBucket>())
 
-        #expect(buckets.count == 4)
-        #expect(Set(buckets.map(\.name)) == ["Fond", "Aksjer", "Krypto", "Kontanter"])
+        #expect(buckets.isEmpty)
     }
 
     @Test
     @MainActor
-    func ensureDefaultBucketsRemovesDuplicateStarterTypesByName() throws {
+    func manuallyChosenBucketIsPreservedWithoutStarterBackfill() throws {
         let container = try TestModelContainerFactory.makeInMemoryContainer()
         let context = container.mainContext
-        let viewModel = InvestmentsViewModel()
-
-        context.insert(InvestmentBucket(id: "bucket_fond", name: "Fond", isDefault: true, sortOrder: 1))
-        context.insert(InvestmentBucket(id: "funds", name: "Fond", isDefault: true, sortOrder: 2))
-        context.insert(InvestmentBucket(id: "stocks", name: "Aksjer", isDefault: true, sortOrder: 3))
-        try context.save()
-
-        viewModel.ensureDefaultBuckets(context: context, existingBuckets: [])
-
-        let buckets = try context.fetch(FetchDescriptor<InvestmentBucket>())
-        let fondBuckets = buckets.filter { $0.name == "Fond" }
-
-        #expect(fondBuckets.count == 1)
-        #expect(Set(buckets.map(\.name)) == ["Fond", "Aksjer", "Krypto", "Kontanter"])
-    }
-
-    @Test
-    @MainActor
-    func ensureDefaultBucketsDoesNotBackfillStarterTypesWhenUserAlreadyHasChosenType() throws {
-        let container = try TestModelContainerFactory.makeInMemoryContainer()
-        let context = container.mainContext
-        let viewModel = InvestmentsViewModel()
 
         context.insert(InvestmentBucket(id: "bucket_bsu", name: "BSU", isDefault: true, sortOrder: 1))
         try context.save()
-
-        viewModel.ensureDefaultBuckets(context: context, existingBuckets: [])
 
         let buckets = try context.fetch(FetchDescriptor<InvestmentBucket>())
 

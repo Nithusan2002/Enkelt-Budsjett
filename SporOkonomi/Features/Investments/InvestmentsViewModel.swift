@@ -434,63 +434,6 @@ final class InvestmentsViewModel: ObservableObject {
         addBucketError = nil
     }
 
-    func ensureDefaultBuckets(context: ModelContext, existingBuckets: [InvestmentBucket]) {
-        guard !PersistenceGate.isReadOnlyMode else { return }
-        let legacyDefaultHex: Set<String> = ["#0EA5E9", "#8B5CF6", "#22C55E", "#F59E0B", "#EA580C"]
-        let defaults: [(id: String, name: String, colorHex: String)] = [
-            ("bucket_fond", "Fond", "#1F9BD3"),
-            ("bucket_aksjer", "Aksjer", "#7A5AD6"),
-            ("bucket_krypto", "Krypto", "#D08A2E"),
-            ("bucket_kontanter", "Kontanter", "#8BA7A1")
-        ]
-
-        let storedBuckets = (try? context.fetch(FetchDescriptor<InvestmentBucket>())) ?? []
-        let allBuckets = existingBuckets + storedBuckets
-        var didChange = false
-        var nextSortOrder = (allBuckets.map(\.sortOrder).max() ?? 0) + 1
-
-        if reconcileDuplicateDefaultBuckets(context: context, defaults: defaults, buckets: allBuckets) {
-            didChange = true
-        }
-
-        let bucketsAfterReconcile = (try? context.fetch(FetchDescriptor<InvestmentBucket>())) ?? allBuckets
-        let shouldInsertMissingDefaults = bucketsAfterReconcile.isEmpty
-
-        for item in defaults {
-            let currentBuckets = (try? context.fetch(FetchDescriptor<InvestmentBucket>())) ?? bucketsAfterReconcile
-            if let existing = currentBuckets.first(where: {
-                $0.id == item.id ||
-                $0.name.compare(item.name, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
-            }) {
-                let existingHex = existing.colorHex?.uppercased()
-                if existingHex == nil || existingHex?.isEmpty == true || legacyDefaultHex.contains(existingHex ?? "") {
-                    existing.colorHex = item.colorHex
-                    didChange = true
-                }
-                continue
-            }
-
-            guard shouldInsertMissingDefaults else { continue }
-
-            context.insert(
-                InvestmentBucket(
-                    id: item.id,
-                    name: item.name,
-                    colorHex: item.colorHex,
-                    isDefault: true,
-                    isActive: true,
-                    sortOrder: nextSortOrder
-                )
-            )
-            nextSortOrder += 1
-            didChange = true
-        }
-
-        if didChange {
-            save(context: context, fallbackMessage: "Kunne ikke oppdatere standard beholdningstyper.")
-        }
-    }
-
     func clearPersistenceError() {
         persistenceErrorMessage = nil
     }
