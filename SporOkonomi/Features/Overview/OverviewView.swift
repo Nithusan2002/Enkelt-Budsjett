@@ -148,28 +148,6 @@ struct OverviewView: View {
                 displayedWealth = newValue
             }
         }
-        .toolbar {
-            if !shouldShowEmptyState {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showAssistantSheet = true
-                    } label: {
-                        Image(systemName: "sparkles")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(AppTheme.textPrimary)
-                            .frame(width: 34, height: 34)
-                            .background(AppTheme.surface.opacity(0.92), in: Circle())
-                            .overlay(
-                                Circle()
-                                    .stroke(AppTheme.divider.opacity(0.72), lineWidth: 1)
-                            )
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Åpne AI-assistent")
-                    .padding(.trailing, 2)
-                }
-            }
-        }
     }
 
     private var overviewStatusLine: some View {

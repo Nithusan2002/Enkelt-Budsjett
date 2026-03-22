@@ -77,7 +77,6 @@ struct SettingsView: View {
 
     private var baseForm: some View {
         Form {
-            premiumHomeSection
             settingsHomeSection
             homeLanguageSection
         }

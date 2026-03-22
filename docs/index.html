@@ -463,6 +463,25 @@
       aspect-ratio: 9 / 19.5;
     }
 
+    .device-screen::before {
+      content: "";
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      width: 34%;
+      height: 7.6%;
+      min-height: 30px;
+      max-height: 40px;
+      transform: translateX(-50%);
+      border-radius: 999px;
+      background: linear-gradient(180deg, rgba(6, 7, 8, 0.98) 0%, rgba(16, 17, 18, 1) 100%);
+      box-shadow:
+        0 6px 16px rgba(0, 0, 0, 0.22),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      pointer-events: none;
+      z-index: 2;
+    }
+
     .device-screen img {
       width: 100%;
       height: 100%;
@@ -802,24 +821,30 @@
           <article class="shot-card">
             <h3>Oversikt</h3>
             <p>Se hva du har igjen denne måneden og få et raskt bilde av økonomien uten å lete.</p>
-            <div class="app-shot">
-              <img src="./assets/screenshots/overview.png?v=20260322b" alt="Spor økonomi oversikt" onerror="this.style.display='none'">
+            <div class="device-frame">
+              <div class="device-screen">
+                <img src="./assets/screenshots/overview.png?v=20260322b" alt="Spor økonomi oversikt" onerror="this.style.display='none'">
+              </div>
             </div>
             <p class="shot-meta">Starter med tallene som betyr mest akkurat nå.</p>
           </article>
           <article class="shot-card">
             <h3>Budsjett</h3>
             <p>Følg forbruk, grenser og faste utgifter i én månedlig arbeidsflate som er enkel å vedlikeholde.</p>
-            <div class="app-shot">
-              <img src="./assets/screenshots/budget.png?v=20260322b" alt="Spor økonomi budsjett" onerror="this.style.display='none'">
+            <div class="device-frame">
+              <div class="device-screen">
+                <img src="./assets/screenshots/budget.png?v=20260322b" alt="Spor økonomi budsjett" onerror="this.style.display='none'">
+              </div>
             </div>
             <p class="shot-meta">Gir deg kontroll på måneden uten komplisert oppsett.</p>
           </article>
           <article class="shot-card">
             <h3>Investeringer</h3>
             <p>Oppdater investeringer manuelt når du vil, og følg utviklingen over tid uten bankkoblinger.</p>
-            <div class="app-shot">
-              <img src="./assets/screenshots/investments.png?v=20260322b" alt="Spor økonomi investeringer" onerror="this.style.display='none'">
+            <div class="device-frame">
+              <div class="device-screen">
+                <img src="./assets/screenshots/investments.png?v=20260322b" alt="Spor økonomi investeringer" onerror="this.style.display='none'">
+              </div>
             </div>
             <p class="shot-meta">Manuell investeringsoppfølging med roligere tempo og tydelig historikk.</p>
           </article>
