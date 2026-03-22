@@ -14,7 +14,7 @@
       --panel: rgba(255, 255, 255, 0.78);
       --panel-strong: #ffffff;
       --text: #243142;
-      --muted: #617083;
+      --muted: #526173;
       --primary: #165c4e;
       --primary-soft: #e8ede7;
       --sand: #d8cab8;
@@ -34,6 +34,14 @@
       scroll-behavior: smooth;
     }
 
+    body,
+    button,
+    input,
+    textarea,
+    select {
+      font: inherit;
+    }
+
     body {
       margin: 0;
       font-family: "Avenir Next", "Segoe UI", sans-serif;
@@ -42,7 +50,7 @@
         radial-gradient(circle at top left, rgba(216, 202, 184, 0.58), transparent 28%),
         radial-gradient(circle at top right, rgba(232, 237, 231, 0.9), transparent 30%),
         linear-gradient(180deg, #f8f5f1 0%, var(--bg) 42%, #f1f5f2 100%);
-      line-height: 1.5;
+      line-height: 1.6;
       -webkit-font-smoothing: antialiased;
       overflow-x: clip;
     }
@@ -52,9 +60,38 @@
       text-decoration: none;
     }
 
+    a,
+    button {
+      -webkit-tap-highlight-color: transparent;
+    }
+
     img {
       display: block;
       max-width: 100%;
+    }
+
+    :focus-visible {
+      outline: 3px solid rgba(22, 92, 78, 0.32);
+      outline-offset: 3px;
+    }
+
+    .skip-link {
+      position: absolute;
+      left: 16px;
+      top: 12px;
+      z-index: 20;
+      padding: 12px 16px;
+      border-radius: 999px;
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 10px 24px rgba(22, 92, 78, 0.22);
+      transform: translateY(-160%);
+      transition: transform 140ms ease;
+    }
+
+    .skip-link:focus-visible {
+      transform: translateY(0);
+      outline-color: rgba(255, 255, 255, 0.7);
     }
 
     .page {
@@ -134,12 +171,16 @@
     .nav-links a:focus-visible {
       background: rgba(22, 92, 78, 0.08);
       color: var(--primary);
-      outline: none;
+    }
+
+    section[id],
+    footer[id] {
+      scroll-margin-top: 104px;
     }
 
     .hero {
       display: grid;
-      grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 28px;
       align-items: stretch;
       margin-top: 10px;
@@ -156,6 +197,9 @@
     }
 
     .hero-card {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
       padding: 44px;
       border-radius: var(--radius-xl);
     }
@@ -258,6 +302,10 @@
     .visual-card {
       position: relative;
       overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
       padding: 26px;
       border-radius: var(--radius-xl);
       background:
@@ -287,16 +335,35 @@
       color: var(--primary);
       font-size: 0.9rem;
       font-weight: 600;
+      align-self: flex-start;
     }
 
-    .phone {
+    .device-frame {
       position: relative;
       z-index: 1;
       margin-top: 18px;
-      padding: 18px;
-      border-radius: 30px;
-      background: #1b3e37;
-      box-shadow: 0 24px 44px rgba(27, 62, 55, 0.24);
+      width: min(100%, 360px);
+      margin-inline: auto;
+      padding: 10px;
+      border-radius: 42px;
+      background:
+        linear-gradient(145deg, #2a2e2d 0%, #0f1111 20%, #171a1a 100%);
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      box-shadow:
+        0 28px 60px rgba(21, 33, 29, 0.18),
+        0 10px 18px rgba(12, 18, 16, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.28),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.38);
+    }
+
+    .device-frame::after {
+      content: "";
+      position: absolute;
+      inset: 9px;
+      border-radius: 33px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      pointer-events: none;
+      z-index: 2;
     }
 
     .screen {
@@ -386,26 +453,30 @@
       white-space: nowrap;
     }
 
-    .shot-frame {
+    .device-screen {
       position: relative;
       overflow: hidden;
-      border-radius: 24px;
+      border-radius: 34px;
       min-height: 540px;
       background: linear-gradient(180deg, #fcfaf7 0%, #f0f4f1 100%);
       border: 1px solid rgba(36, 49, 66, 0.08);
+      aspect-ratio: 9 / 19.5;
     }
 
-    .shot-frame img {
+    .device-screen img {
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: contain;
       display: block;
+      background: #fff;
     }
 
     .shot-meta {
-      margin-top: 12px;
+      margin-top: 10px;
       font-size: 0.92rem;
       color: var(--muted);
+      max-width: none;
+      text-align: left;
     }
 
     .shots-grid {
@@ -415,7 +486,9 @@
     }
 
     .shot-card {
-      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      padding: 18px 18px 16px;
       border-radius: 24px;
       background: var(--panel);
       border: 1px solid var(--border);
@@ -432,6 +505,19 @@
       color: var(--muted);
     }
 
+    .shot-card > p:not(.shot-meta) {
+      min-height: 4.8em;
+    }
+
+    .shot-card .device-frame {
+      margin-top: 8px;
+      margin-bottom: 0;
+    }
+
+    .shot-card .shot-meta {
+      margin-top: 12px;
+    }
+
     section {
       margin-top: 28px;
     }
@@ -439,6 +525,10 @@
     .section-head {
       max-width: 720px;
       margin-bottom: 18px;
+    }
+
+    .section-intro {
+      max-width: 62ch;
     }
 
     .section-head h2 {
@@ -512,7 +602,20 @@
     .footer-links a:focus-visible {
       color: var(--primary);
       background: rgba(22, 92, 78, 0.08);
-      outline: none;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
     }
 
     @media (max-width: 980px) {
@@ -591,12 +694,12 @@
         padding: 18px;
       }
 
-      .phone {
+      .device-frame {
         margin-top: 14px;
-        padding: 14px;
+        padding: 10px;
       }
 
-      .shot-frame {
+      .device-screen {
         min-height: 420px;
       }
 
@@ -624,10 +727,15 @@
       .mini-grid {
         grid-template-columns: 1fr;
       }
+
+      .shot-card > p:not(.shot-meta) {
+        min-height: 0;
+      }
     }
   </style>
 </head>
 <body>
+  <a class="skip-link" href="#main-content">Hopp til innhold</a>
   <div class="page">
     <header class="nav" aria-label="Toppnavigasjon">
       <a class="brand" href="./">
@@ -639,13 +747,13 @@
       </a>
       <nav class="nav-links" aria-label="Hovedlenker">
         <a href="#funksjoner">Funksjoner</a>
-        <a href="#hvorfor">Hvorfor appen</a>
+        <a href="#hvorfor">Praktiske fordeler</a>
         <a href="./support/">Support</a>
         <a href="./personvern/">Personvern</a>
       </nav>
     </header>
 
-    <main>
+    <main id="main-content">
       <section class="hero" aria-labelledby="hero-title">
         <div class="hero-card">
           <p class="eyebrow">Lanseres snart for iPhone</p>
@@ -657,15 +765,15 @@
             <a class="button button-primary" href="#funksjoner">Se funksjonene</a>
             <a class="button button-secondary" href="./personvern/">Les om personvern</a>
           </div>
-          <p class="micro">Bygget for hverdagsøkonomi med tydelig oversikt, lokal kontroll og mindre støy.</p>
+          <p class="micro">Bygget for hverdagsøkonomi med tydelig oversikt og mindre støy.</p>
           <div class="hero-points" aria-label="Hovedfordeler">
             <div>
               <strong>Enkel oversikt</strong>
               <span>Se hva du har igjen denne måneden.</span>
             </div>
             <div>
-              <strong>Lokal kontroll</strong>
-              <span>Data lagres på enheten din som standard.</span>
+              <strong>Rolig oppfølging</strong>
+              <span>Følg økonomien din uten unødvendig kompleksitet.</span>
             </div>
             <div>
               <strong>Norsk og ryddig</strong>
@@ -676,9 +784,9 @@
 
         <div class="visual-card" aria-label="Forhåndsvisning av app">
           <span class="stat-chip">Oversikt først</span>
-          <div class="phone">
-            <div class="shot-frame">
-              <img src="./assets/screenshots/overview.png" alt="Spor økonomi oversikt" onerror="this.style.display='none'">
+          <div class="device-frame">
+            <div class="device-screen">
+              <img src="./assets/screenshots/overview.png?v=20260322b" alt="Spor økonomi oversikt" onerror="this.style.display='none'">
             </div>
           </div>
           <p class="shot-meta">Oversikt er første skjerm fordi den raskest viser hva appen faktisk hjelper deg med.</p>
@@ -694,24 +802,24 @@
           <article class="shot-card">
             <h3>Oversikt</h3>
             <p>Se hva du har igjen denne måneden og få et raskt bilde av økonomien uten å lete.</p>
-            <div class="shot-frame">
-              <img src="./assets/screenshots/overview.png" alt="Spor økonomi oversikt" onerror="this.style.display='none'">
+            <div class="app-shot">
+              <img src="./assets/screenshots/overview.png?v=20260322b" alt="Spor økonomi oversikt" onerror="this.style.display='none'">
             </div>
             <p class="shot-meta">Starter med tallene som betyr mest akkurat nå.</p>
           </article>
           <article class="shot-card">
             <h3>Budsjett</h3>
             <p>Følg forbruk, grenser og faste utgifter i én månedlig arbeidsflate som er enkel å vedlikeholde.</p>
-            <div class="shot-frame">
-              <img src="./assets/screenshots/budget.png" alt="Spor økonomi budsjett" onerror="this.style.display='none'">
+            <div class="app-shot">
+              <img src="./assets/screenshots/budget.png?v=20260322b" alt="Spor økonomi budsjett" onerror="this.style.display='none'">
             </div>
             <p class="shot-meta">Gir deg kontroll på måneden uten komplisert oppsett.</p>
           </article>
           <article class="shot-card">
             <h3>Investeringer</h3>
             <p>Oppdater investeringer manuelt når du vil, og følg utviklingen over tid uten bankkoblinger.</p>
-            <div class="shot-frame">
-              <img src="./assets/screenshots/investments.png" alt="Spor økonomi investeringer" onerror="this.style.display='none'">
+            <div class="app-shot">
+              <img src="./assets/screenshots/investments.png?v=20260322b" alt="Spor økonomi investeringer" onerror="this.style.display='none'">
             </div>
             <p class="shot-meta">Manuell investeringsoppfølging med roligere tempo og tydelig historikk.</p>
           </article>
@@ -722,8 +830,8 @@
             <p>Appen fokuserer på noen få tydelige flater i stedet for mange skjermer og valg.</p>
           </article>
           <article class="detail-card">
-            <h3>Lokal kontroll</h3>
-            <p>Data lagres lokalt som utgangspunkt. Hvis iCloud-synk er aktiv, skjer synk via Apple-kontoen din.</p>
+            <h3>Tydelig struktur</h3>
+            <p>Oversikt, Budsjett og Investeringer har hver sin jobb, så appen er lettere å forstå og bruke.</p>
           </article>
           <article class="detail-card">
             <h3>Enkel oppfølging</h3>
@@ -743,7 +851,7 @@
           </article>
           <article class="quote-card">
             <h3 id="closing-title">Praktisk informasjon</h3>
-            <p>Appen er under utvikling for iPhone og bruker lokal lagring som utgangspunkt. Hvis iCloud-synk er aktiv, kan data synkroniseres via din Apple-konto.</p>
+            <p>Appen er under utvikling for iPhone og er laget for enkel, rolig oppfølging av hverdagsøkonomi.</p>
             <p>Bruk lenkene nedenfor hvis du vil lese mer om personvern, support og praktisk informasjon før App Store-lanseringen.</p>
           </article>
         </div>
