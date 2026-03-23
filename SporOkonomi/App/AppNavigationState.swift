@@ -8,7 +8,6 @@ enum InvestmentsSectionFocus: String {
 
 enum SettingsRoute: Hashable {
     case account
-    case premium
 }
 
 @MainActor

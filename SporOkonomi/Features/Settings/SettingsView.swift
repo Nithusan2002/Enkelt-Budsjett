@@ -40,7 +40,6 @@ struct SettingsView: View {
     @State private var showImportPasswordSheet = false
     @State private var showImportSuccess = false
     @State private var showAccountSettingsHome = false
-    @State private var showPremiumHome = false
     @State private var pendingImportMode: DataImportMode = .merge
     @State private var pendingImportURL: URL?
     @State private var importPassword = ""
@@ -218,12 +217,6 @@ struct SettingsView: View {
                     }
                 )
             }
-            .navigationDestination(isPresented: $showPremiumHome) {
-                PremiumSettingsView(
-                    privacyPolicyURL: privacyPolicyURL,
-                    termsURL: termsURL
-                )
-            }
     }
 
     private var formWithAlerts: some View {
@@ -309,8 +302,6 @@ struct SettingsView: View {
         switch pendingRoute {
         case .account:
             showAccountSettingsHome = true
-        case .premium:
-            showPremiumHome = true
         }
     }
 
@@ -468,23 +459,11 @@ struct SettingsView: View {
         }
     }
 
-    private var premiumHomeSection: some View {
-        Section {
-            Button {
-                showPremiumHome = true
-            } label: {
-                settingsRow(title: "Premium", value: "Kommer snart", showsChevron: true)
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
     private var homeLanguageSection: some View {
         Section {
             HStack(spacing: 12) {
                 Spacer()
                 homeLanguageFlag(flag: "🇳🇴", title: "Norsk", isSelected: true)
-                homeLanguageFlag(flag: "🇬🇧", title: "English", isSelected: false)
                 Spacer()
             }
             .padding(.vertical, 2)
@@ -500,17 +479,9 @@ struct SettingsView: View {
             Text(flag)
                 .font(.body)
 
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(AppTheme.textPrimary)
-
-                if !isSelected {
-                    Text("Kommer snart")
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(AppTheme.textSecondary)
-                }
-            }
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(AppTheme.textPrimary)
 
             if isSelected {
                 Spacer(minLength: 4)
@@ -532,7 +503,7 @@ struct SettingsView: View {
         )
         .opacity(isSelected ? 1 : 0.78)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(title). \(isSelected ? "Aktivt språk" : "Kommer senere")")
+        .accessibilityLabel("\(title). \(isSelected ? "Aktivt språk" : "Ikke aktivt språk")")
     }
 
     private var appSettingsSection: some View {
@@ -972,11 +943,11 @@ struct SettingsView: View {
     }
 
     private func reminderToggleSubtitle() -> String {
-        pref.checkInReminderEnabled ? "Varsel på den \(pref.checkInReminderDay). hver måned" : "Av"
+        pref.checkInReminderEnabled ? "Ber om varsling rundt den \(pref.checkInReminderDay). hver måned" : "Varsler er av"
     }
 
     private func accountOverviewText() -> String {
-        sessionStore.isAuthenticated ? "Logget inn" : "Ikke logget inn"
+        sessionStore.isAuthenticated ? "Logget inn" : "Lokal bruk"
     }
 
     private var reminderEnabledBinding: Binding<Bool> {
@@ -1400,14 +1371,14 @@ private struct PrivacyInfoView: View {
     var body: some View {
         List {
             Section {
-                Text("Spor økonomi lagrer budsjettdata, transaksjoner, mål og innstillinger lokalt på enheten.")
+                Text("Spor økonomi lagrer budsjettdata, transaksjoner, mål og innstillinger lokalt på enheten som standard.")
                 Text("Appen bruker ikke annonser, tredjepartssporing eller bankkobling.")
             }
             Section("Konto") {
                 Text("Du kan bruke appen uten konto. Hvis du velger å opprette konto eller logge inn, brukes kontoopplysningene bare til innlogging, gjenoppretting og synk der det er relevant.")
             }
             Section("iCloud-synk") {
-                Text("Hvis iCloud-synk er aktiv på enheten, synkes data via Apple sin CloudKit i din egen Apple-konto. Dette styres av iOS og din iCloud-innstilling.")
+                Text("Hvis iCloud-synk er aktiv på enheten, synkes data via Apple sin CloudKit i din egen Apple-konto. Dette styres av iOS og er separat fra appkonto.")
             }
             Section("Dine data") {
                 Text("Du kan eksportere alle data som en JSON-fil fra Innstillinger → Data og personvern.")
@@ -2161,36 +2132,36 @@ private struct FAQSettingsView: View {
             id: "privacy",
             title: "Data og personvern",
             items: [
-        FAQItem(
-            id: "storage",
-            question: "Hvor lagres dataene mine?",
-            answer: "Som standard lagres data lokalt på denne enheten. Hvis iCloud er aktiv, kan de også synkes via Apple-kontoen din."
-        ),
-        FAQItem(
-            id: "account",
-            question: "Må jeg ha konto for å bruke appen?",
-            answer: "Nei. Du kan bruke appen fullt lokalt uten konto og logge inn senere hvis du vil."
-        ),
-        FAQItem(
-            id: "with-account",
-            question: "Hva skjer hvis jeg bruker konto?",
-            answer: "Konto brukes til innlogging, gjenoppretting og synk der det er tilgjengelig. Lokal bruk på enheten fortsetter fortsatt som før."
-        ),
-        FAQItem(
-            id: "tracking",
-            question: "Bruker appen sporing eller annonsering?",
-            answer: "Nei. Spor økonomi bruker ikke annonser, tredjepartssporing eller bankkoblinger."
-        ),
-        FAQItem(
-            id: "export-delete",
-            question: "Hvordan fungerer eksport og sletting?",
-            answer: "Du kan eksportere data som en fil fra Data og personvern. Du kan også slette lokale data derfra hvis du vil rydde eller starte på nytt."
-        ),
-        FAQItem(
-            id: "permissions",
-            question: "Hvilke tillatelser kan appen be om?",
-            answer: "Varsler brukes bare til månedlig innsjekk hvis du slår dem på. Face ID brukes bare til å låse opp appen på denne enheten hvis du aktiverer det."
-        )
+                FAQItem(
+                    id: "storage",
+                    question: "Hvor lagres dataene mine?",
+                    answer: "Som standard lagres data lokalt på denne enheten. Hvis iCloud er aktiv, kan de også synkes via Apple-kontoen din."
+                ),
+                FAQItem(
+                    id: "account",
+                    question: "Må jeg ha konto for å bruke appen?",
+                    answer: "Nei. Du kan bruke appen lokalt uten konto og legge til konto senere hvis du vil."
+                ),
+                FAQItem(
+                    id: "with-account",
+                    question: "Hva skjer hvis jeg bruker konto?",
+                    answer: "Konto brukes til innlogging og gjenoppretting. iCloud-synk styres fortsatt separat av Apple på enheten din."
+                ),
+                FAQItem(
+                    id: "tracking",
+                    question: "Bruker appen sporing eller annonsering?",
+                    answer: "Nei. Spor økonomi bruker ikke annonser, tredjepartssporing eller bankkoblinger."
+                ),
+                FAQItem(
+                    id: "export-delete",
+                    question: "Hvordan fungerer eksport og sletting?",
+                    answer: "Du kan eksportere data som en fil fra Data og personvern. Du kan også slette lokale data derfra hvis du vil rydde eller starte på nytt."
+                ),
+                FAQItem(
+                    id: "permissions",
+                    question: "Hvilke tillatelser kan appen be om?",
+                    answer: "Varsler brukes bare til månedlig innsjekk hvis du slår dem på. Face ID brukes bare til å låse opp appen på denne enheten hvis du aktiverer det."
+                )
             ]
         ),
         FAQSection(

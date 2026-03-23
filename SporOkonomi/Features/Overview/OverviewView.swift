@@ -15,7 +15,6 @@ struct OverviewView: View {
 
     @StateObject private var viewModel = OverviewViewModel()
     @State private var showCheckIn = false
-    @State private var showAssistantSheet = false
     @State private var displayedWealth: Double = 0
 
     private var activeGoal: Goal? { viewModel.activeGoal(from: goals) }
@@ -51,23 +50,6 @@ struct OverviewView: View {
 
     private var registeredSavingYTD: Double {
         viewModel.registeredSavingYTD(transactions: transactions, categories: categories)
-    }
-
-    private var fixedItemsTotal: Double {
-        FixedItemsService.fixedTotalForMonth(
-            periodKey: DateService.periodKey(from: .now),
-            transactions: transactions
-        )
-    }
-
-    private var aiInsightSummary: AIInsightRequestSummary {
-        viewModel.aiInsightSummary(
-            status: budgetStatus,
-            transactions: transactions,
-            categories: categories,
-            goalSummary: activeGoal == nil ? nil : goalSummary,
-            fixedItemsTotal: fixedItemsTotal
-        )
     }
 
     private var hasSavedData: Bool {
@@ -133,11 +115,6 @@ struct OverviewView: View {
                 buckets: buckets,
                 snapshots: snapshots
             )
-        }
-        .sheet(isPresented: $showAssistantSheet) {
-            AIInsightSheetView(summary: aiInsightSummary)
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
         }
         .onAppear {
             viewModel.onAppear(preference: preference)

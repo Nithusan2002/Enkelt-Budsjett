@@ -26,7 +26,7 @@ struct WelcomeAuthView: View {
                                 .appCardTitleStyle()
                                 .multilineTextAlignment(.center)
 
-                            Text("Start lokalt på denne enheten. Du kan legge til konto senere hvis du vil gjenopprette data eller bruke iCloud-synk der den er tilgjengelig.")
+                            Text("Start på denne enheten først. Konto er valgfritt og kan legges til senere. iCloud-synk styres separat av Apple når det er aktivt på enheten din.")
                                 .appBodyStyle()
                                 .multilineTextAlignment(.center)
                         }
@@ -94,9 +94,9 @@ struct WelcomeAuthView: View {
                         .frame(maxWidth: 420, alignment: .leading)
 
                         VStack(alignment: .leading, spacing: 10) {
-                            authValueRow(title: "Uten konto", detail: "Data lagres kun på denne enheten.")
-                            authValueRow(title: "Med konto", detail: "Du kan logge inn igjen senere og hente tilbake lagrede data.")
-                            authValueRow(title: "iCloud-synk", detail: "Skjer via Apple-kontoen din når iCloud er aktiv på enheten.")
+                            authValueRow(title: "Uten konto", detail: "Data lagres lokalt på denne enheten.")
+                            authValueRow(title: "Med konto", detail: "Konto brukes til innlogging og gjenoppretting. Du kan legge den til senere.")
+                            authValueRow(title: "iCloud-synk", detail: "Skjer via Apple-kontoen din når iCloud er aktiv. Dette er ikke det samme som appkonto.")
                         }
                         .frame(maxWidth: 420, alignment: .leading)
                         .padding()
