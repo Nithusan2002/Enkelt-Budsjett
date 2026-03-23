@@ -28,6 +28,14 @@ struct InvestmentsView: View {
     private var bucketRows: [InvestmentBucketRowData] {
         viewModel.bucketRows(buckets: buckets, snapshots: snapshots, range: viewModel.selectedRange)
     }
+    private var holdingsEmptyState: InvestmentHoldingsEmptyState? {
+        viewModel.holdingsEmptyState(
+            allBuckets: buckets,
+            activeBuckets: activeBuckets,
+            snapshots: snapshots,
+            bucketRows: bucketRows
+        )
+    }
     private var hasSnapshots: Bool { !snapshots.isEmpty }
     private var activeBuckets: [InvestmentBucket] {
         buckets.filter(\.isActive)
@@ -299,12 +307,20 @@ struct InvestmentsView: View {
 
     private var holdingsSection: some View {
         Section {
-            if bucketRows.isEmpty {
+            if let holdingsEmptyState {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Ingen beholdning registrert ennå")
-                        .appCardTitleStyle()
-                    Text("Legg til en beholdningstype og registrer verdi for å se utviklingen over tid.")
-                        .appSecondaryStyle()
+                    switch holdingsEmptyState {
+                    case .noHoldings:
+                        Text("Ingen beholdning registrert ennå")
+                            .appCardTitleStyle()
+                        Text("Legg til en beholdningstype og registrer verdi for å se utviklingen over tid.")
+                            .appSecondaryStyle()
+                    case .hiddenHoldings:
+                        Text("Alle beholdningstyper er skjult")
+                            .appCardTitleStyle()
+                        Text("Vis en skjult beholdning igjen for å se verdier og historikk her.")
+                            .appSecondaryStyle()
+                    }
                 }
                 .padding(18)
                 .cardContainer()

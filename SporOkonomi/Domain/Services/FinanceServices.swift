@@ -45,8 +45,8 @@ enum DateService {
     }
 
     static func monthsRemaining(from startDate: Date, to targetDate: Date) -> Int {
-        let start = calendar.startOfDay(for: startDate)
-        let target = calendar.startOfDay(for: targetDate)
+        let start = monthBounds(for: startDate).start
+        let target = monthBounds(for: targetDate).start
         let diff = calendar.dateComponents([.month], from: start, to: target).month ?? 0
         return max(1, diff)
     }

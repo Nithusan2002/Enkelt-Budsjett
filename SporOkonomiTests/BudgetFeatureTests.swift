@@ -9,6 +9,38 @@ struct BudgetFeatureTests {
 
     @Test
     @MainActor
+    func budgetHeroAccessibilityFollowsVisibleActionState() {
+        let summary = BudgetSummaryData(
+            planned: 0,
+            trackedActual: 0,
+            expenseTotal: 0,
+            income: 0,
+            net: 0,
+            remaining: 0
+        )
+
+        #expect(
+            BudgetHeroAccessibility.value(
+                hasPlannedBudget: false,
+                isAmountsHidden: false,
+                remaining: 0,
+                hasTransactions: false,
+                summary: summary
+            ) == "Legg til første transaksjon"
+        )
+        #expect(
+            BudgetHeroAccessibility.value(
+                hasPlannedBudget: false,
+                isAmountsHidden: false,
+                remaining: 0,
+                hasTransactions: true,
+                summary: summary
+            ) == "Sett grenser"
+        )
+    }
+
+    @Test
+    @MainActor
     func budgetTrackedImpactCountsManualSaving() {
         let transaction = Transaction(
             date: .now,

@@ -110,16 +110,17 @@ final class OverviewViewModel: ObservableObject {
         activeGoal == nil
     }
 
-    func goalSummary(activeGoal: Goal?, currentWealth: Double) -> GoalSummary {
+    func goalSummary(activeGoal: Goal?, currentWealth: Double, now: Date = .now) -> GoalSummary {
         let targetAmount = activeGoal?.targetAmount ?? 0
         let targetDate = activeGoal?.targetDate ?? .now
         let createdAt = activeGoal?.createdAt ?? .now
         let progress = targetAmount > 0 ? min(1, currentWealth / targetAmount) : 0
-        let monthsRemaining = DateService.monthsRemaining(from: .now, to: targetDate)
+        let monthsRemaining = DateService.monthsRemaining(from: now, to: targetDate)
         let perMonth = GoalService.requiredMonthlySaving(
             nowWealth: currentWealth,
             targetAmount: targetAmount,
-            targetDate: targetDate
+            targetDate: targetDate,
+            now: now
         )
         return GoalSummary(
             targetAmount: targetAmount,

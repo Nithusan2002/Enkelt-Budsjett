@@ -6,6 +6,34 @@ struct OverviewFeatureTests {
 
     @Test
     @MainActor
+    func monthsRemainingUsesCalendarMonthBoundariesAtMonthEnd() {
+        let jan31 = Calendar.current.date(from: DateComponents(year: 2026, month: 1, day: 31)) ?? .now
+        let feb1 = Calendar.current.date(from: DateComponents(year: 2026, month: 2, day: 1)) ?? .now
+        let mar1 = Calendar.current.date(from: DateComponents(year: 2026, month: 3, day: 1)) ?? .now
+        let apr30 = Calendar.current.date(from: DateComponents(year: 2026, month: 4, day: 30)) ?? .now
+        let jun1 = Calendar.current.date(from: DateComponents(year: 2026, month: 6, day: 1)) ?? .now
+
+        #expect(DateService.monthsRemaining(from: jan31, to: feb1) == 1)
+        #expect(DateService.monthsRemaining(from: jan31, to: mar1) == 2)
+        #expect(DateService.monthsRemaining(from: apr30, to: jun1) == 2)
+    }
+
+    @Test
+    @MainActor
+    func overviewGoalSummaryUsesSameCalendarMonthRuleForMonthlyNeed() {
+        let viewModel = OverviewViewModel()
+        let now = Calendar.current.date(from: DateComponents(year: 2026, month: 1, day: 31)) ?? .now
+        let targetDate = Calendar.current.date(from: DateComponents(year: 2026, month: 3, day: 1)) ?? .now
+        let goal = Goal(targetAmount: 20_000, targetDate: targetDate, isActive: true)
+
+        let summary = viewModel.goalSummary(activeGoal: goal, currentWealth: 0, now: now)
+
+        #expect(summary.monthsRemaining == 2)
+        #expect(summary.perMonth == 10_000)
+    }
+
+    @Test
+    @MainActor
     func overviewDoesNotShowEmptyStateWhenActiveGoalExists() {
         let viewModel = OverviewViewModel()
         let goal = Goal(

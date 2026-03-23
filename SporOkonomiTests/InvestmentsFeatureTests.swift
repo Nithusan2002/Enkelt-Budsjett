@@ -7,6 +7,51 @@ struct InvestmentsFeatureTests {
 
     @Test
     @MainActor
+    func hiddenInvestmentBucketsUseHiddenStateCopyEvenWhenHistoryExists() {
+        let viewModel = InvestmentsViewModel()
+        let hiddenBucket = InvestmentBucket(
+            id: "bucket_hidden",
+            name: "Skjult",
+            isDefault: false,
+            isActive: false,
+            sortOrder: 1
+        )
+        let snapshot = InvestmentSnapshot(
+            periodKey: "2026-03",
+            capturedAt: Calendar.current.date(from: DateComponents(year: 2026, month: 3, day: 1)) ?? .now,
+            totalValue: 25_000,
+            bucketValues: [
+                InvestmentSnapshotValue(periodKey: "2026-03", bucketID: hiddenBucket.id, amount: 25_000)
+            ]
+        )
+
+        let state = viewModel.holdingsEmptyState(
+            allBuckets: [hiddenBucket],
+            activeBuckets: [],
+            snapshots: [snapshot],
+            bucketRows: []
+        )
+
+        #expect(state == .hiddenHoldings)
+    }
+
+    @Test
+    @MainActor
+    func investmentsUseRealEmptyStateOnlyWhenNoBucketsOrHistoryExist() {
+        let viewModel = InvestmentsViewModel()
+
+        let state = viewModel.holdingsEmptyState(
+            allBuckets: [],
+            activeBuckets: [],
+            snapshots: [],
+            bucketRows: []
+        )
+
+        #expect(state == .noHoldings)
+    }
+
+    @Test
+    @MainActor
     func investmentBucketsAreNotCreatedAutomaticallyWhenEmpty() throws {
         let container = try TestModelContainerFactory.makeInMemoryContainer()
         let context = container.mainContext

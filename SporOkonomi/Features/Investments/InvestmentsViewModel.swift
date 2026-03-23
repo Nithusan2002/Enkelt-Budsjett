@@ -36,6 +36,11 @@ struct InvestmentInsightData {
     let detail: String
 }
 
+enum InvestmentHoldingsEmptyState: Equatable {
+    case noHoldings
+    case hiddenHoldings
+}
+
 @MainActor
 final class InvestmentsViewModel: ObservableObject {
     @Published var showCheckIn = false
@@ -174,6 +179,19 @@ final class InvestmentsViewModel: ObservableObject {
                 lastUpdated: lastUpdated
             )
         }
+    }
+
+    func holdingsEmptyState(
+        allBuckets: [InvestmentBucket],
+        activeBuckets: [InvestmentBucket],
+        snapshots: [InvestmentSnapshot],
+        bucketRows: [InvestmentBucketRowData]
+    ) -> InvestmentHoldingsEmptyState? {
+        guard bucketRows.isEmpty else { return nil }
+        if activeBuckets.isEmpty && (!allBuckets.isEmpty || !snapshots.isEmpty) {
+            return .hiddenHoldings
+        }
+        return .noHoldings
     }
 
     func distributionData(

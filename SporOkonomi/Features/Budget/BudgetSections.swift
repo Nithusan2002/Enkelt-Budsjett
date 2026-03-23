@@ -2,6 +2,21 @@ import SwiftUI
 import SwiftData
 import UIKit
 
+enum BudgetHeroAccessibility {
+    static func value(
+        hasPlannedBudget: Bool,
+        isAmountsHidden: Bool,
+        remaining: Double,
+        hasTransactions: Bool,
+        summary: BudgetSummaryData
+    ) -> String {
+        if hasPlannedBudget {
+            return "\(isAmountsHidden ? "Beløp skjult" : formatNOK(remaining)). \(summary.statusLine(isAmountsHidden: isAmountsHidden))"
+        }
+        return hasTransactions ? "Sett grenser" : "Legg til første transaksjon"
+    }
+}
+
 struct BudgetBottomAddTransactionButton: View {
     let onTap: () -> Void
 
@@ -270,9 +285,13 @@ struct BudgetHeroCardView: View {
                 : "Ingen grenser satt"
         )
         .accessibilityValue(
-            hasPlannedBudget
-                ? "\(isAmountsHidden ? "Beløp skjult" : formatNOK(remaining)). \(summary.statusLine(isAmountsHidden: isAmountsHidden))"
-                : (hasTransactions ? "Sett grenser" : "Legg til første transaksjon")
+            BudgetHeroAccessibility.value(
+                hasPlannedBudget: hasPlannedBudget,
+                isAmountsHidden: isAmountsHidden,
+                remaining: remaining,
+                hasTransactions: hasTransactions,
+                summary: summary
+            )
         )
     }
 
